@@ -19,7 +19,8 @@
     "@opentelemetry/sdk-node": "^0.57.0",
     "@opentelemetry/semantic-conventions": "^1.28.0",
     "pino": "^9.6.0",
-    "pino-http": "^10.4.0"
+    "pino-http": "^10.4.0",
+    "@glexco/kernel": "workspace:*"
   },
   "devDependencies": {
     "@glexco/tsconfig": "workspace:*",

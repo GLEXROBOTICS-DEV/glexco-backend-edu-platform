@@ -117,10 +117,22 @@ El servicio del que dependen todos los demás.
       falta el token**, para que un despiste de despliegue no abra una puerta.
 - [x] Módulo y arranque con outbox, salud y apagado ordenado.
 
+- [x] `EventConsumer` en `@glexco/nest-platform`: deduplicación en la **misma
+      transacción** que el efecto, backoff creciente y aparte de mensajes veneno
+      tras agotar reintentos.
+- [x] `JoiningUnitOfWork`: permite que el mismo caso de uso sirva desde HTTP y
+      desde un evento. Sin ella, el caso de uso abriría una segunda transacción y
+      competiría por los mismos bloqueos que la del consumidor.
+- [x] Consumidor de identidad: matrícula automática al registrarse, y
+      mantenimiento del directorio de docentes.
+- [x] Tarea periódica de vencimiento de licencias, bajo cerrojo distribuido para
+      que N réplicas no emitan N avisos por licencia.
+- [x] `toLoggerPort`: adaptador real de pino al puerto de logging. Corrige un
+      fallo silencioso — las firmas están invertidas y el casteo hacía perder el
+      contexto de todas las líneas de log.
+
 **Pendiente:**
 
-- [ ] Consumidor de `identity.user.registered.v1` que dispare la matrícula.
-- [ ] Tarea periódica de vencimiento de licencias.
 - [ ] Alta de administrador de institución enlazada con identidad.
 
 ## ⬜ Fase 3 — Catálogo, kits y códigos de activación

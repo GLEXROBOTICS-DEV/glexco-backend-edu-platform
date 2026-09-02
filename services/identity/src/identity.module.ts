@@ -21,7 +21,7 @@ import {
   createRedisClient,
   createWritePool,
 } from '@glexco/nest-platform';
-import { createLogger, type Logger } from '@glexco/observability';
+import { createLogger, toLoggerPort, type Logger } from '@glexco/observability';
 
 import { loadIdentityConfig, type IdentityConfig } from './config';
 import { AuthController } from './interface/http/auth.controller';
@@ -57,6 +57,16 @@ import {
 
 export const CONFIG = Symbol('IDENTITY_CONFIG');
 export const LOGGER = Symbol('LOGGER');
+/**
+ * El mismo logger, adaptado al puerto que usan los casos de uso.
+ *
+ * Existe como token aparte porque las firmas de pino y de `LoggerPort` estan
+ * invertidas: pino recibe `(contexto, mensaje)` y el puerto `(mensaje,
+ * contexto)`. Inyectar el de pino donde se espera el puerto compila con un
+ * casteo y luego pierde en silencio los campos por los que hay que filtrar en
+ * produccion. Dos tokens distintos hacen que ese error no se pueda cometer.
+ */
+export const LOGGER_PORT = Symbol('LOGGER_PORT');
 export const CLOCK = Symbol('CLOCK');
 export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
 export const SESSION_STORE = Symbol('SESSION_STORE');
@@ -95,6 +105,12 @@ export const COOKIE_OPTIONS = Symbol('COOKIE_OPTIONS');
           pretty: config.NODE_ENV === 'development',
         }),
       inject: [CONFIG],
+    },
+
+    {
+      provide: LOGGER_PORT,
+      useFactory: (logger: Logger) => toLoggerPort(logger),
+      inject: [LOGGER],
     },
 
     // ---------------------------------------------------------------------
@@ -254,7 +270,7 @@ export const COOKIE_OPTIONS = Symbol('COOKIE_OPTIONS');
         RATE_LIMITER,
         AUDIT_LOG,
         CLOCK,
-        LOGGER,
+        LOGGER_PORT,
       ],
     },
     {
@@ -269,14 +285,14 @@ export const COOKIE_OPTIONS = Symbol('COOKIE_OPTIONS');
         RATE_LIMITER,
         AUDIT_LOG,
         CLOCK,
-        LOGGER,
+        LOGGER_PORT,
       ],
     },
     {
       provide: RefreshSessionUseCase,
       useFactory: (...args: ConstructorParameters<typeof RefreshSessionUseCase>) =>
         new RefreshSessionUseCase(...args),
-      inject: [USER_REPOSITORY, SESSION_STORE, TOKEN_ISSUER, AUDIT_LOG, CLOCK, LOGGER],
+      inject: [USER_REPOSITORY, SESSION_STORE, TOKEN_ISSUER, AUDIT_LOG, CLOCK, LOGGER_PORT],
     },
     {
       provide: LogoutUseCase,
@@ -294,7 +310,7 @@ export const COOKIE_OPTIONS = Symbol('COOKIE_OPTIONS');
       provide: RequestPasswordResetUseCase,
       useFactory: (...args: ConstructorParameters<typeof RequestPasswordResetUseCase>) =>
         new RequestPasswordResetUseCase(...args),
-      inject: [USER_REPOSITORY, ONE_TIME_TOKENS, RATE_LIMITER, AUDIT_LOG, LOGGER],
+      inject: [USER_REPOSITORY, ONE_TIME_TOKENS, RATE_LIMITER, AUDIT_LOG, LOGGER_PORT],
     },
     {
       provide: ConfirmPasswordResetUseCase,
@@ -331,7 +347,7 @@ export const COOKIE_OPTIONS = Symbol('COOKIE_OPTIONS');
       provide: CreateStaffUserUseCase,
       useFactory: (...args: ConstructorParameters<typeof CreateStaffUserUseCase>) =>
         new CreateStaffUserUseCase(...args),
-      inject: [USER_REPOSITORY, UNIT_OF_WORK, PASSWORD_HASHER, ONE_TIME_TOKENS, AUDIT_LOG, CLOCK, LOGGER],
+      inject: [USER_REPOSITORY, UNIT_OF_WORK, PASSWORD_HASHER, ONE_TIME_TOKENS, AUDIT_LOG, CLOCK, LOGGER_PORT],
     },
     {
       provide: ListSessionsUseCase,
@@ -402,7 +418,7 @@ export const COOKIE_OPTIONS = Symbol('COOKIE_OPTIONS');
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
-  exports: [CONFIG, LOGGER, DB_WRITE_POOL, DB_READ_POOL, REDIS_CLIENT, AUDIT_LOG],
+  exports: [CONFIG, LOGGER_PORT, DB_WRITE_POOL, DB_READ_POOL, REDIS_CLIENT, AUDIT_LOG],
 })
 export class IdentityModule implements NestModule, OnApplicationShutdown {
   constructor() {}

@@ -21,7 +21,7 @@ import {
   createRedisClient,
   createWritePool,
 } from '@glexco/nest-platform';
-import { createLogger, type Logger } from '@glexco/observability';
+import { createLogger, toLoggerPort, type Logger } from '@glexco/observability';
 
 import {
   ClassroomsController,
@@ -84,6 +84,16 @@ export const loadInstitutionsConfig = (): InstitutionsConfig => loadEnv(institut
 
 export const CONFIG = Symbol('INSTITUTIONS_CONFIG');
 export const LOGGER = Symbol('LOGGER');
+/**
+ * El mismo logger, adaptado al puerto que usan los casos de uso.
+ *
+ * Existe como token aparte porque las firmas de pino y de `LoggerPort` estan
+ * invertidas: pino recibe `(contexto, mensaje)` y el puerto `(mensaje,
+ * contexto)`. Inyectar el de pino donde se espera el puerto compila con un
+ * casteo y luego pierde en silencio los campos por los que hay que filtrar en
+ * produccion. Dos tokens distintos hacen que ese error no se pueda cometer.
+ */
+export const LOGGER_PORT = Symbol('LOGGER_PORT');
 export const CLOCK = Symbol('CLOCK');
 export const INSTITUTION_REPOSITORY = Symbol('INSTITUTION_REPOSITORY');
 export const CLASSROOM_REPOSITORY = Symbol('CLASSROOM_REPOSITORY');
@@ -112,6 +122,12 @@ export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
           pretty: config.NODE_ENV === 'development',
         }),
       inject: [CONFIG],
+    },
+
+    {
+      provide: LOGGER_PORT,
+      useFactory: (logger: Logger) => toLoggerPort(logger),
+      inject: [LOGGER],
     },
 
     {
@@ -182,13 +198,13 @@ export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
       provide: CreateInstitutionUseCase,
       useFactory: (...args: ConstructorParameters<typeof CreateInstitutionUseCase>) =>
         new CreateInstitutionUseCase(...args),
-      inject: [INSTITUTION_REPOSITORY, UNIT_OF_WORK, CLOCK, LOGGER],
+      inject: [INSTITUTION_REPOSITORY, UNIT_OF_WORK, CLOCK, LOGGER_PORT],
     },
     {
       provide: GrantLicenseUseCase,
       useFactory: (...args: ConstructorParameters<typeof GrantLicenseUseCase>) =>
         new GrantLicenseUseCase(...args),
-      inject: [INSTITUTION_REPOSITORY, UNIT_OF_WORK, CLOCK, LOGGER],
+      inject: [INSTITUTION_REPOSITORY, UNIT_OF_WORK, CLOCK, LOGGER_PORT],
     },
     {
       provide: LookupInstitutionUseCase,
@@ -206,7 +222,7 @@ export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
         TEACHER_DIRECTORY,
         UNIT_OF_WORK,
         CLOCK,
-        LOGGER,
+        LOGGER_PORT,
       ],
     },
     {
@@ -231,7 +247,7 @@ export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
       provide: EnrollStudentUseCase,
       useFactory: (...args: ConstructorParameters<typeof EnrollStudentUseCase>) =>
         new EnrollStudentUseCase(...args),
-      inject: [CLASSROOM_REPOSITORY, INSTITUTION_REPOSITORY, UNIT_OF_WORK, CLOCK, LOGGER],
+      inject: [CLASSROOM_REPOSITORY, INSTITUTION_REPOSITORY, UNIT_OF_WORK, CLOCK, LOGGER_PORT],
     },
     {
       provide: PrecheckClassroomUseCase,
@@ -289,7 +305,7 @@ export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
-  exports: [CONFIG, LOGGER, DB_WRITE_POOL, DB_READ_POOL, REDIS_CLIENT],
+  exports: [CONFIG, LOGGER_PORT, DB_WRITE_POOL, DB_READ_POOL, REDIS_CLIENT],
 })
 export class InstitutionsModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

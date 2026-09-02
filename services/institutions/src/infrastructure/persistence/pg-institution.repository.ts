@@ -403,6 +403,18 @@ export class PgTeacherDirectory implements TeacherDirectory {
     );
   }
 
+  async rename(userId: string, fullName: string): Promise<void> {
+    // UPDATE, no upsert: si el usuario no esta en el directorio no hay nada que
+    // hacer, y desde luego no hay que crearlo. Un alumno que cambia su nombre no
+    // debe aparecer en la tabla de docentes.
+    await this.writePool.query(
+      `UPDATE institutions.teacher_directory
+          SET full_name = $2, updated_at = now()
+        WHERE user_id = $1`,
+      [userId, fullName],
+    );
+  }
+
   async remove(userId: string): Promise<void> {
     await this.writePool.query(`DELETE FROM institutions.teacher_directory WHERE user_id = $1`, [
       userId,

@@ -122,6 +122,15 @@ export interface TeacherDirectory {
     fullName: string;
     email: string;
   }): Promise<void>;
+  /**
+   * Cambia SOLO el nombre.
+   *
+   * Existe porque `upsert` reescribe la fila entera: usarlo para reflejar un
+   * cambio de nombre borraria la institucion y el correo, que ese evento no
+   * trae. Es el fallo clasico de reutilizar un upsert para una actualizacion
+   * parcial.
+   */
+  rename(userId: string, fullName: string): Promise<void>;
   remove(userId: string): Promise<void>;
   findName(userId: string): Promise<string | null>;
   listByInstitution(institutionId: string): Promise<Array<{ userId: string; fullName: string }>>;

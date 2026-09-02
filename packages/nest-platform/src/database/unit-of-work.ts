@@ -64,7 +64,7 @@ export class PgUnitOfWork implements UnitOfWork {
         await client.query('BEGIN');
         const result = await work(tx);
 
-        if (pending.length > 0) await this.writeOutbox(client, pending);
+        if (pending.length > 0) await writeOutboxRows(client, this.schema, pending);
 
         await client.query('COMMIT');
         return result;
@@ -90,45 +90,95 @@ export class PgUnitOfWork implements UnitOfWork {
     throw translate(lastError);
   }
 
-  /**
-   * Inserta los eventos en la outbox del servicio.
-   *
-   * Se guarda el contexto de correlacion para que la traza sobreviva al salto
-   * asincrono: el consumidor al otro lado del bus podra enlazar sus logs con la
-   * peticion HTTP que origino todo.
-   */
-  private async writeOutbox(client: PoolClient, events: DomainEvent[]): Promise<void> {
-    const correlationId = getRequestContext()?.correlationId ?? null;
+}
 
-    const values: unknown[] = [];
-    const rows: string[] = [];
+/**
+ * Unidad de trabajo que se SUMA a una transaccion ya abierta en vez de abrir la
+ * suya.
+ *
+ * Existe por el consumidor de eventos. Alli la transaccion ya esta abierta,
+ * porque la marca de deduplicacion en `processed_events` debe confirmarse junto
+ * con el efecto del evento. Si el caso de uso abriese su propia transaccion
+ * -otra conexion, otro BEGIN- pasarian dos cosas malas: la marca y el efecto
+ * podrian confirmarse por separado (perdiendo la garantia de exactamente-una-vez),
+ * y las dos transacciones competirian por los mismos bloqueos de fila, con
+ * interbloqueo garantizado en cuanto ambas tocasen el mismo salon.
+ *
+ * Con esto, el MISMO caso de uso sirve para HTTP y para eventos sin cambiar una
+ * linea: solo se le inyecta una unidad de trabajo distinta.
+ *
+ * No hace BEGIN ni COMMIT: quien abrio la transaccion decide cuando confirmarla.
+ * Los eventos encolados se escriben en la outbox al terminar el trabajo, todavia
+ * dentro de esa transaccion.
+ */
+export class JoiningUnitOfWork implements UnitOfWork {
+  constructor(
+    private readonly client: PoolClient,
+    private readonly schema: string,
+  ) {}
 
-    events.forEach((event, index) => {
-      const base = index * 8;
-      rows.push(
-        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`,
-      );
-      values.push(
-        event.metadata.eventId,
-        event.metadata.eventName,
-        event.metadata.aggregateType,
-        event.metadata.aggregateId,
-        event.metadata.aggregateVersion,
-        JSON.stringify(event.payload),
-        JSON.stringify(event.metadata),
-        event.metadata.correlationId ?? correlationId,
-      );
-    });
+  async run<T>(work: (tx: TransactionContext) => Promise<T>): Promise<T> {
+    const pending: DomainEvent[] = [];
 
-    await client.query(
-      `INSERT INTO ${this.schema}.outbox
-         (event_id, event_name, aggregate_type, aggregate_id, aggregate_version,
-          payload, metadata, correlation_id)
-       VALUES ${rows.join(', ')}
-       ON CONFLICT (event_id) DO NOTHING`,
-      values,
-    );
+    const tx: PgTransaction = {
+      client: this.client,
+      enqueue: (...events: DomainEvent[]) => {
+        pending.push(...events);
+      },
+    } as PgTransaction;
+
+    const result = await work(tx);
+
+    if (pending.length > 0) {
+      await writeOutboxRows(this.client, this.schema, pending);
+    }
+
+    return result;
   }
+}
+
+/**
+ * Escritura de la outbox, compartida por las dos unidades de trabajo.
+ *
+ * Se guarda el contexto de correlacion para que la traza sobreviva al salto
+ * asincrono: el consumidor al otro lado del bus podra enlazar sus logs con la
+ * peticion HTTP que lo origino todo.
+ */
+async function writeOutboxRows(
+  client: PoolClient,
+  schema: string,
+  events: DomainEvent[],
+): Promise<void> {
+  const correlationId = getRequestContext()?.correlationId ?? null;
+
+  const values: unknown[] = [];
+  const rows: string[] = [];
+
+  events.forEach((event, index) => {
+    const base = index * 8;
+    rows.push(
+      `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`,
+    );
+    values.push(
+      event.metadata.eventId,
+      event.metadata.eventName,
+      event.metadata.aggregateType,
+      event.metadata.aggregateId,
+      event.metadata.aggregateVersion,
+      JSON.stringify(event.payload),
+      JSON.stringify(event.metadata),
+      event.metadata.correlationId ?? correlationId,
+    );
+  });
+
+  await client.query(
+    `INSERT INTO ${schema}.outbox
+       (event_id, event_name, aggregate_type, aggregate_id, aggregate_version,
+        payload, metadata, correlation_id)
+     VALUES ${rows.join(', ')}
+     ON CONFLICT (event_id) DO NOTHING`,
+    values,
+  );
 }
 
 function isRetryable(error: unknown): boolean {

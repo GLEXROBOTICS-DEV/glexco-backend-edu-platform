@@ -33,12 +33,32 @@ import {
   ensureStream,
 } from '@glexco/nest-platform';
 import type { NatsConnection } from 'nats';
-import { InstitutionsModule } from './institutions.module';
+import type { Logger } from '@glexco/observability';
+import type { Clock, LoggerPort } from '@glexco/kernel';
+import {
+  CLASSROOM_REPOSITORY,
+  CLOCK,
+  INSTITUTION_REPOSITORY,
+  InstitutionsModule,
+  LOGGER,
+  LOGGER_PORT,
+  TEACHER_DIRECTORY,
+  UNIT_OF_WORK,
+} from './institutions.module';
+import { buildIdentityConsumer } from './interface/events/identity.consumer';
+import { LicenseMaintenanceTask } from './application/license-maintenance.task';
+import type {
+  ClassroomRepository,
+  InstitutionRepository,
+  TeacherDirectory,
+} from './domain/repositories';
 /* eslint-enable import/first */
 
 async function main(): Promise<void> {
   let nats: NatsConnection | null = null;
   let outboxRelay: OutboxRelay | null = null;
+  let identityConsumer: Awaited<ReturnType<typeof buildIdentityConsumer>> | null = null;
+  let licenseTask: LicenseMaintenanceTask | null = null;
 
   const app = await bootstrapService({
     module: InstitutionsModule,
@@ -71,6 +91,23 @@ async function main(): Promise<void> {
           lock: new RedisDistributedLock(redis),
         });
         outboxRelay.start();
+
+        // Consumidor de los eventos de identidad: es lo que hace que un alumno
+        // que se registra aparezca matriculado en su salon sin que ninguno de
+        // los dos servicios llame al otro de forma sincrona.
+        identityConsumer = buildIdentityConsumer({
+          connection: nats,
+          pool: writePool,
+          streamName: config.NATS_STREAM,
+          serviceName: config.SERVICE_NAME,
+          classrooms: instance.get<ClassroomRepository>(CLASSROOM_REPOSITORY),
+          institutions: instance.get<InstitutionRepository>(INSTITUTION_REPOSITORY),
+          teachers: instance.get<TeacherDirectory>(TEACHER_DIRECTORY),
+          clock: instance.get<Clock>(CLOCK),
+          logger: instance.get<LoggerPort>(LOGGER_PORT),
+          natsLogger: instance.get<Logger>(LOGGER),
+        });
+        await identityConsumer.start();
       } catch (error) {
         process.stderr.write(
           `Aviso: no se pudo conectar con NATS al arrancar. Los eventos se acumularan ` +
@@ -78,12 +115,26 @@ async function main(): Promise<void> {
         );
       }
 
+      // Mantenimiento de licencias. El cerrojo distribuido garantiza que solo
+      // una replica la ejecute: sin el, N replicas emitirian N avisos de
+      // vencimiento por licencia, es decir, N correos al mismo cliente.
+      licenseTask = new LicenseMaintenanceTask(
+        instance.get<InstitutionRepository>(INSTITUTION_REPOSITORY),
+        instance.get(UNIT_OF_WORK),
+        new RedisDistributedLock(redis),
+        instance.get<Clock>(CLOCK),
+        instance.get<LoggerPort>(LOGGER_PORT),
+      );
+      licenseTask.start();
+
       instance.get(HealthController).markReady();
     },
 
     onShutdown: async () => {
       app.get(HealthController, { strict: false })?.markDraining();
 
+      licenseTask?.stop();
+      await identityConsumer?.stop().catch(() => undefined);
       await outboxRelay?.stop().catch(() => undefined);
       await nats?.drain().catch(() => undefined);
 

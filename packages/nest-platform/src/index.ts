@@ -21,6 +21,7 @@ export * from './database/unit-of-work';
 
 export * from './messaging/nats.client';
 export * from './messaging/outbox-relay';
+export * from './messaging/event-consumer';
 
 export * from './resilience/circuit-breaker';
 
