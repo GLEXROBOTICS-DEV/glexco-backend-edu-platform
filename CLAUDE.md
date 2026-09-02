@@ -44,8 +44,12 @@ defecto**, pero el registro independiente debe funcionar igual de bien.
 
 ## 2. Estado actual
 
-**Fase completada: 0 (cimientos).** Ver [docs/BITACORA.md](docs/BITACORA.md) para
-el detalle y el pendiente exacto.
+**Fase 0 completa. Fase 1 (identidad) al ~75%.** Ver
+[docs/BITACORA.md](docs/BITACORA.md) para el detalle y el pendiente exacto, y
+[docs/ROADMAP.md](docs/ROADMAP.md) para lo que falta de cada fase.
+
+Verificado: `pnpm build` compila los 6 paquetes/servicios y `pnpm test` pasa
+44 pruebas.
 
 ```
 Plataforma-Glexco/
@@ -56,13 +60,22 @@ Plataforma-Glexco/
 │   ├── observability/   Logging estructurado (pino) + trazas (OpenTelemetry)
 │   ├── nest-platform/   Adaptadores NestJS: Redis, Postgres, NATS, guards, bootstrap
 │   └── tsconfig/        Configuraciones de TypeScript compartidas
-├── services/            ⬜ vacíos (esqueleto de carpetas)
-│   ├── api-gateway/  identity/  institutions/  catalog/  learning/
-│   └── assessment/  engagement/  analytics/  media/
-├── apps/web/            ⬜ vacío (Next.js pendiente)
-├── infra/docker/        ✅ docker-compose + init SQL (schemas, roles, outbox)
+├── services/
+│   ├── identity/        🔄 dominio, 7 casos de uso, infraestructura, HTTP, SQL, 44 tests
+│   ├── api-gateway/     ⬜ vacío
+│   ├── institutions/    ⬜ vacío        catalog/      ⬜ vacío
+│   ├── learning/        ⬜ vacío        assessment/   ⬜ vacío
+│   └── engagement/      ⬜ vacío        analytics/    ⬜ vacío     media/ ⬜ vacío
+├── apps/web/            ⬜ vacío (Next.js, Fase 4 — canvas de diseño primero)
+├── infra/
+│   ├── docker/          ✅ docker-compose + init SQL (schemas, roles, outbox)
+│   └── scripts/         ✅ migrate.mjs (cerrojo de aviso, seguro con autoescalado)
 └── docs/                ✅ documentación
 ```
+
+**Bloqueo abierto:** Docker Desktop se está instalando. Hasta que esté, el
+servicio compila y pasa pruebas unitarias pero no puede ejecutarse ni hacer
+pruebas de integración.
 
 ---
 
@@ -86,9 +99,9 @@ pnpm --filter @glexco/kernel build     # compilar un paquete concreto
 - **Node ≥ 22** (probado en 24.18).
 - **pnpm 11** — instalado con `npm i -g pnpm` (corepack falla por permisos en
   esta máquina: escribe en `C:\Program Files\nodejs`).
-- **Docker Desktop** — ⚠️ **no está instalado todavía**. Sin él no hay Postgres,
-  Redis, NATS ni MinIO locales. Es el primer bloqueo a resolver antes de poder
-  ejecutar cualquier servicio.
+- **Docker Desktop** — en instalación al cierre de la sesión 2. Sin él no hay
+  Postgres, Redis, NATS ni MinIO locales, así que ningún servicio puede
+  ejecutarse. Usa el backend WSL2, que ya está disponible en la máquina.
 - Los scripts de instalación están restringidos a una lista blanca en
   `pnpm-workspace.yaml` (`onlyBuiltDependencies`), como medida contra ataques de
   cadena de suministro. Si una dependencia nueva necesita `postinstall`, añádela
