@@ -7,6 +7,111 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 3 — 2026-09-02 — Cierre de la Fase 1 y gateway
+
+### Qué se construyó
+
+**Casos de uso que faltaban en identidad:**
+- `ChangePasswordUseCase` — cambio de contraseña autenticado.
+- `CreateStaffUserUseCase` — alta de docentes, administradores de institución y
+  personal GLEXCO, con contraseña temporal de un solo uso.
+- `ListSessionsUseCase` / `RevokeSessionUseCase` — gestión de sesiones activas.
+- `AccountController` y `UsersController` para exponerlos.
+
+**Servicio `api-gateway`**, el único expuesto a internet:
+- Tabla de enrutado **explícita** (prefijo público → servicio interno).
+- Propagación y saneado del `x-correlation-id`.
+- Rate limiting en el borde, más estricto en las rutas de autenticación.
+- Un circuit breaker **por servicio**.
+- Sondas `live`/`ready` y apagado ordenado con drenaje.
+
+**Herramientas de desarrollo:**
+- `pnpm setup` (`infra/scripts/setup-env.mjs`) genera `.env` con secretos
+  criptográficos reales y nunca sobrescribe uno existente.
+- `pnpm smoke` (`infra/scripts/smoke-test.mjs`) ejecuta 22 comprobaciones de
+  punta a punta contra los servicios en ejecución.
+- Los scripts `dev` y `start` usan `node --env-file-if-exists`, que carga el
+  `.env` en local y no falla en Railway, donde las variables las inyecta la
+  plataforma y el archivo no existe.
+
+**21 pruebas nuevas** (total: **65**), centradas en lo que puede causar daño real:
+aislamiento entre instituciones, escalada de privilegios, y que nadie pueda
+cerrar la sesión de otro usuario.
+
+### Decisiones no obvias de esta sesión
+
+- **El cambio de contraseña exige la contraseña actual** aunque la sesión ya esté
+  autenticada. En un laboratorio escolar las sesiones se quedan abiertas
+  constantemente; sin esta comprobación, sentarse ante un equipo ajeno bastaría
+  para apropiarse de la cuenta. Con ella, el descuido es temporal en vez de
+  definitivo.
+
+- **`CreateStaffUserUseCase` IGNORA el `institutionId` del cuerpo** cuando el
+  actor tiene ámbito de institución, y usa el del token. Aceptarlo permitiría a
+  un administrador crear docentes en otro colegio cambiando un solo campo. Hay
+  tres controles y ninguno sustituye a los otros: permiso (guard), matriz de
+  roles (agregado) y ámbito (caso de uso). El tercero **solo** puede vivir en el
+  caso de uso, porque el guard no ve el cuerpo y el agregado no sabe a qué
+  institución pertenece quien envía la petición.
+
+- **Revocar una sesión comprueba que sea propia.** Sin esa comprobación, conocer
+  un id de sesión bastaría para expulsar a cualquiera de la plataforma. Además,
+  "no existe" y "es de otro" devuelven el mismo error, para no permitir sondear
+  qué ids son reales.
+
+- **El gateway usa `fetch` nativo en lugar de `http-proxy-middleware`.** No es
+  minimalismo: hacen falta tres cosas que esa librería resuelve de forma opaca —
+  qué cabeceras se propagan en cada sentido (para que un cliente no inyecte
+  cabeceras de confianza ni se filtren las internas), el timeout por petición, y
+  el circuit breaker por servicio.
+
+- **`x-forwarded-for` entrante se descarta.** El gateway la fija desde la
+  conexión real. Aceptar la del cliente permitiría falsificar la IP de origen y
+  esquivar toda la limitación por IP.
+
+- **La tabla de enrutado es explícita, no por convención.** Con enrutado por
+  convención, añadir un servicio interno nuevo lo expondría a internet sin que
+  nadie tomara la decisión.
+
+### Verificaciones ejecutadas
+
+Sin Docker todavía, pero sí contra los artefactos reales compilados:
+
+| Comprobación | Resultado |
+|---|---|
+| `pnpm build` | 7/7 paquetes y servicios compilan |
+| `pnpm test` | **65 pruebas en verde** (~60 ms) |
+| Carga de configuración con `.env` real | Válida; secretos de access y refresh distintos |
+| Argon2id nativo (`@node-rs/argon2`) | Hash 13 ms, verificación correcta, `needsRehash` detecta parámetros débiles |
+| Interoperabilidad con bcrypt | Argon2 verifica un hash bcrypt heredado y lo marca para rehash |
+| Emisión de JWT | Access 379 bytes, 15 min; refresh 12 h sin "recordarme" y 30 días con él |
+| Defensa: access como refresh | Rechazado (secretos distintos) |
+| Defensa: `alg: none` | Rechazado |
+| Defensa: audiencia incorrecta | Rechazada |
+| Marca `crit` | Ausente en alumnos (ahorra bytes), presente en administradores |
+
+### Estado del entorno
+
+- **Docker Desktop instalado, pero no arranca.** Diagnóstico ejecutado:
+  la virtualización **sí funciona** (`systeminfo` reporta "Seguridad basada en
+  virtualización: En ejecución" y "Se detectó un hipervisor"; el
+  `VirtualizationFirmwareEnabled: False` de `Win32_Processor` es un espejismo,
+  porque con un hipervisor activo Windows no ve los flags crudos de la CPU).
+  Lo que falta es **WSL**: `wsl --status` responde "El Subsistema de Windows para
+  Linux no está instalado".
+  **Solución:** `wsl --install` en PowerShell **como administrador** y reiniciar.
+- Aviso: el equipo tiene **App Control for Business en modo "Forzado"**. Si es un
+  portátil gestionado por TI, esa política puede bloquear la instalación de WSL.
+
+### Siguiente paso
+
+1. Con Docker en marcha: `pnpm infra:up`, `db:migrate`, arrancar identidad y
+   gateway, y ejecutar `pnpm smoke`.
+2. Fase 2 — instituciones, salones y licencias. O bien el canvas de Claude Design
+   antes, para validar la dirección visual y la iconografía.
+
+---
+
 ## Sesión 2 — 2026-09-02 — Fase 1: servicio de identidad
 
 ### Qué se construyó

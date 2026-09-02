@@ -35,7 +35,7 @@ Todo lo que el resto del proyecto da por hecho.
 
 ---
 
-## 🔄 Fase 1 — Identidad y acceso
+## ✅ Fase 1 — Identidad y acceso
 
 El servicio del que dependen todos los demás.
 
@@ -61,14 +61,23 @@ El servicio del que dependen todos los demás.
 - [x] Ejecutor de migraciones con cerrojo de aviso (seguro con autoescalado).
 - [x] 44 pruebas en memoria (dominio + casos de uso), sin Docker, en ~30 ms.
 
-**Pendiente para cerrar la fase:**
+- [x] Cambio de contraseña autenticado, exigiendo la contraseña actual.
+- [x] Alta de personal por HTTP con triple control: permiso, matriz de roles y
+      **ámbito de institución** (un admin del colegio A no puede crear docentes
+      en el colegio B).
+- [x] Gestión de sesiones activas ("cerrar sesión en otros dispositivos").
+- [x] `api-gateway`: tabla de enrutado explícita, correlación, rate limiting en
+      el borde, circuit breaker por servicio y apagado ordenado.
+- [x] `pnpm setup` genera `.env` con secretos criptográficos reales.
+- [x] `pnpm smoke` verifica 22 comprobaciones de punta a punta contra los
+      servicios en ejecución.
+- [x] **65 pruebas** en memoria, sin Docker, en ~60 ms.
 
-- [ ] Cambio de contraseña autenticado (`change-password`).
-- [ ] Alta de personal (docente, admin de institución, empleado GLEXCO) por HTTP:
-      el caso de uso del dominio existe (`User.createStaff`), falta el controlador.
-- [ ] Gestión de sesiones activas del usuario ("cerrar sesión en otros dispositivos").
-- [ ] `api-gateway`: enrutado, propagación de correlación, límites, CORS.
-- [ ] Pruebas de integración con Postgres y Redis reales (requiere Docker).
+**Pendiente para dar la fase por cerrada del todo:**
+
+- [ ] Ejecutar la prueba de humo con la infraestructura levantada (bloqueado por
+      Docker; WSL pendiente de instalar).
+- [ ] Pruebas de integración con Postgres y Redis reales.
 - [ ] Envío real de correos (depende del servicio `engagement`, Fase 7). Hoy se
       emite el token y el evento; falta quien los consuma.
 

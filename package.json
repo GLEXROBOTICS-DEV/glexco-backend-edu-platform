@@ -20,7 +20,10 @@
     "infra:reset": "docker compose -f infra/docker/docker-compose.yml down -v && pnpm infra:up",
     "db:generate": "turbo run db:generate",
     "db:migrate": "turbo run db:migrate",
-    "db:seed": "turbo run db:seed"
+    "db:seed": "turbo run db:seed",
+    "smoke": "node --env-file-if-exists=.env infra/scripts/smoke-test.mjs",
+    "smoke:direct": "node --env-file-if-exists=.env infra/scripts/smoke-test.mjs --direct",
+    "setup": "node infra/scripts/setup-env.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

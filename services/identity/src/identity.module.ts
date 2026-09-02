@@ -25,6 +25,7 @@ import { createLogger, type Logger } from '@glexco/observability';
 
 import { loadIdentityConfig, type IdentityConfig } from './config';
 import { AuthController } from './interface/http/auth.controller';
+import { AccountController, UsersController } from './interface/http/account.controller';
 import { RegisterStudentUseCase } from './application/register-student.usecase';
 import { LoginUseCase } from './application/login.usecase';
 import { RefreshSessionUseCase } from './application/refresh-session.usecase';
@@ -34,6 +35,12 @@ import {
   ConfirmPasswordResetUseCase,
   RequestPasswordResetUseCase,
 } from './application/password-reset.usecase';
+import { ChangePasswordUseCase } from './application/change-password.usecase';
+import { CreateStaffUserUseCase } from './application/create-staff-user.usecase';
+import {
+  ListSessionsUseCase,
+  RevokeSessionUseCase,
+} from './application/manage-sessions.usecase';
 import { PgUserRepository } from './infrastructure/persistence/pg-user.repository';
 import { RedisSessionStore } from './infrastructure/persistence/redis-session.store';
 import { PgOneTimeTokenStore } from './infrastructure/persistence/pg-one-time-token.store';
@@ -73,7 +80,7 @@ export const COOKIE_OPTIONS = Symbol('COOKIE_OPTIONS');
  * implementacion en memoria sin tocar Nest ni levantar Docker.
  */
 @Module({
-  controllers: [AuthController, HealthController],
+  controllers: [AuthController, AccountController, UsersController, HealthController],
   providers: [
     Reflector,
 
@@ -305,6 +312,40 @@ export const COOKIE_OPTIONS = Symbol('COOKIE_OPTIONS');
       ],
     },
 
+    {
+      provide: ChangePasswordUseCase,
+      useFactory: (...args: ConstructorParameters<typeof ChangePasswordUseCase>) =>
+        new ChangePasswordUseCase(...args),
+      inject: [
+        USER_REPOSITORY,
+        SESSION_STORE,
+        ONE_TIME_TOKENS,
+        UNIT_OF_WORK,
+        PASSWORD_HASHER,
+        PASSWORD_POLICY,
+        AUDIT_LOG,
+        CLOCK,
+      ],
+    },
+    {
+      provide: CreateStaffUserUseCase,
+      useFactory: (...args: ConstructorParameters<typeof CreateStaffUserUseCase>) =>
+        new CreateStaffUserUseCase(...args),
+      inject: [USER_REPOSITORY, UNIT_OF_WORK, PASSWORD_HASHER, ONE_TIME_TOKENS, AUDIT_LOG, CLOCK, LOGGER],
+    },
+    {
+      provide: ListSessionsUseCase,
+      useFactory: (...args: ConstructorParameters<typeof ListSessionsUseCase>) =>
+        new ListSessionsUseCase(...args),
+      inject: [SESSION_STORE],
+    },
+    {
+      provide: RevokeSessionUseCase,
+      useFactory: (...args: ConstructorParameters<typeof RevokeSessionUseCase>) =>
+        new RevokeSessionUseCase(...args),
+      inject: [SESSION_STORE, AUDIT_LOG],
+    },
+
     // ---------------------------------------------------------------------
     // Interfaz HTTP
     // ---------------------------------------------------------------------
@@ -316,6 +357,18 @@ export const COOKIE_OPTIONS = Symbol('COOKIE_OPTIONS');
         sameSite: config.COOKIE_SAMESITE,
       }),
       inject: [CONFIG],
+    },
+    {
+      provide: AccountController,
+      useFactory: (...args: ConstructorParameters<typeof AccountController>) =>
+        new AccountController(...args),
+      inject: [ChangePasswordUseCase, ListSessionsUseCase, RevokeSessionUseCase],
+    },
+    {
+      provide: UsersController,
+      useFactory: (...args: ConstructorParameters<typeof UsersController>) =>
+        new UsersController(...args),
+      inject: [CreateStaffUserUseCase],
     },
     {
       provide: AuthController,

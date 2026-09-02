@@ -12,7 +12,7 @@ import {
   GRADES,
   LOCALES,
 } from '../domain/vocabulary';
-import { ALL_ROLES, PORTALS } from '../authorization/roles';
+import { ALL_ROLES, PORTALS, ROLES } from '../authorization/roles';
 
 /**
  * Codigo impreso en el libro.
@@ -151,6 +151,44 @@ export const changePasswordSchema = z.object({
 export const verifyEmailSchema = z.object({
   token: z.string().min(20).max(512),
 });
+
+/**
+ * Alta de personal (docente, administrador de institucion, empleado GLEXCO).
+ *
+ * `institutionId` es opcional en el esquema y NO se confia en el: para un actor
+ * con ambito de institucion, el servidor ignora este campo y usa el del token.
+ * Aceptarlo tal cual permitiria a un administrador crear docentes en otro
+ * colegio con solo cambiar un valor del cuerpo.
+ */
+export const createStaffUserSchema = z.object({
+  email: emailSchema,
+  firstName: personNameSchema,
+  lastName: personNameSchema,
+  role: z.enum([
+    ROLES.TEACHER,
+    ROLES.INSTITUTION_ADMIN,
+    ROLES.CONTENT_MANAGER,
+    ROLES.SUPPORT_AGENT,
+    ROLES.COMMERCIAL_AGENT,
+    ROLES.PLATFORM_ADMIN,
+  ]),
+  institutionId: uuidSchema.optional(),
+  locale: localeSchema.default('es'),
+});
+export type CreateStaffUserInput = z.infer<typeof createStaffUserSchema>;
+
+/** Cierre de una sesion concreta del propio usuario. */
+export const revokeSessionSchema = z.object({
+  sessionId: uuidSchema.optional(),
+});
+
+/** Cambio de contrasena estando autenticado. */
+export const changePasswordRequestSchema = z.object({
+  currentPassword: z.string().min(1, 'errors.validation.password_required'),
+  newPassword: passwordSchema,
+  keepCurrentSession: z.boolean().default(true),
+});
+export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
 
 /** Perfil devuelto tras autenticarse. No incluye el hash ni datos sensibles. */
 export const authenticatedUserSchema = z.object({

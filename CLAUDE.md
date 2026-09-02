@@ -44,12 +44,12 @@ defecto**, pero el registro independiente debe funcionar igual de bien.
 
 ## 2. Estado actual
 
-**Fase 0 completa. Fase 1 (identidad) al ~75%.** Ver
+**Fases 0 y 1 completas** (salvo pruebas de integración, bloqueadas por Docker). Ver
 [docs/BITACORA.md](docs/BITACORA.md) para el detalle y el pendiente exacto, y
 [docs/ROADMAP.md](docs/ROADMAP.md) para lo que falta de cada fase.
 
-Verificado: `pnpm build` compila los 6 paquetes/servicios y `pnpm test` pasa
-44 pruebas.
+Verificado: `pnpm build` compila los 7 paquetes/servicios y `pnpm test` pasa
+**65 pruebas**.
 
 ```
 Plataforma-Glexco/
@@ -61,8 +61,8 @@ Plataforma-Glexco/
 │   ├── nest-platform/   Adaptadores NestJS: Redis, Postgres, NATS, guards, bootstrap
 │   └── tsconfig/        Configuraciones de TypeScript compartidas
 ├── services/
-│   ├── identity/        🔄 dominio, 7 casos de uso, infraestructura, HTTP, SQL, 44 tests
-│   ├── api-gateway/     ⬜ vacío
+│   ├── identity/        ✅ dominio, 11 casos de uso, infraestructura, HTTP, SQL, 65 tests
+│   ├── api-gateway/     ✅ enrutado, rate limiting, circuit breakers, apagado ordenado
 │   ├── institutions/    ⬜ vacío        catalog/      ⬜ vacío
 │   ├── learning/        ⬜ vacío        assessment/   ⬜ vacío
 │   └── engagement/      ⬜ vacío        analytics/    ⬜ vacío     media/ ⬜ vacío
@@ -85,6 +85,7 @@ pruebas de integración.
 
 ```bash
 pnpm install              # instalar (pnpm 11, NO npm ni yarn)
+pnpm setup                # generar .env con secretos reales (no sobrescribe uno existente)
 pnpm infra:up             # levantar Postgres, Redis, NATS, MinIO, Mailpit, Jaeger
 pnpm infra:down           # bajar la infraestructura
 pnpm infra:reset          # bajar BORRANDO volúmenes y volver a levantar
@@ -92,6 +93,12 @@ pnpm build                # compilar todo (Turborepo respeta el grafo de depende
 pnpm typecheck            # comprobación de tipos sin emitir
 pnpm test                 # pruebas
 pnpm --filter @glexco/kernel build     # compilar un paquete concreto
+
+# Con la infraestructura levantada:
+pnpm --filter @glexco/identity db:migrate  # aplicar migraciones
+pnpm --filter @glexco/identity dev         # arrancar identidad (3101)
+pnpm --filter @glexco/api-gateway dev      # arrancar gateway (3000)
+pnpm smoke                                 # prueba de humo de punta a punta
 ```
 
 ### Requisitos de entorno
