@@ -46,3 +46,14 @@ function toFieldErrors(error: ZodError): Record<string, string[]> {
 /** Azucar para usarlo en un parametro: `@Body(zodBody(loginSchema)) input: LoginInput` */
 export const zodBody = <T extends ZodTypeAny>(schema: T): ZodValidationPipe<T> =>
   new ZodValidationPipe(schema);
+
+/**
+ * Lo mismo para la cadena de consulta.
+ *
+ * Se distingue de `zodBody` por claridad en el punto de uso, no por comportamiento:
+ * el pipe es el mismo. La diferencia real la pone el esquema, que en una query
+ * debe usar `z.coerce` porque TODO llega como texto, incluidos los numeros y los
+ * booleanos.
+ */
+export const zodQuery = <T extends ZodTypeAny>(schema: T): ZodValidationPipe<T> =>
+  new ZodValidationPipe(schema);

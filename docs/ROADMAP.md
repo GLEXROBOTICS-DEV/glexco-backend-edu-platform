@@ -104,10 +104,22 @@ El servicio del que dependen todos los demás.
       parciales y clave compuesta de matrícula.
 - [x] 25 pruebas del dominio.
 
+- [x] Repositorios PostgreSQL, con `findByIdForUpdate` que toma el bloqueo de
+      fila dentro de la transacción. El repositorio de salones **solo recibe el
+      pool de lectura**: toda escritura pasa por el cliente de la transacción, de
+      modo que saltarse el bloqueo por descuido es imposible.
+- [x] Proyección `teacher_directory`, alimentada por eventos, para no hacer N
+      llamadas a identidad al pintar un listado de salones.
+- [x] Controladores HTTP: instituciones, licencias, salones, matrículas, búsqueda
+      pública por código y salones elegibles para el registro.
+- [x] `InternalOnlyGuard` en `@glexco/nest-platform`: protege la API interna entre
+      microservicios con comparación en tiempo constante, y **deniega todo si
+      falta el token**, para que un despiste de despliegue no abra una puerta.
+- [x] Módulo y arranque con outbox, salud y apagado ordenado.
+
 **Pendiente:**
 
-- [ ] Repositorios PostgreSQL (los puertos y el SQL ya están definidos).
-- [ ] Controladores HTTP y consumidor de `identity.user.registered.v1`.
+- [ ] Consumidor de `identity.user.registered.v1` que dispare la matrícula.
 - [ ] Tarea periódica de vencimiento de licencias.
 - [ ] Alta de administrador de institución enlazada con identidad.
 

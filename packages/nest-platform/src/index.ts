@@ -9,6 +9,7 @@ export * from './http/zod-validation.pipe';
 
 export * from './auth/jwt.types';
 export * from './auth/guards';
+export * from './auth/internal.guard';
 
 export * from './redis/redis.provider';
 export * from './redis/redis-cache.store';
