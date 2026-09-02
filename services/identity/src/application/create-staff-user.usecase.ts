@@ -1,7 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import {
+  BusinessRuleError,
   ConflictError,
   ForbiddenError,
+  NotFoundError,
   UnauthorizedError,
   type Clock,
   type ExecutionContext,
@@ -20,7 +22,7 @@ import {
   UserId,
 } from '../domain/user/value-objects';
 import type { UserRepository } from '../domain/user/user.repository';
-import type { AuditLog, OneTimeTokenStore } from './ports';
+import type { AuditLog, InstitutionGateway, OneTimeTokenStore } from './ports';
 
 export interface CreateStaffUserInput {
   email: string;
@@ -72,6 +74,7 @@ export class CreateStaffUserUseCase
     private readonly unitOfWork: UnitOfWork,
     private readonly hasher: PasswordHasher,
     private readonly oneTimeTokens: OneTimeTokenStore,
+    private readonly institutions: InstitutionGateway,
     private readonly audit: AuditLog,
     private readonly clock: Clock,
     private readonly logger: LoggerPort,
@@ -96,6 +99,14 @@ export class CreateStaffUserUseCase
       throw new ConflictError('EMAIL_ALREADY_REGISTERED', 'Ya existe una cuenta con este correo.', {
         field: 'email',
       });
+    }
+
+    // La institucion debe existir y admitir altas. Sin esta comprobacion, un
+    // identificador mal tecleado crearia una cuenta con permisos sobre una
+    // institucion inexistente: el alta no fallaria, y el problema aparecería
+    // despues, de forma confusa, cuando esa persona intentara trabajar.
+    if (institutionId) {
+      await this.assertInstitutionAcceptsMembers(institutionId);
     }
 
     // Contrasena temporal legible pero con entropia suficiente: 32 caracteres
@@ -158,6 +169,24 @@ export class CreateStaffUserUseCase
       role: input.role,
       temporaryPassword,
     };
+  }
+
+  private async assertInstitutionAcceptsMembers(institutionId: string): Promise<void> {
+    const summary = await this.institutions.summary(institutionId);
+
+    if (!summary.exists) {
+      throw new NotFoundError('INSTITUTION_NOT_FOUND', 'La institucion indicada no existe.', {
+        field: 'institutionId',
+      });
+    }
+
+    if (!summary.acceptsNewMembers) {
+      throw new BusinessRuleError(
+        'INSTITUTION_NOT_ACCEPTING_MEMBERS',
+        'La institucion no admite nuevas altas en este momento.',
+        { field: 'institutionId', status: summary.status },
+      );
+    }
   }
 
   /**

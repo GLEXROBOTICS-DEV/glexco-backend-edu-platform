@@ -7,6 +7,8 @@ import type {
   ActivationCodePrecheck,
   ClassroomGateway,
   ClassroomPrecheck,
+  InstitutionGateway,
+  InstitutionSummaryCheck,
 } from '../../application/ports';
 
 /**
@@ -122,6 +124,51 @@ export class HttpClassroomGateway implements ClassroomGateway {
   }
 }
 
+export class HttpInstitutionGateway implements InstitutionGateway {
+  private readonly breaker: CircuitBreaker;
+
+  constructor(
+    private readonly baseUrl: string,
+    private readonly internalToken: string,
+    logger?: Logger,
+  ) {
+    this.breaker = new CircuitBreaker({
+      ...defaultBreakerOptions('institutions', logger),
+      timeoutMs: 2_000,
+    });
+  }
+
+  async summary(institutionId: string): Promise<InstitutionSummaryCheck> {
+    return this.breaker.execute(async () => {
+      const response = await fetch(
+        `${this.baseUrl}/internal/v1/institutions/${encodeURIComponent(institutionId)}/summary`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.internalToken}`,
+            'x-correlation-id': getRequestContext()?.correlationId ?? '',
+            Accept: 'application/json',
+          },
+        },
+      );
+
+      // 404 es una respuesta valida del negocio, no un fallo de la dependencia:
+      // tratarla como error abriria el circuito cada vez que alguien teclea mal
+      // un identificador.
+      if (response.status === 404) return { exists: false, acceptsNewMembers: false };
+
+      if (!response.ok) {
+        throw new ServiceUnavailableError(
+          'INSTITUTIONS_UNAVAILABLE',
+          'El servicio de instituciones no respondio correctamente.',
+          { status: response.status },
+        );
+      }
+
+      return (await response.json()) as InstitutionSummaryCheck;
+    });
+  }
+}
+
 /**
  * Implementaciones en memoria para desarrollo local.
  *
@@ -172,6 +219,18 @@ export class InMemoryClassroomGateway implements ClassroomGateway {
       enrolled: 7,
       classroomName: '3.º A (salon de prueba)',
       teacherName: 'Docente de prueba',
+    };
+  }
+}
+
+export class InMemoryInstitutionGateway implements InstitutionGateway {
+  async summary(_institutionId: string): Promise<InstitutionSummaryCheck> {
+    return {
+      exists: true,
+      acceptsNewMembers: true,
+      name: 'Institucion de prueba',
+      shortName: 'Prueba',
+      status: 'active',
     };
   }
 }

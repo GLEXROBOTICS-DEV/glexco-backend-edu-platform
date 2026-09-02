@@ -51,8 +51,10 @@ import { DefaultPasswordPolicy } from './infrastructure/security/password-policy
 import {
   HttpActivationCodeGateway,
   HttpClassroomGateway,
+  HttpInstitutionGateway,
   InMemoryActivationCodeGateway,
   InMemoryClassroomGateway,
+  InMemoryInstitutionGateway,
 } from './infrastructure/gateways/service-gateways';
 
 export const CONFIG = Symbol('IDENTITY_CONFIG');
@@ -77,6 +79,7 @@ export const PASSWORD_POLICY = Symbol('PASSWORD_POLICY');
 export const TOKEN_ISSUER = Symbol('TOKEN_ISSUER');
 export const ACTIVATION_CODE_GATEWAY = Symbol('ACTIVATION_CODE_GATEWAY');
 export const CLASSROOM_GATEWAY = Symbol('CLASSROOM_GATEWAY');
+export const INSTITUTION_GATEWAY = Symbol('INSTITUTION_GATEWAY');
 export const RATE_LIMITER = Symbol('RATE_LIMITER');
 export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
 export const COOKIE_OPTIONS = Symbol('COOKIE_OPTIONS');
@@ -251,6 +254,18 @@ export const COOKIE_OPTIONS = Symbol('COOKIE_OPTIONS');
           : new InMemoryClassroomGateway(),
       inject: [CONFIG, LOGGER],
     },
+    {
+      provide: INSTITUTION_GATEWAY,
+      useFactory: (config: IdentityConfig, logger: Logger) =>
+        config.INSTITUTIONS_URL && config.INTERNAL_SERVICE_TOKEN
+          ? new HttpInstitutionGateway(
+              config.INSTITUTIONS_URL,
+              config.INTERNAL_SERVICE_TOKEN,
+              logger,
+            )
+          : new InMemoryInstitutionGateway(),
+      inject: [CONFIG, LOGGER],
+    },
 
     // ---------------------------------------------------------------------
     // Casos de uso
@@ -347,7 +362,16 @@ export const COOKIE_OPTIONS = Symbol('COOKIE_OPTIONS');
       provide: CreateStaffUserUseCase,
       useFactory: (...args: ConstructorParameters<typeof CreateStaffUserUseCase>) =>
         new CreateStaffUserUseCase(...args),
-      inject: [USER_REPOSITORY, UNIT_OF_WORK, PASSWORD_HASHER, ONE_TIME_TOKENS, AUDIT_LOG, CLOCK, LOGGER_PORT],
+      inject: [
+        USER_REPOSITORY,
+        UNIT_OF_WORK,
+        PASSWORD_HASHER,
+        ONE_TIME_TOKENS,
+        INSTITUTION_GATEWAY,
+        AUDIT_LOG,
+        CLOCK,
+        LOGGER_PORT,
+      ],
     },
     {
       provide: ListSessionsUseCase,

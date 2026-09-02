@@ -52,6 +52,8 @@ import {
   EnrollStudentUseCase,
   PrecheckClassroomUseCase,
 } from '../../application/enroll-student.usecase';
+import type { InstitutionRepository as InstitutionRepositoryPort } from '../../domain/repositories';
+import { InstitutionId } from '../../domain/institution/value-objects';
 
 /**
  * Construye el contexto de ejecucion desde la peticion HTTP.
@@ -244,5 +246,44 @@ export class InternalClassroomsController {
     @Query('classroomId') classroomId: string,
   ) {
     return this.precheck.execute({ institutionId, classroomId });
+  }
+}
+
+
+/**
+ * Comprobacion de existencia de institucion para el servicio de identidad.
+ *
+ * La consulta identidad antes de crear un administrador de institucion o un
+ * docente. Sin ella, un identificador mal tecleado crearia una cuenta con
+ * permisos sobre una institucion que no existe: no fallaria en el alta, fallaria
+ * despues, de forma confusa, cuando esa persona intentara trabajar.
+ *
+ * Devuelve el minimo necesario para decidir y para mostrar un mensaje util.
+ */
+@Controller({ path: 'internal/v1/institutions' })
+@UseGuards(InternalOnlyGuard)
+export class InternalInstitutionsController {
+  constructor(private readonly institutions: InstitutionRepositoryPort) {}
+
+  @Get(':institutionId/summary')
+  @Public()
+  async summary(@Param('institutionId') institutionId: string) {
+    const institution = await this.institutions.findById(InstitutionId.create(institutionId));
+
+    if (!institution) {
+      return { exists: false, acceptsNewMembers: false };
+    }
+
+    return {
+      exists: true,
+      // Una institucion suspendida existe pero no admite altas nuevas. Los
+      // usuarios que ya tiene conservan su acceso: suspender es una medida
+      // administrativa contra la institucion, no un castigo a sus alumnos.
+      acceptsNewMembers: institution.status === 'active',
+      name: institution.name.value,
+      shortName: institution.name.short,
+      status: institution.status,
+      educationLevels: [...institution.educationLevels.levels],
+    };
   }
 }

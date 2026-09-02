@@ -81,7 +81,7 @@ El servicio del que dependen todos los demás.
 - [ ] Envío real de correos (depende del servicio `engagement`, Fase 7). Hoy se
       emite el token y el evento; falta quien los consuma.
 
-## 🔄 Fase 2 — Instituciones, salones y licencias
+## ✅ Fase 2 — Instituciones, salones y licencias
 
 **Hecho:**
 
@@ -131,9 +131,12 @@ El servicio del que dependen todos los demás.
       fallo silencioso — las firmas están invertidas y el casteo hacía perder el
       contexto de todas las líneas de log.
 
-**Pendiente:**
-
-- [ ] Alta de administrador de institución enlazada con identidad.
+- [x] Alta de administrador de institución enlazada con identidad: `identity`
+      consulta el endpoint interno de `institutions` antes de crear la cuenta.
+      Sin eso, un identificador mal tecleado creaba un administrador con permisos
+      sobre una institución inexistente, y el fallo aparecía después de forma
+      confusa. Una institución suspendida se rechaza para altas nuevas, pero sus
+      usuarios actuales conservan el acceso.
 
 ## ⬜ Fase 3 — Catálogo, kits y códigos de activación
 

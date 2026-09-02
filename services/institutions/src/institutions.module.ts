@@ -27,6 +27,7 @@ import {
   ClassroomsController,
   InstitutionsController,
   InternalClassroomsController,
+  InternalInstitutionsController,
 } from './interface/http/controllers';
 import {
   CreateInstitutionUseCase,
@@ -105,6 +106,7 @@ export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
     InstitutionsController,
     ClassroomsController,
     InternalClassroomsController,
+    InternalInstitutionsController,
     HealthController,
   ],
   providers: [
@@ -282,6 +284,12 @@ export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
       useFactory: (...args: ConstructorParameters<typeof InternalClassroomsController>) =>
         new InternalClassroomsController(...args),
       inject: [PrecheckClassroomUseCase],
+    },
+    {
+      provide: InternalInstitutionsController,
+      useFactory: (...args: ConstructorParameters<typeof InternalInstitutionsController>) =>
+        new InternalInstitutionsController(...args),
+      inject: [INSTITUTION_REPOSITORY],
     },
 
     {

@@ -31,6 +31,22 @@ import {
 const INSTITUTION_A = '11111111-1111-4111-8111-111111111111';
 const INSTITUTION_B = '22222222-2222-4222-8222-222222222222';
 
+/**
+ * Puerta a instituciones, en memoria.
+ *
+ * Por defecto acepta cualquier institucion, para no obligar a cada prueba a
+ * declararla. Las pruebas que comprueban el rechazo la configuran de forma
+ * explicita.
+ */
+class FakeInstitutionGateway {
+  known = new Map<string, { exists: boolean; acceptsNewMembers: boolean; status?: string }>();
+  defaultAnswer = { exists: true, acceptsNewMembers: true };
+
+  async summary(institutionId: string) {
+    return this.known.get(institutionId) ?? this.defaultAnswer;
+  }
+}
+
 /** Almacen de tokens de un solo uso, en memoria. */
 class FakeOneTimeTokenStore {
   readonly issued: Array<{ purpose: string; userId: string; token: string }> = [];
@@ -217,6 +233,7 @@ describe('CreateStaffUserUseCase — aislamiento entre instituciones', () => {
   let hasher: FakePasswordHasher;
   let tokens: FakeOneTimeTokenStore;
   let audit: FakeAuditLog;
+  let institutions: FakeInstitutionGateway;
   let createStaff: CreateStaffUserUseCase;
 
   const NEW_TEACHER = {
@@ -232,11 +249,14 @@ describe('CreateStaffUserUseCase — aislamiento entre instituciones', () => {
     tokens = new FakeOneTimeTokenStore();
     audit = new FakeAuditLog();
 
+    institutions = new FakeInstitutionGateway();
+
     createStaff = new CreateStaffUserUseCase(
       users,
       new FakeUnitOfWork(),
       hasher,
       tokens as never,
+      institutions,
       audit,
       new FakeClock(),
       silentLogger,
@@ -336,6 +356,65 @@ describe('CreateStaffUserUseCase — aislamiento entre instituciones', () => {
         contextFor({ userId: 'huerfano', roles: [ROLES.INSTITUTION_ADMIN] }),
       ),
     ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('RECHAZA una institucion que no existe', async () => {
+    // Sin esta comprobacion, un identificador mal tecleado crearia un
+    // administrador con permisos sobre una institucion inexistente: el alta no
+    // fallaria y el problema aparecería despues, de forma confusa.
+    institutions.known.set(INSTITUTION_B, { exists: false, acceptsNewMembers: false });
+
+    await expect(
+      createStaff.execute(
+        {
+          email: 'director@colegio.pe',
+          firstName: 'Sofia',
+          lastName: 'Rojas',
+          role: ROLES.INSTITUTION_ADMIN,
+          institutionId: INSTITUTION_B,
+        },
+        contextFor({ userId: 'glexco-1', roles: [ROLES.PLATFORM_ADMIN] }),
+      ),
+    ).rejects.toMatchObject({ code: 'INSTITUTION_NOT_FOUND' });
+  });
+
+  it('RECHAZA una institucion suspendida', async () => {
+    // Existe, pero no admite altas nuevas. Los usuarios que ya tiene conservan su
+    // acceso: suspender es una medida contra la institucion, no contra sus alumnos.
+    institutions.known.set(INSTITUTION_A, {
+      exists: true,
+      acceptsNewMembers: false,
+      status: 'suspended',
+    });
+
+    await expect(
+      createStaff.execute(
+        NEW_TEACHER,
+        contextFor({
+          userId: 'admin-a',
+          roles: [ROLES.INSTITUTION_ADMIN],
+          institutionId: INSTITUTION_A,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'INSTITUTION_NOT_ACCEPTING_MEMBERS' });
+  });
+
+  it('no consulta al servicio de instituciones para el personal GLEXCO', async () => {
+    // Un empleado de GLEXCO no pertenece a ninguna institucion, asi que no hay
+    // nada que comprobar y no debe gastarse una llamada de red.
+    institutions.known.set('', { exists: false, acceptsNewMembers: false });
+
+    const result = await createStaff.execute(
+      {
+        email: 'soporte@glexco.pe',
+        firstName: 'Luis',
+        lastName: 'Mendoza',
+        role: ROLES.SUPPORT_AGENT,
+      },
+      contextFor({ userId: 'owner', roles: [ROLES.PLATFORM_OWNER] }),
+    );
+
+    expect(result.role).toBe(ROLES.SUPPORT_AGENT);
   });
 
   it('rechaza un correo ya registrado', async () => {

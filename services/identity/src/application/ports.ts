@@ -121,6 +121,27 @@ export interface ClassroomPrecheck {
   classroomName?: string;
 }
 
+/**
+ * Comprobacion de la institucion contra el servicio de instituciones.
+ *
+ * Se consulta antes de crear un administrador de institucion o un docente. Sin
+ * ella, un identificador mal tecleado crearia una cuenta con permisos sobre una
+ * institucion inexistente: el alta no fallaria, y el fallo aparecería despues,
+ * de forma confusa, cuando esa persona intentara trabajar.
+ */
+export interface InstitutionGateway {
+  summary(institutionId: string): Promise<InstitutionSummaryCheck>;
+}
+
+export interface InstitutionSummaryCheck {
+  exists: boolean;
+  /** Una institucion suspendida existe pero no admite altas nuevas. */
+  acceptsNewMembers: boolean;
+  name?: string;
+  shortName?: string;
+  status?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Politica de contrasenas
 // ---------------------------------------------------------------------------
