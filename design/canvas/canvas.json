@@ -1,0 +1,170 @@
+{
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Escritorio"
+    },
+    {
+      "id": "page-2",
+      "name": "Sistema"
+    },
+    {
+      "id": "page-3",
+      "name": "Móvil y modo oscuro"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Ingreso",
+      "page": "page-1"
+    },
+    {
+      "file": "Discover.dc.html",
+      "x": 1560,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Discover · primaria",
+      "page": "page-1"
+    },
+    {
+      "file": "Academy.dc.html",
+      "x": 3120,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Academy · secundaria y superior",
+      "page": "page-1"
+    },
+    {
+      "file": "TeacherCenter.dc.html",
+      "x": 0,
+      "y": 1020,
+      "w": 1440,
+      "h": 900,
+      "title": "Teacher Center · docente",
+      "page": "page-1"
+    },
+    {
+      "file": "Admin.dc.html",
+      "x": 1560,
+      "y": 1020,
+      "w": 1440,
+      "h": 900,
+      "title": "Admin · GLEXCO",
+      "page": "page-1"
+    },
+    {
+      "file": "Fundamentos.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1180,
+      "h": 1720,
+      "title": "Fundamentos",
+      "page": "page-2"
+    },
+    {
+      "file": "Iconografia.dc.html",
+      "x": 1300,
+      "y": 0,
+      "w": 1180,
+      "h": 1560,
+      "title": "Iconografía propia",
+      "page": "page-2"
+    },
+    {
+      "file": "DiscoverMovil.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Discover · móvil",
+      "page": "page-3"
+    },
+    {
+      "file": "AcademyMovil.dc.html",
+      "x": 510,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Academy · móvil",
+      "page": "page-3"
+    },
+    {
+      "file": "ModoOscuro.dc.html",
+      "x": 1020,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Modo oscuro · Admin",
+      "page": "page-3"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "nota-direccion",
+      "x": 0,
+      "y": -320,
+      "w": 700,
+      "page": "page-1",
+      "text": "Dirección visual GLEXCO\n\nLos dos colores de marca salen del logo real de glexrobotics.com: #2C53A0 (azul) y #86C9BD (verde agua), las dos paradas de su degradado. De las maquetas se conservan la escala slate y las esquinas de 6px; cambian la tipografía (Outfit + IBM Plex Sans en vez de Segoe UI) y el ritmo.\n\nUn sistema, tres registros: Discover usa radios de 10-16px y ámbar; Academy, Teacher y Admin usan 6px y azul de marca, con densidad creciente."
+    },
+    {
+      "id": "nota-discover",
+      "x": 1560,
+      "y": -320,
+      "w": 520,
+      "page": "page-1",
+      "text": "Discover · 6 a 12 años\n\nLa calidez viene del ritmo y del color, no de dibujos infantiles: un niño de 11 rechaza lo aniñado.\n\nObjetivos táctiles de 44px como mínimo y una sola acción dominante — 'Continuar' — porque es a lo que viene nueve de cada diez veces."
+    },
+    {
+      "id": "nota-teacher",
+      "x": 0,
+      "y": 1990,
+      "w": 520,
+      "page": "page-1",
+      "text": "Teacher Center\n\nEl docente entra con una pregunta concreta: quién activó su libro, quién va retrasado, qué falta calificar. Por eso lo primero es el estado del salón, no un panel de bienvenida.\n\nÁmbar y no rojo en '9 de 20': es una situación que atender, no un fallo del docente."
+    },
+    {
+      "id": "nota-datos",
+      "x": 1560,
+      "y": 1990,
+      "w": 520,
+      "page": "page-1",
+      "text": "Datos de ejemplo\n\nNombres, cifras y porcentajes son inventados pero internamente coherentes: los totales cuadran con las sumas y los kits con sus grados (uKit AI = 3.º, uKit Explore = 4.º, uGoT = 5.º y 6.º).\n\nAntes de producción hay que sustituirlos por datos reales."
+    },
+    {
+      "id": "nota-iconos",
+      "x": 1300,
+      "y": -280,
+      "w": 560,
+      "page": "page-2",
+      "text": "@glexco/icons\n\nSe dibujan en vez de usar un set público por dos razones: ninguno tiene un cuadrúpedo, un brazo Dobot ni un Yanshee, y los que existen de robótica son demasiado juguetones para Academy y Admin.\n\nMismo peso óptico que Lucide, que es lo que se usa para el cromo de interfaz, para que convivan sin chirriar."
+    },
+    {
+      "id": "nota-movil",
+      "x": 0,
+      "y": -320,
+      "w": 900,
+      "page": "page-3",
+      "text": "Móvil — 390 × 844\n\nNo es el escritorio más estrecho. Dos cambios de fondo: la navegación baja al pulgar (una barra lateral obligaría a un menú hamburguesa, y un niño de 8 años no lo encuentra), y solo hay una acción dominante por pantalla.\n\nSin barra de estado ni teclado dibujados: en un teléfono real los pinta el sistema encima, y una falsa se ve duplicada."
+    },
+    {
+      "id": "nota-oscuro",
+      "x": 1020,
+      "y": -320,
+      "w": 700,
+      "page": "page-3",
+      "text": "Modo oscuro\n\nNo es invertir los colores. Tres reglas: nunca negro puro (#12181F de fondo, porque el negro absoluto junto a un panel blanco produce halo); la jerarquía la da la elevación y no el borde; y los colores de marca se aclaran — #2C53A0 sobre el fondo oscuro da 1,8:1 y su versión clara #7FB3E0 da 7,4:1.\n\nEl verde agua #86C9BD funciona igual en ambos temas, y por eso aquí manda él."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-1"
+  }
+}

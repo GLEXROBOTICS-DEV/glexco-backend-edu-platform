@@ -1,0 +1,173 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif; color: #1B2A38; -webkit-font-smoothing: antialiased; }
+    a { color: #2C53A0; text-decoration: none; }
+    a:hover { color: #3E86C0; }
+  </style>
+</helmet>
+
+<!--
+  ACADEMY en movil — 390 x 844. Sin barra de estado ni teclado falsos.
+  Frente a Discover movil: radios de 10px en vez de 14, densidad mayor y una
+  cabecera que cabe en menos alto, porque aqui la pantalla la usa alguien que
+  viene a consultar su avance, no a jugar. La ruta tecnologica pasa de
+  horizontal a vertical: en 350px de ancho, cinco hitos en fila serian
+  ilegibles.
+-->
+<div style="width: 390px; height: 844px; background: #F7F9FB; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="background: #25478A; padding: 18px 20px; flex-shrink: 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <img src="glexco-marca-blanco.svg" alt="GLEXCO" style="display: block; width: 104px; height: auto;">
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.9" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/></svg>
+        </div>
+        <div style="width: 36px; height: 36px; border-radius: 8px; background: #86C9BD; display: flex; align-items: center; justify-content: center; font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 14px; color: #1D3A72;">BS</div>
+      </div>
+    </div>
+    <div style="font-family: 'Outfit', sans-serif; font-size: 21px; font-weight: 600; color: #FFFFFF; margin-bottom: 3px;">Mi formación</div>
+    <div style="font-size: 13px; color: #BFE2DC;">Escuela Técnica · 4.º de secundaria</div>
+  </div>
+
+  <div style="flex-grow: 1; padding: 16px 20px 0; overflow: hidden;">
+
+    <!-- Indicadores en rejilla de 2: cuatro en fila darian celdas de 80px. -->
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px;">
+      <div style="padding: 13px 15px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; color: #5A6B7C; margin-bottom: 5px;">Cursos activos</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 600; line-height: 1;">3</div>
+      </div>
+      <div style="padding: 13px 15px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; color: #5A6B7C; margin-bottom: 5px;">Certificaciones</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 600; line-height: 1; color: #0A7D57;">4</div>
+      </div>
+      <div style="padding: 13px 15px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; color: #5A6B7C; margin-bottom: 5px;">Completados</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 600; line-height: 1;">7</div>
+      </div>
+      <div style="padding: 13px 15px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; color: #5A6B7C; margin-bottom: 5px;">Horas</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 600; line-height: 1;">86</div>
+      </div>
+    </div>
+
+    <!-- Ruta tecnologica en vertical. Es la adaptacion que mas cambia respecto
+         al escritorio: cinco hitos en horizontal no caben en 350px. -->
+    <div style="padding: 16px 18px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E4EAF0; margin-bottom: 18px;">
+      <div style="font-size: 11px; letter-spacing: 1.3px; text-transform: uppercase; color: #64748B; margin-bottom: 14px;">Ruta tecnológica</div>
+
+      <div style="display: flex; gap: 12px;">
+        <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0; padding-top: 2px;">
+          <div style="width: 20px; height: 20px; border-radius: 50%; background: #0A7D57; display: flex; align-items: center; justify-content: center;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 5 5L19 7"/></svg>
+          </div>
+          <div style="width: 2px; flex-grow: 1; background: #0A7D57; min-height: 22px;"></div>
+          <div style="width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF; border: 3px solid #3E86C0;"></div>
+          <div style="width: 2px; flex-grow: 1; background: #E4EAF0; min-height: 22px;"></div>
+          <div style="width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF; border: 3px solid #E4EAF0;"></div>
+          <div style="width: 2px; flex-grow: 1; background: #E4EAF0; min-height: 22px;"></div>
+          <div style="width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF; border: 3px solid #E4EAF0;"></div>
+        </div>
+
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 22px;">
+          <div>
+            <div style="font-size: 13.5px; font-weight: 500;">Escuela Vocacional</div>
+            <div style="font-size: 11.5px; color: #64748B; margin-top: 1px;">completada</div>
+          </div>
+          <div>
+            <div style="font-size: 13.5px; font-weight: 600; color: #2C53A0;">Escuela Técnica</div>
+            <div style="font-size: 11.5px; color: #24437F; margin-top: 1px;">en curso · 34 %</div>
+          </div>
+          <div>
+            <div style="font-size: 13.5px; color: #64748B;">Educación Superior</div>
+          </div>
+          <div>
+            <div style="font-size: 13.5px; color: #64748B;">Especialización</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Continuar -->
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 11px;">
+      <div style="font-size: 11px; letter-spacing: 1.3px; text-transform: uppercase; color: #64748B;">Continuar</div>
+      <a href="#" style="font-size: 13px; font-weight: 500;">Ver todos</a>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; gap: 13px; padding: 13px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E4EAF0; align-items: center;">
+        <div style="width: 46px; height: 46px; border-radius: 8px; background: #25478A; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="26" height="26" viewBox="0 0 32 32" fill="none" stroke="#86C9BD" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="11.5" y="4.5" width="9" height="7.5" rx="3"/>
+            <circle cx="14.3" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="17.7" cy="8" r="1.1" fill="currentColor" stroke="none"/>
+            <rect x="12" y="13.5" width="8" height="8" rx="2"/>
+            <path d="M12 15.5H8.5v5M20 15.5h3.5v5M14 21.5v5M18 21.5v5"/>
+          </svg>
+        </div>
+        <div style="flex-grow: 1; min-width: 0;">
+          <div style="font-size: 10.5px; letter-spacing: 0.6px; color: #64748B; margin-bottom: 3px;">YANSHEE</div>
+          <div style="font-size: 14px; font-weight: 500; line-height: 1.3; margin-bottom: 7px;">Aplicación y exploración de la IA</div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="flex-grow: 1; height: 5px; border-radius: 3px; background: #EDF1F5; overflow: hidden;"><div style="width: 72%; height: 100%; background: #0A7D57;"></div></div>
+            <span style="font-size: 11.5px; color: #5A6B7C;">72 %</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 13px; padding: 13px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E4EAF0; align-items: center;">
+        <div style="width: 46px; height: 46px; border-radius: 8px; background: #2C6BA8; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="26" height="26" viewBox="0 0 32 32" fill="none" stroke="#86C9BD" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 26v-3.5h8V26z"/><path d="M11 22.5V16l7-6 5 3.5"/>
+            <circle cx="11" cy="16" r="2"/><circle cx="18" cy="10" r="2"/><path d="M23 13.5v4h-3"/>
+          </svg>
+        </div>
+        <div style="flex-grow: 1; min-width: 0;">
+          <div style="font-size: 10.5px; letter-spacing: 0.6px; color: #64748B; margin-bottom: 3px;">DOBOT MAGICIAN E6</div>
+          <div style="font-size: 14px; font-weight: 500; line-height: 1.3; margin-bottom: 7px;">Automatización industrial</div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="flex-grow: 1; height: 5px; border-radius: 3px; background: #EDF1F5; overflow: hidden;"><div style="width: 34%; height: 100%; background: #3E86C0;"></div></div>
+            <span style="font-size: 11.5px; color: #5A6B7C;">34 %</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex-shrink: 0; background: #FFFFFF; border-top: 1px solid #E4EAF0; padding: 9px 8px 26px; display: flex;">
+    <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; color: #2C53A0;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+      <span style="font-size: 11px; font-weight: 600;">Inicio</span>
+    </div>
+    <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; color: #64748B;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v18H6.5A2.5 2.5 0 0 1 4 18.5z"/><path d="M8 3v18"/></svg>
+      <span style="font-size: 11px;">Cursos</span>
+    </div>
+    <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; color: #64748B;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 7v10l8 4 8-4V7z"/><path d="m4 7 8 4 8-4M12 11v10"/></svg>
+      <span style="font-size: 11px;">Proyectos</span>
+    </div>
+    <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; color: #64748B;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m10.5 9.5 5 2.5-5 2.5z"/></svg>
+      <span style="font-size: 11px;">Biblioteca</span>
+    </div>
+    <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; color: #64748B;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14v5a7 7 0 0 1-14 0z"/><path d="M9 20h6M12 16v4"/></svg>
+      <span style="font-size: 11px;">Certificados</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

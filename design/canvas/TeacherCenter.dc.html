@@ -1,0 +1,249 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif; color: #1B2A38; -webkit-font-smoothing: antialiased; }
+    a { color: #2C53A0; text-decoration: none; }
+    a:hover { color: #3E86C0; }
+    th { font-weight: 500; }
+  </style>
+</helmet>
+
+<!--
+  TEACHER CENTER — herramienta de trabajo, no escaparate.
+  El docente entra con una pregunta concreta: quien de mi salon ha activado su
+  libro, quien va retrasado, que tengo que calificar. Por eso lo primero que ve
+  es el estado de su salon, no un panel de bienvenida.
+-->
+<div style="display: flex; width: 1440px; height: 900px; background: #F7F9FB;">
+
+  <div style="width: 224px; flex-shrink: 0; background: #25478A; display: flex; flex-direction: column; padding: 20px 12px;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px 20px;">
+      <div>
+          <img src="glexco-marca-blanco.svg" alt="GLEXCO" style="display: block; width: 126px; height: auto;">
+          <div style="height: 1px; background: rgba(255,255,255,0.16); margin: 13px 0 10px;"></div>
+          <div style="font-size: 11px; letter-spacing: 1.9px; text-transform: uppercase; color: #86C9BD;">Teacher Center</div>
+        </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 1px;">
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; background: rgba(255,255,255,0.14); color: #FFFFFF; font-size: 13.5px; font-weight: 500;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        Panel principal
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; color: #C9E3E6; font-size: 13.5px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v18H6.5A2.5 2.5 0 0 1 4 18.5z"/><path d="M8 3v18"/></svg>
+        Mis salones
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; color: #C9E3E6; font-size: 13.5px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 11a3 3 0 0 0 0-6M18 20a6.4 6.4 0 0 0-2-4.6"/></svg>
+        Estudiantes
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; color: #C9E3E6; font-size: 13.5px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 4H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><rect x="9" y="2.5" width="6" height="4" rx="1"/><path d="m9 13 2 2 4-4"/></svg>
+        Evaluaciones
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; color: #C9E3E6; font-size: 13.5px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 6.5C10 4.8 7.5 4.5 4 5v13c3.5-.5 6 0 8 1.5 2-1.5 4.5-2 8-1.5V5c-3.5-.5-6-.2-8 1.5z"/><path d="M12 6.5v13"/></svg>
+        Recursos pedagógicos
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; color: #C9E3E6; font-size: 13.5px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+        Reportes
+      </div>
+    </div>
+
+    <div style="flex-grow: 1;"></div>
+
+    <div style="display: flex; align-items: center; gap: 9px; padding: 9px; border-radius: 6px; background: rgba(255,255,255,0.09);">
+      <div style="width: 32px; height: 32px; border-radius: 6px; background: #86C9BD; display: flex; align-items: center; justify-content: center; font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 13px; color: #25478A;">AQ</div>
+      <div>
+        <div style="font-size: 12.5px; font-weight: 500; color: #FFFFFF;">Ana Quispe</div>
+        <div style="font-size: 11px; color: #9DC8D8;">Docente STEM</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; padding: 22px 28px; overflow: hidden;">
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+      <div>
+        <h1 style="font-family: 'Outfit', sans-serif; font-size: 23px; font-weight: 600; margin: 0 0 4px;">Panel principal</h1>
+        <p style="font-size: 13.5px; color: #5A6B7C; margin: 0;">I. E. San Juan Bautista · 4 salones activos · año académico 2026</p>
+      </div>
+      <button style="height: 36px; padding: 0 16px; border: none; border-radius: 6px; background: #2C53A0; color: #FFFFFF; font-size: 13.5px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 7px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Crear salón
+      </button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px;">
+      <div style="padding: 15px 17px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; color: #5A6B7C; margin-bottom: 7px;">Alumnos activos</div>
+        <div style="display: flex; align-items: baseline; gap: 7px;">
+          <span style="font-family: 'Outfit', sans-serif; font-size: 26px; font-weight: 600; line-height: 1;">68</span>
+          <span style="font-size: 12px; color: #64748B;">de 80 cupos</span>
+        </div>
+      </div>
+      <div style="padding: 15px 17px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; color: #5A6B7C; margin-bottom: 7px;">Libros activados</div>
+        <div style="display: flex; align-items: baseline; gap: 7px;">
+          <span style="font-family: 'Outfit', sans-serif; font-size: 26px; font-weight: 600; line-height: 1; color: #0A7D57;">61</span>
+          <span style="font-size: 12px; color: #64748B;">90 %</span>
+        </div>
+      </div>
+      <div style="padding: 15px 17px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; color: #5A6B7C; margin-bottom: 7px;">Por calificar</div>
+        <div style="display: flex; align-items: baseline; gap: 7px;">
+          <span style="font-family: 'Outfit', sans-serif; font-size: 26px; font-weight: 600; line-height: 1; color: #B45309;">14</span>
+          <span style="font-size: 12px; color: #64748B;">entregas</span>
+        </div>
+      </div>
+      <div style="padding: 15px 17px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; color: #5A6B7C; margin-bottom: 7px;">Avance promedio</div>
+        <div style="display: flex; align-items: baseline; gap: 7px;">
+          <span style="font-family: 'Outfit', sans-serif; font-size: 26px; font-weight: 600; line-height: 1;">64 %</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px;">
+
+      <!-- Mis salones: el dato que la propuesta pide de forma explicita es
+           "cuantos alumnos han ingresado en su salon". Va primero y con el
+           contraste mas alto de la tabla. -->
+      <div style="grid-column: span 2; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0; overflow: hidden;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #EDF1F5;">
+          <div style="font-size: 14px; font-weight: 600;">Mis salones</div>
+          <a href="#" style="font-size: 13px; font-weight: 500;">Gestionar</a>
+        </div>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #F9FBFC;">
+              <th style="text-align: left; padding: 9px 20px; font-size: 11.5px; letter-spacing: 0.5px; text-transform: uppercase; color: #64748B;">Salón</th>
+              <th style="text-align: left; padding: 9px 12px; font-size: 11.5px; letter-spacing: 0.5px; text-transform: uppercase; color: #64748B;">Kit</th>
+              <th style="text-align: left; padding: 9px 12px; font-size: 11.5px; letter-spacing: 0.5px; text-transform: uppercase; color: #64748B;">Activados</th>
+              <th style="text-align: left; padding: 9px 20px; font-size: 11.5px; letter-spacing: 0.5px; text-transform: uppercase; color: #64748B;">Avance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-top: 1px solid #EDF1F5;">
+              <td style="padding: 13px 20px; font-size: 13.5px; font-weight: 500;">3.º A</td>
+              <td style="padding: 13px 12px; font-size: 13px; color: #5A6B7C;">uKit AI</td>
+              <td style="padding: 13px 12px;">
+                <span style="font-size: 13.5px; font-weight: 600; color: #0A7D57;">19</span>
+                <span style="font-size: 12.5px; color: #64748B;"> / 20</span>
+              </td>
+              <td style="padding: 13px 20px;">
+                <div style="display: flex; align-items: center; gap: 9px;">
+                  <div style="width: 92px; height: 5px; border-radius: 3px; background: #EDF1F5; overflow: hidden;"><div style="width: 78%; height: 100%; background: #3E86C0;"></div></div>
+                  <span style="font-size: 12.5px; color: #5A6B7C;">78 %</span>
+                </div>
+              </td>
+            </tr>
+            <tr style="border-top: 1px solid #EDF1F5;">
+              <td style="padding: 13px 20px; font-size: 13.5px; font-weight: 500;">3.º B</td>
+              <td style="padding: 13px 12px; font-size: 13px; color: #5A6B7C;">uKit AI</td>
+              <td style="padding: 13px 12px;">
+                <span style="font-size: 13.5px; font-weight: 600; color: #0A7D57;">20</span>
+                <span style="font-size: 12.5px; color: #64748B;"> / 20</span>
+              </td>
+              <td style="padding: 13px 20px;">
+                <div style="display: flex; align-items: center; gap: 9px;">
+                  <div style="width: 92px; height: 5px; border-radius: 3px; background: #EDF1F5; overflow: hidden;"><div style="width: 65%; height: 100%; background: #3E86C0;"></div></div>
+                  <span style="font-size: 12.5px; color: #5A6B7C;">65 %</span>
+                </div>
+              </td>
+            </tr>
+            <tr style="border-top: 1px solid #EDF1F5;">
+              <td style="padding: 13px 20px; font-size: 13.5px; font-weight: 500;">5.º A</td>
+              <td style="padding: 13px 12px; font-size: 13px; color: #5A6B7C;">uGoT</td>
+              <td style="padding: 13px 12px;">
+                <!-- Ambar, no rojo: nueve de veinte es una situacion que atender,
+                     no un fallo del docente. -->
+                <span style="font-size: 13.5px; font-weight: 600; color: #B45309;">9</span>
+                <span style="font-size: 12.5px; color: #64748B;"> / 20</span>
+              </td>
+              <td style="padding: 13px 20px;">
+                <div style="display: flex; align-items: center; gap: 9px;">
+                  <div style="width: 92px; height: 5px; border-radius: 3px; background: #EDF1F5; overflow: hidden;"><div style="width: 41%; height: 100%; background: #B45309;"></div></div>
+                  <span style="font-size: 12.5px; color: #5A6B7C;">41 %</span>
+                </div>
+              </td>
+            </tr>
+            <tr style="border-top: 1px solid #EDF1F5;">
+              <td style="padding: 13px 20px; font-size: 13.5px; font-weight: 500;">5.º B</td>
+              <td style="padding: 13px 12px; font-size: 13px; color: #5A6B7C;">uGoT</td>
+              <td style="padding: 13px 12px;">
+                <span style="font-size: 13.5px; font-weight: 600; color: #0A7D57;">13</span>
+                <span style="font-size: 12.5px; color: #64748B;"> / 20</span>
+              </td>
+              <td style="padding: 13px 20px;">
+                <div style="display: flex; align-items: center; gap: 9px;">
+                  <div style="width: 92px; height: 5px; border-radius: 3px; background: #EDF1F5; overflow: hidden;"><div style="width: 70%; height: 100%; background: #3E86C0;"></div></div>
+                  <span style="font-size: 12.5px; color: #5A6B7C;">70 %</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 18px;">
+
+        <!-- Requiere atencion. Cada fila es accionable; nada de alertas que
+             solo informan y no llevan a ningun sitio. -->
+        <div style="padding: 18px 20px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 14px;">Requiere atención</div>
+          <div style="display: flex; flex-direction: column; gap: 13px;">
+            <div style="display: flex; gap: 11px;">
+              <div style="width: 3px; border-radius: 2px; background: #B45309; flex-shrink: 0;"></div>
+              <div>
+                <div style="font-size: 13px; font-weight: 500;">11 alumnos sin activar su libro</div>
+                <div style="font-size: 12px; color: #5A6B7C; margin-top: 2px;">5.º A · <a href="#">reenviar instrucciones</a></div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 11px;">
+              <div style="width: 3px; border-radius: 2px; background: #B45309; flex-shrink: 0;"></div>
+              <div>
+                <div style="font-size: 13px; font-weight: 500;">14 entregas por calificar</div>
+                <div style="font-size: 12px; color: #5A6B7C; margin-top: 2px;">la más antigua, hace 6 días</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 11px;">
+              <div style="width: 3px; border-radius: 2px; background: #CBD5E1; flex-shrink: 0;"></div>
+              <div>
+                <div style="font-size: 13px; font-weight: 500;">3 alumnos sin avance</div>
+                <div style="font-size: 12px; color: #5A6B7C; margin-top: 2px;">en los últimos 14 días</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding: 18px 20px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 13px;">
+            <div style="font-size: 14px; font-weight: 600;">Anuncios</div>
+            <a href="#" style="font-size: 13px; font-weight: 500;">Nuevo</a>
+          </div>
+          <div style="padding: 12px; border-radius: 6px; background: #F2F9F8; border: 1px solid #D2E8E3;">
+            <div style="font-size: 12.5px; font-weight: 500; margin-bottom: 4px;">Material para la feria STEM</div>
+            <div style="font-size: 12px; color: #5A6B7C; line-height: 1.5;">Publicado a 3.º A y 3.º B · 1 archivo adjunto</div>
+          </div>
+          <div style="font-size: 12px; color: #64748B; margin-top: 11px;">Último envío hace 2 días</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

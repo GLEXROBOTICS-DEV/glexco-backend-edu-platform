@@ -1,0 +1,255 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif; color: #1B2A38; -webkit-font-smoothing: antialiased; }
+    a { color: #2C53A0; text-decoration: none; }
+    a:hover { color: #3E86C0; }
+    th { font-weight: 500; }
+  </style>
+</helmet>
+
+<!--
+  ADMIN — panel ejecutivo de GLEXCO.
+  Es el portal con mas densidad de la plataforma y el unico donde una cifra mal
+  leida cuesta dinero. Nada de tarjetas decorativas: cada numero de arriba
+  responde a una pregunta que alguien de la empresa hace cada semana.
+-->
+<div style="display: flex; width: 1440px; height: 900px; background: #F7F9FB;">
+
+  <div style="width: 224px; flex-shrink: 0; background: #1D3A72; display: flex; flex-direction: column; padding: 20px 12px;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px 20px;">
+      <div>
+          <img src="glexco-marca-blanco.svg" alt="GLEXCO" style="display: block; width: 126px; height: auto;">
+          <div style="height: 1px; background: rgba(255,255,255,0.16); margin: 13px 0 10px;"></div>
+          <div style="font-size: 11px; letter-spacing: 1.9px; text-transform: uppercase; color: #86C9BD;">Admin</div>
+        </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 1px;">
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; background: rgba(255,255,255,0.14); color: #FFFFFF; font-size: 13px; font-weight: 500;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        Panel ejecutivo
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; color: #B4D6DD; font-size: 13px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 21v-5h6v5"/></svg>
+        Instituciones
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; color: #B4D6DD; font-size: 13px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 11a3 3 0 0 0 0-6M18 20a6.4 6.4 0 0 0-2-4.6"/></svg>
+        Usuarios
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; color: #B4D6DD; font-size: 13px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v18H6.5A2.5 2.5 0 0 1 4 18.5z"/><path d="M8 3v18"/></svg>
+        Gestión académica
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; color: #B4D6DD; font-size: 13px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h4l2 2.5h7A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg>
+        Contenidos
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; color: #B4D6DD; font-size: 13px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M7.5 9.5l2 2 4-4"/></svg>
+        Códigos y kits
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; color: #B4D6DD; font-size: 13px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 4h14v5a7 7 0 0 1-14 0z"/><path d="M9 20h6M12 16v4"/></svg>
+        Certificaciones
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; color: #B4D6DD; font-size: 13px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+        Analítica
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 11px; border-radius: 6px; color: #B4D6DD; font-size: 13px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8A8.5 8.5 0 0 1 12.5 20a8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7A8.4 8.4 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3a8.5 8.5 0 0 1 8.5 8.5z"/></svg>
+        Soporte
+      </div>
+    </div>
+
+    <div style="flex-grow: 1;"></div>
+
+    <div style="display: flex; align-items: center; gap: 9px; padding: 9px; border-radius: 6px; background: rgba(255,255,255,0.09);">
+      <div style="width: 32px; height: 32px; border-radius: 6px; background: #86C9BD; display: flex; align-items: center; justify-content: center; font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 13px; color: #1D3A72;">SR</div>
+      <div>
+        <div style="font-size: 12.5px; font-weight: 500; color: #FFFFFF;">Sofía Rojas</div>
+        <div style="font-size: 11px; color: #9DC8D8;">Administrador GLEXCO</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; padding: 22px 28px; overflow: hidden;">
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+      <div>
+        <h1 style="font-family: 'Outfit', sans-serif; font-size: 23px; font-weight: 600; margin: 0 0 4px;">Panel ejecutivo</h1>
+        <p style="font-size: 13.5px; color: #5A6B7C; margin: 0;">Datos al 2 de septiembre de 2026, 17:40</p>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <div style="display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 13px; border-radius: 6px; border: 1px solid #D6DEE6; background: #FFFFFF; font-size: 13px; color: #35475A;">
+          Últimos 30 días
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <button style="height: 36px; padding: 0 14px; border: 1px solid #D6DEE6; border-radius: 6px; background: #FFFFFF; font-size: 13px; color: #35475A; cursor: pointer; display: inline-flex; align-items: center; gap: 7px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v12M7.5 10.5 12 15l4.5-4.5M4 20h16"/></svg>
+          Exportar
+        </button>
+      </div>
+    </div>
+
+    <!-- Indicadores. Cada uno lleva su variacion: un numero sin tendencia no
+         permite decidir nada. -->
+    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 13px; margin-bottom: 20px;">
+      <div style="padding: 15px 16px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; color: #5A6B7C; margin-bottom: 8px;">Instituciones activas</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 25px; font-weight: 600; line-height: 1; margin-bottom: 7px;">48</div>
+        <div style="display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #0A7D57;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M5 15l7-7 7 7"/></svg>
+          +6 este mes
+        </div>
+      </div>
+      <div style="padding: 15px 16px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; color: #5A6B7C; margin-bottom: 8px;">Alumnos activos</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 25px; font-weight: 600; line-height: 1; margin-bottom: 7px;">7 412</div>
+        <div style="display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #0A7D57;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M5 15l7-7 7 7"/></svg>
+          +12 %
+        </div>
+      </div>
+      <div style="padding: 15px 16px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; color: #5A6B7C; margin-bottom: 8px;">Docentes</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 25px; font-weight: 600; line-height: 1; margin-bottom: 7px;">312</div>
+        <div style="display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #0A7D57;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M5 15l7-7 7 7"/></svg>
+          +9
+        </div>
+      </div>
+      <div style="padding: 15px 16px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; color: #5A6B7C; margin-bottom: 8px;">Códigos canjeados</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 25px; font-weight: 600; line-height: 1; margin-bottom: 7px;">6 803</div>
+        <div style="font-size: 11.5px; color: #64748B;">de 9 500 distribuidos</div>
+      </div>
+      <div style="padding: 15px 16px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; color: #5A6B7C; margin-bottom: 8px;">Certificados emitidos</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 25px; font-weight: 600; line-height: 1; margin-bottom: 7px;">1 209</div>
+        <div style="display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #0A7D57;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M5 15l7-7 7 7"/></svg>
+          +148
+        </div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px;">
+
+      <!-- Activacion de codigos por kit. Es la metrica que conecta la venta con
+           el uso real: un kit vendido cuyo codigo nadie canjea es un problema
+           comercial que hay que ver a tiempo. -->
+      <div style="grid-column: span 2; padding: 20px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px;">
+          <div style="font-size: 14px; font-weight: 600;">Activación de códigos por kit</div>
+          <span style="font-size: 12px; color: #64748B;">canjeados / distribuidos</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+
+          <div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+              <span style="font-size: 13px;">uKit AI · 3.º primaria</span>
+              <span style="font-size: 12.5px; color: #5A6B7C;">1 840 / 2 000 · <strong style="color: #0A7D57; font-weight: 600;">92 %</strong></span>
+            </div>
+            <div style="height: 8px; border-radius: 4px; background: #EDF1F5; overflow: hidden;"><div style="width: 92%; height: 100%; background: #0A7D57;"></div></div>
+          </div>
+
+          <div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+              <span style="font-size: 13px;">uKit Explore · 4.º primaria</span>
+              <span style="font-size: 12.5px; color: #5A6B7C;">1 512 / 1 800 · <strong style="color: #0A7D57; font-weight: 600;">84 %</strong></span>
+            </div>
+            <div style="height: 8px; border-radius: 4px; background: #EDF1F5; overflow: hidden;"><div style="width: 84%; height: 100%; background: #0A7D57;"></div></div>
+          </div>
+
+          <div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+              <span style="font-size: 13px;">uGoT · 5.º y 6.º primaria</span>
+              <span style="font-size: 12.5px; color: #5A6B7C;">2 021 / 2 600 · <strong style="color: #2C53A0; font-weight: 600;">78 %</strong></span>
+            </div>
+            <div style="height: 8px; border-radius: 4px; background: #EDF1F5; overflow: hidden;"><div style="width: 78%; height: 100%; background: #3E86C0;"></div></div>
+          </div>
+
+          <div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+              <span style="font-size: 13px;">Yanshee · secundaria</span>
+              <span style="font-size: 12.5px; color: #5A6B7C;">960 / 1 600 · <strong style="color: #B45309; font-weight: 600;">60 %</strong></span>
+            </div>
+            <div style="height: 8px; border-radius: 4px; background: #EDF1F5; overflow: hidden;"><div style="width: 60%; height: 100%; background: #B45309;"></div></div>
+          </div>
+
+          <div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+              <span style="font-size: 13px;">AI BOX PRO · técnico</span>
+              <span style="font-size: 12.5px; color: #5A6B7C;">470 / 1 500 · <strong style="color: #B45309; font-weight: 600;">31 %</strong></span>
+            </div>
+            <div style="height: 8px; border-radius: 4px; background: #EDF1F5; overflow: hidden;"><div style="width: 31%; height: 100%; background: #B45309;"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 18px;">
+
+        <div style="padding: 18px 20px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 14px;">Alertas del sistema</div>
+          <div style="display: flex; flex-direction: column; gap: 13px;">
+            <div style="display: flex; gap: 11px;">
+              <div style="width: 3px; border-radius: 2px; background: #DC2626; flex-shrink: 0;"></div>
+              <div>
+                <div style="font-size: 12.5px; font-weight: 500;">3 licencias vencen en 30 días</div>
+                <div style="font-size: 11.5px; color: #5A6B7C; margin-top: 2px;">I. E. Los Álamos y 2 más</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 11px;">
+              <div style="width: 3px; border-radius: 2px; background: #B45309; flex-shrink: 0;"></div>
+              <div>
+                <div style="font-size: 12.5px; font-weight: 500;">AI BOX PRO por debajo del 35 %</div>
+                <div style="font-size: 11.5px; color: #5A6B7C; margin-top: 2px;">1 030 códigos sin canjear</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 11px;">
+              <div style="width: 3px; border-radius: 2px; background: #CBD5E1; flex-shrink: 0;"></div>
+              <div>
+                <div style="font-size: 12.5px; font-weight: 500;">8 recursos sin publicar</div>
+                <div style="font-size: 11.5px; color: #5A6B7C; margin-top: 2px;">en revisión desde hace 5 días</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding: 18px 20px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 14px;">Actividad reciente</div>
+          <div style="display: flex; flex-direction: column; gap: 11px;">
+            <div style="font-size: 12.5px; color: #35475A;">
+              <strong style="font-weight: 500;">I. E. Santa Rosa</strong> registrada
+              <span style="color: #64748B;"> · hace 1 h</span>
+            </div>
+            <div style="font-size: 12.5px; color: #35475A;">
+              Lote de <strong style="font-weight: 500;">500 códigos</strong> generado
+              <span style="color: #64748B;"> · hace 3 h</span>
+            </div>
+            <div style="font-size: 12.5px; color: #35475A;">
+              <strong style="font-weight: 500;">Masterclass uGoT</strong> publicada
+              <span style="color: #64748B;"> · ayer</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

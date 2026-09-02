@@ -1,0 +1,209 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif; color: #1B2A38; -webkit-font-smoothing: antialiased; }
+    a { color: #2C53A0; text-decoration: none; }
+    a:hover { color: #3E86C0; }
+  </style>
+</helmet>
+
+<div style="width: 1180px; min-height: 1720px; background: #FBFCFD; padding: 44px 48px;">
+
+  <div style="margin-bottom: 40px;">
+    <img src="glexco-marca.svg" alt="GLEXCO" style="display: block; width: 240px; height: auto;">
+    <div style="font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: #4E8E9E; margin: 12px 0 26px;">Robotics &amp; Automation</div>
+    <div style="font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #64748B; margin-bottom: 10px;">Dirección visual</div>
+    <h1 style="font-family: 'Outfit', sans-serif; font-size: 38px; font-weight: 600; margin: 0 0 12px;">Fundamentos GLEXCO</h1>
+    <p style="font-size: 16px; line-height: 1.65; color: #5A6B7C; max-width: 720px; margin: 0;">
+      Los dos colores de marca salen del logo: <strong style="font-weight: 500;">#2C53A0</strong>
+      y <strong style="font-weight: 500;">#86C9BD</strong>, las dos paradas de su degradado.
+      De las maquetas se conservan la escala slate y las esquinas de 6&nbsp;px. Lo que
+      cambia es la tipografía y el ritmo: ahí nace lo «amigable» sin perder la
+      seriedad que pide una herramienta escolar.
+    </p>
+  </div>
+
+  <!-- Paleta -->
+  <div style="margin-bottom: 40px;">
+    <h2 style="font-family: 'Outfit', sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 6px;">Color</h2>
+    <p style="font-size: 14px; color: #5A6B7C; margin: 0 0 20px;">El celeste ancla y señala interacción; el ámbar es exclusivo de Discover; el verde, logro.</p>
+
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; margin-bottom: 22px;">
+      <div>
+        <div style="height: 76px; border-radius: 6px; background: #1D3A72;"></div>
+        <div style="font-size: 12.5px; font-weight: 500; margin-top: 9px;">Profundo</div>
+        <div style="font-size: 11.5px; color: #64748B; font-variant-numeric: tabular-nums;">#1D3A72</div>
+      </div>
+      <div>
+        <div style="height: 76px; border-radius: 6px; background: #25478A;"></div>
+        <div style="font-size: 12.5px; font-weight: 500; margin-top: 9px;">Superficie marca</div>
+        <div style="font-size: 11.5px; color: #64748B; font-variant-numeric: tabular-nums;">#25478A</div>
+      </div>
+      <div>
+        <div style="height: 76px; border-radius: 6px; background: {{accent}};"></div>
+        <div style="font-size: 12.5px; font-weight: 500; margin-top: 9px;">Celeste GLEXCO</div>
+        <div style="font-size: 11.5px; color: #64748B; font-variant-numeric: tabular-nums;">{{accent}}</div>
+      </div>
+      <div>
+        <div style="height: 76px; border-radius: 6px; background: #3E86C0;"></div>
+        <div style="font-size: 12.5px; font-weight: 500; margin-top: 9px;">Celeste vivo · interacción</div>
+        <div style="font-size: 11.5px; color: #64748B; font-variant-numeric: tabular-nums;">#3E86C0</div>
+      </div>
+      <div>
+        <div style="height: 76px; border-radius: 6px; background: #F0A93B;"></div>
+        <div style="font-size: 12.5px; font-weight: 500; margin-top: 9px;">Ámbar · Discover</div>
+        <div style="font-size: 11.5px; color: #64748B; font-variant-numeric: tabular-nums;">#F0A93B</div>
+      </div>
+      <div>
+        <div style="height: 76px; border-radius: 6px; background: #0A7D57;"></div>
+        <div style="font-size: 12.5px; font-weight: 500; margin-top: 9px;">Logro</div>
+        <div style="font-size: 11.5px; color: #64748B; font-variant-numeric: tabular-nums;">#0A7D57</div>
+      </div>
+      <div>
+        <div style="height: 76px; border-radius: 6px; background: #1D3A72; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 44px; height: 24px; border-radius: 4px; background: #86C9BD;"></div>
+        </div>
+        <div style="font-size: 12.5px; font-weight: 500; margin-top: 9px;">Celeste claro</div>
+        <div style="font-size: 11.5px; color: #64748B; font-variant-numeric: tabular-nums;">#86C9BD</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px;">
+      <div><div style="height: 44px; border-radius: 6px; background: #FBFCFD; border: 1px solid #E4EAF0;"></div><div style="font-size: 11px; color: #64748B; margin-top: 6px; font-variant-numeric: tabular-nums;">#FBFCFD</div></div>
+      <div><div style="height: 44px; border-radius: 6px; background: #F7F9FB;"></div><div style="font-size: 11px; color: #64748B; margin-top: 6px; font-variant-numeric: tabular-nums;">#F7F9FB</div></div>
+      <div><div style="height: 44px; border-radius: 6px; background: #EDF1F5;"></div><div style="font-size: 11px; color: #64748B; margin-top: 6px; font-variant-numeric: tabular-nums;">#EDF1F5</div></div>
+      <div><div style="height: 44px; border-radius: 6px; background: #E4EAF0;"></div><div style="font-size: 11px; color: #64748B; margin-top: 6px; font-variant-numeric: tabular-nums;">#E4EAF0</div></div>
+      <div><div style="height: 44px; border-radius: 6px; background: #CBD5E1;"></div><div style="font-size: 11px; color: #64748B; margin-top: 6px; font-variant-numeric: tabular-nums;">#CBD5E1</div></div>
+      <div><div style="height: 44px; border-radius: 6px; background: #64748B;"></div><div style="font-size: 11px; color: #64748B; margin-top: 6px; font-variant-numeric: tabular-nums;">#64748B</div></div>
+      <div><div style="height: 44px; border-radius: 6px; background: #5A6B7C;"></div><div style="font-size: 11px; color: #64748B; margin-top: 6px; font-variant-numeric: tabular-nums;">#5A6B7C</div></div>
+      <div><div style="height: 44px; border-radius: 6px; background: #1B2A38;"></div><div style="font-size: 11px; color: #64748B; margin-top: 6px; font-variant-numeric: tabular-nums;">#1B2A38</div></div>
+    </div>
+  </div>
+
+  <!-- Tipografia -->
+  <div style="margin-bottom: 40px;">
+    <h2 style="font-family: 'Outfit', sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 6px;">Tipografía</h2>
+    <p style="font-size: 14px; color: #5A6B7C; margin: 0 0 20px;">
+      <strong style="font-weight: 500;">Outfit</strong> para titulares: geométrica y cálida, funciona igual con un niño de 8 años que en un panel ejecutivo.
+      <strong style="font-weight: 500;">IBM&nbsp;Plex&nbsp;Sans</strong> para el resto: tiene carácter técnico y aguanta tablas densas y textos largos.
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px;">
+      <div style="padding: 26px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; letter-spacing: 1.4px; text-transform: uppercase; color: #64748B; margin-bottom: 18px;">Outfit · titulares</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 38px; font-weight: 600; line-height: 1.15; margin-bottom: 12px;">Guardianes de la Ciudad</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 25px; font-weight: 600; margin-bottom: 10px;">Panel ejecutivo</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 19px; font-weight: 500; color: #5A6B7C;">Ruta tecnológica</div>
+      </div>
+      <div style="padding: 26px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; letter-spacing: 1.4px; text-transform: uppercase; color: #64748B; margin-bottom: 18px;">IBM Plex Sans · interfaz</div>
+        <div style="font-size: 16px; line-height: 1.6; margin-bottom: 12px;">
+          El alumno introduce el código de su libro y accede al contenido de su kit.
+        </div>
+        <div style="font-size: 13.5px; color: #5A6B7C; margin-bottom: 12px;">
+          Texto secundario · 13,5 px · descripciones y ayudas contextuales.
+        </div>
+        <div style="font-size: 11.5px; letter-spacing: 1.3px; text-transform: uppercase; color: #64748B;">Etiqueta de sección</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Componentes -->
+  <div style="margin-bottom: 40px;">
+    <h2 style="font-family: 'Outfit', sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 6px;">Componentes base</h2>
+    <p style="font-size: 14px; color: #5A6B7C; margin: 0 0 20px;">Radio de 6&nbsp;px en Academy, Teacher y Admin; 10–16&nbsp;px en Discover. Altura de control: 46&nbsp;px en formularios, 36&nbsp;px en barras de herramientas.</p>
+
+    <div style="padding: 26px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 24px;">
+        <button style="height: 46px; padding: 0 22px; border: none; border-radius: 6px; background: {{accent}}; color: #FFFFFF; font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 500; cursor: pointer;">Acción principal</button>
+        <button style="height: 46px; padding: 0 22px; border: 1px solid #CBD5E1; border-radius: 6px; background: #FFFFFF; color: #35475A; font-size: 15px; cursor: pointer;">Secundaria</button>
+        <button style="height: 46px; padding: 0 22px; border: none; border-radius: 6px; background: #24437F; color: #FFFFFF; font-size: 15px; cursor: pointer;">Interacción</button>
+        <button style="height: 46px; padding: 0 22px; border: none; border-radius: 10px; background: #F0A93B; color: #25478A; font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer;">Discover</button>
+        <button style="height: 46px; padding: 0 22px; border: 1px solid #E4EAF0; border-radius: 6px; background: #F7F9FB; color: #8496A6; font-size: 15px;">Deshabilitada</button>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 24px;">
+        <span style="padding: 5px 12px; border-radius: 20px; background: #E4F6EF; color: #08704E; font-size: 12.5px; font-weight: 500;">Completado</span>
+        <span style="padding: 5px 12px; border-radius: 20px; background: #E1F1EE; color: #24437F; font-size: 12.5px; font-weight: 500;">En progreso</span>
+        <span style="padding: 5px 12px; border-radius: 20px; background: #FDF0DC; color: #8A5713; font-size: 12.5px; font-weight: 500;">Requiere atención</span>
+        <span style="padding: 5px 12px; border-radius: 20px; background: #EDF1F5; color: #5A6B7C; font-size: 12.5px; font-weight: 500;">No iniciado</span>
+        <span style="padding: 5px 12px; border-radius: 20px; background: #FCE9E9; color: #A61B1B; font-size: 12.5px; font-weight: 500;">Vencido</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start;">
+        <div>
+          <label style="display: block; font-size: 13px; font-weight: 500; color: #35475A; margin-bottom: 7px;">Campo en reposo</label>
+          <div style="display: flex; align-items: center; height: 46px; padding: 0 14px; border: 1px solid #CBD5E1; border-radius: 6px; background: #FFFFFF; font-size: 15px; color: #8496A6;">Placeholder</div>
+        </div>
+        <div>
+          <label style="display: block; font-size: 13px; font-weight: 500; color: #35475A; margin-bottom: 7px;">Campo enfocado</label>
+          <div style="display: flex; align-items: center; height: 46px; padding: 0 14px; border: 1.5px solid #3E86C0; border-radius: 6px; background: #FFFFFF; box-shadow: 0 0 0 3px rgba(62,134,192,0.20); font-size: 15px; color: #35475A;">GLX-8F2K-9M3P</div>
+        </div>
+        <div>
+          <label style="display: block; font-size: 13px; font-weight: 500; color: #35475A; margin-bottom: 7px;">Campo con error</label>
+          <div style="display: flex; align-items: center; height: 46px; padding: 0 14px; border: 1.5px solid #DC2626; border-radius: 6px; background: #FFFFFF; font-size: 15px; color: #35475A;">GLX-8F2K-9M3O</div>
+          <div style="font-size: 12.5px; color: #A61B1B; margin-top: 6px;">Revisa que lo hayas copiado bien.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estados de carga: la propuesta pide placeholders mientras carga -->
+  <div>
+    <h2 style="font-family: 'Outfit', sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 6px;">Carga y vacío</h2>
+    <p style="font-size: 14px; color: #5A6B7C; margin: 0 0 20px; max-width: 780px;">
+      El esqueleto imita la forma exacta del contenido que va a llegar, no un
+      rectángulo genérico: así la página no salta cuando aparecen los datos. En
+      conexiones de colegio esto se nota mucho más que en una oficina.
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;">
+      <div style="padding: 22px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; letter-spacing: 1.3px; text-transform: uppercase; color: #64748B; margin-bottom: 16px;">Esqueleto de tarjeta de curso</div>
+        <div style="display: flex; gap: 16px; align-items: center;">
+          <div style="width: 84px; height: 84px; border-radius: 10px; background: #EDF1F5; flex-shrink: 0;"></div>
+          <div style="flex-grow: 1;">
+            <div style="width: 62px; height: 12px; border-radius: 6px; background: #EDF1F5; margin-bottom: 11px;"></div>
+            <div style="width: 78%; height: 17px; border-radius: 6px; background: #EDF1F5; margin-bottom: 14px;"></div>
+            <div style="height: 8px; border-radius: 4px; background: #EDF1F5; margin-bottom: 8px;"></div>
+            <div style="width: 40%; height: 11px; border-radius: 5px; background: #EDF1F5;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding: 22px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4EAF0;">
+        <div style="font-size: 11.5px; letter-spacing: 1.3px; text-transform: uppercase; color: #64748B; margin-bottom: 16px;">Estado vacío</div>
+        <div style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 12px 20px;">
+          <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#B4C2CE" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 14px;" aria-hidden="true">
+            <rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18M8 3v3M16 3v3"/>
+          </svg>
+          <div style="font-size: 15px; font-weight: 500; margin-bottom: 6px;">Todavía no hay retos activos</div>
+          <div style="font-size: 13.5px; color: #5A6B7C; line-height: 1.55; max-width: 300px;">Tu docente publicará el próximo reto pronto. Mientras tanto, puedes repasar la biblioteca.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#2C53A0","options":["#2C53A0","#24437F","#16607F","#2C6BA8"],"section":"Marca"}}'>
+class Component extends DCLogic {
+  renderVals() {
+    // Un unico lever: el celeste de marca, que atraviesa botones y superficies.
+    // Los demas colores no son tweaks porque cambiarlos sueltos rompe el sistema.
+    return { accent: this.props.accent ?? '#2C53A0' };
+  }
+}
+</script>
+</body>
+</html>
