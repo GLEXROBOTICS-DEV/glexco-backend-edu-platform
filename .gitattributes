@@ -1,0 +1,28 @@
+# Normaliza los finales de linea.
+#
+# Sin esto, el equipo trabaja en Windows (CRLF) y Railway construye en Linux
+# (LF): cada archivo aparece como "modificado por completo" en los diffs y las
+# comparaciones de codigo se vuelven inutiles.
+* text=auto eol=lf
+
+# Archivos que deben conservar CRLF para ejecutarse en Windows.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binarios: nunca tocar.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.mp4 binary
+*.zip binary
+
+# El lockfile no aporta nada en una revision de codigo, pero debe versionarse
+# para que las instalaciones sean reproducibles.
+pnpm-lock.yaml -diff linguist-generated=true

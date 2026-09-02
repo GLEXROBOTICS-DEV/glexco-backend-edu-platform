@@ -1,0 +1,19 @@
+packages:
+  - "apps/*"
+  - "services/*"
+  - "packages/*"
+
+allowBuilds:
+  esbuild: set this to true or false
+  protobufjs: set this to true or false
+
+# Solo estas dependencias pueden ejecutar scripts de instalacion (postinstall).
+# Es una medida contra ataques de cadena de suministro: un paquete transitivo
+# comprometido no puede ejecutar codigo arbitrario en la maquina al instalar.
+onlyBuiltDependencies:
+  - esbuild
+  - protobufjs
+  - argon2
+  - bcrypt
+  - "@nestjs/core"
+  - sharp

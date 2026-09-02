@@ -1,0 +1,132 @@
+# Infraestructura local de la Plataforma GLEXCO.
+# Replica en local los servicios gestionados que usaremos en Railway y, mas
+# adelante, en AWS / Huawei Cloud. Nada de esto se ejecuta dentro del proceso de
+# una aplicacion: todo estado compartido vive fuera para permitir escalamiento
+# horizontal sin sesion pegajosa.
+name: glexco
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: glexco-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: glexco
+      POSTGRES_PASSWORD: glexco_local_dev
+      POSTGRES_DB: glexco
+      # Colacion determinista para que los ORDER BY se comporten igual en todos los entornos.
+      POSTGRES_INITDB_ARGS: '--locale-provider=icu --icu-locale=es-419 --encoding=UTF8'
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U glexco -d glexco']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: glexco-redis
+    restart: unless-stopped
+    # appendonly: las colas BullMQ y los refresh tokens deben sobrevivir a un reinicio.
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --requirepass glexco_local_dev
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'glexco_local_dev', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: glexco-nats
+    restart: unless-stopped
+    # JetStream da persistencia y at-least-once a los eventos de dominio.
+    command: ['-js', '-sd', '/data', '-m', '8222']
+    ports:
+      - '4222:4222'
+      - '8222:8222'
+    volumes:
+      - nats-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O- http://localhost:8222/healthz || exit 1']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    container_name: glexco-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: glexco
+      MINIO_ROOT_PASSWORD: glexco_local_dev
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: glexco-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 glexco glexco_local_dev;
+      mc mb --ignore-existing local/glexco-media;
+      mc mb --ignore-existing local/glexco-documents;
+      mc mb --ignore-existing local/glexco-evidence;
+      mc mb --ignore-existing local/glexco-certificates;
+      mc anonymous set none local/glexco-media;
+      mc anonymous set none local/glexco-documents;
+      mc anonymous set none local/glexco-evidence;
+      mc anonymous set none local/glexco-certificates;
+      echo 'Buckets GLEXCO listos (todos privados: se sirven con URLs firmadas).';
+      "
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: glexco-mailpit
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 500
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: glexco-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: 'true'
+    ports:
+      - '16686:16686'
+      - '4317:4317'
+      - '4318:4318'
+
+volumes:
+  postgres-data:
+  redis-data:
+  nats-data:
+  minio-data:
