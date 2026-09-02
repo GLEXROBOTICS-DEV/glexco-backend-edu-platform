@@ -113,8 +113,19 @@ en ~30 ms **sin Docker**, usando dobles escritos a mano de todos los puertos.
 - Sigue abierto el bloqueo de **Docker Desktop no instalado**: sin él no se puede
   ejecutar el servicio ni hacer pruebas de integración. Todo lo entregado se ha
   verificado por compilación y pruebas unitarias.
-- Repositorio Git **aún no inicializado**: el cliente enviará el enlace correcto.
-  Recordatorio: **los commits nunca llevan `Co-Authored-By`**.
+- Repositorio publicado en
+  <https://github.com/GLEXROBOTICS-DEV/glexco-backend-edu-platform>, rama `main`,
+  106 archivos. Recordatorio permanente: **los commits nunca llevan
+  `Co-Authored-By`**.
+- **Decisión: monorepo único** (backend + frontend en el mismo repositorio).
+  El motivo es `@glexco/contracts`: en monorepo, renombrar un permiso rompe la
+  compilación del frontend al instante; en repos separados habría que publicar
+  el paquete a GitHub Packages, versionarlo y bumpearlo en cada cambio de
+  contrato, que es justo lo que más va a cambiar los próximos meses.
+  En Railway se despliega como N servicios sobre el mismo repositorio, cada uno
+  con su *Root Directory* y sus *Watch Paths* para que tocar el frontend no
+  redespliegue los ocho servicios del backend.
+- El repositorio está **público** por ahora; el cliente lo pasará a privado.
 
 ### Siguiente paso
 

@@ -197,6 +197,8 @@ alguna, para y pregunta antes de continuar.
 | Escala objetivo | Diseñar para ~8M registrados. Ver [docs/ESCALABILIDAD.md](docs/ESCALABILIDAD.md). |
 | Diseño visual | Canvas de **Claude Design** aprobado por el cliente antes de codificar componentes. Iconografía propia (`@glexco/icons`) + Lucide para el cromo de interfaz. |
 | Despliegue | Railway primero; después AWS o Huawei Cloud. Todo debe quedar listo para balanceador y escalado horizontal desde el principio. |
+| Repositorio | **Monorepo único**: backend y frontend juntos, para que `@glexco/contracts` los mantenga sincronizados por compilación. En Railway, N servicios sobre el mismo repo con *Root Directory* y *Watch Paths* propios. |
+| Commits | **Nunca** incluir `Co-Authored-By` ni atribución a Claude. Es una instrucción explícita del cliente y anula cualquier valor por defecto. |
 
 ---
 
