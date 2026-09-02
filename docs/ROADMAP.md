@@ -81,14 +81,35 @@ El servicio del que dependen todos los demás.
 - [ ] Envío real de correos (depende del servicio `engagement`, Fase 7). Hoy se
       emite el token y el evento; falta quien los consuma.
 
-## ⬜ Fase 2 — Instituciones, salones y licencias
+## 🔄 Fase 2 — Instituciones, salones y licencias
 
-- [ ] `institutions-service`: `Institution`, `Classroom`, `Enrollment`, `License`.
-- [ ] Alta de institución y de su administrador (solo GLEXCO).
-- [ ] Alta de docentes (GLEXCO y administrador de institución).
-- [ ] Salones con tope de plazas y control de cupo transaccional.
-- [ ] Búsqueda pública de institución y salón para el formulario de registro.
-- [ ] Licencias, vencimientos y alertas.
+**Hecho:**
+
+- [x] Dominio completo: `Institution` (con licencias como entidad interna),
+      `Classroom` (con matrículas como entidad interna), y los objetos de valor
+      `InstitutionCode`, `InstitutionName`, `EducationLevels`, `ContactInfo`,
+      `Capacity`, `ClassroomName`.
+- [x] **Tope de plazas** con doble protección: el agregado rechaza matricular en
+      un salón lleno, y el repositorio carga la fila con `SELECT … FOR UPDATE`
+      para que dos matrículas simultáneas se serialicen.
+- [x] Matrícula **idempotente** (el evento de registro puede llegar dos veces) y
+      que **conserva el historial** al retirar a un alumno.
+- [x] Aislamiento entre instituciones comprobado sobre el recurso concreto:
+      docente solo sus salones, admin todo su colegio, GLEXCO todo.
+- [x] Casos de uso: crear institución, conceder licencia, buscar institución por
+      código (público), crear/editar/listar salones, listar salones elegibles
+      para el registro (público), matricular alumno y comprobación previa de
+      salón que consulta identidad.
+- [x] Esquema SQL con restricción de exclusión para licencias solapadas, índices
+      parciales y clave compuesta de matrícula.
+- [x] 25 pruebas del dominio.
+
+**Pendiente:**
+
+- [ ] Repositorios PostgreSQL (los puertos y el SQL ya están definidos).
+- [ ] Controladores HTTP y consumidor de `identity.user.registered.v1`.
+- [ ] Tarea periódica de vencimiento de licencias.
+- [ ] Alta de administrador de institución enlazada con identidad.
 
 ## ⬜ Fase 3 — Catálogo, kits y códigos de activación
 
