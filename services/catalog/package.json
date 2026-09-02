@@ -1,0 +1,42 @@
+{
+  "name": "@glexco/catalog",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "start": "node --env-file-if-exists=../../.env dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "db:migrate": "node --env-file-if-exists=../../.env ../../infra/scripts/migrate.mjs catalog",
+    "clean": "rimraf dist .turbo"
+  },
+  "dependencies": {
+    "@glexco/config": "workspace:*",
+    "@glexco/contracts": "workspace:*",
+    "@glexco/kernel": "workspace:*",
+    "@glexco/nest-platform": "workspace:*",
+    "@glexco/observability": "workspace:*",
+    "@nestjs/common": "^11.0.6",
+    "@nestjs/core": "^11.0.6",
+    "@nestjs/platform-express": "^11.0.6",
+    "express": "^5.0.1",
+    "ioredis": "^5.4.2",
+    "nats": "^2.29.1",
+    "pg": "^8.13.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@glexco/tsconfig": "workspace:*",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}
