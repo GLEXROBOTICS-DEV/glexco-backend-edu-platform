@@ -67,6 +67,18 @@ interface ActivationCodeRedeemedPayload {
   institutionId?: string;
 }
 
+interface InstitutionCreatedPayload {
+  institutionId: string;
+  code: string;
+  name: string;
+  shortName: string;
+  city: string;
+}
+
+interface InstitutionSuspendedPayload {
+  institutionId: string;
+}
+
 export function buildAnalyticsConsumer(deps: AnalyticsConsumerDeps): EventConsumer {
   const consumer = new EventConsumer({
     connection: deps.connection,
@@ -83,6 +95,8 @@ export function buildAnalyticsConsumer(deps: AnalyticsConsumerDeps): EventConsum
       EVENTS.CLASSROOM_CREATED,
       EVENTS.ACTIVATION_CODE_BATCH_GENERATED,
       EVENTS.ACTIVATION_CODE_REDEEMED,
+      EVENTS.INSTITUTION_CREATED,
+      EVENTS.INSTITUTION_SUSPENDED,
     ],
     logger: deps.natsLogger,
   });
@@ -183,6 +197,42 @@ export function buildAnalyticsConsumer(deps: AnalyticsConsumerDeps): EventConsum
       );
     },
   );
+
+  // -------------------------------------------------------------------------
+  // Directorio de instituciones: para que el panel de GLEXCO diga nombres
+  // -------------------------------------------------------------------------
+  // Sin esto, la vista de plataforma lista la cartera de clientes por UUID. El
+  // nombre entra por evento y NO consultando el schema de instituciones: es la
+  // regla que sostiene este servicio entero, y ademas el rol de base de datos de
+  // analitica no tiene permiso sobre ese schema.
+  consumer.on<InstitutionCreatedPayload>(EVENTS.INSTITUTION_CREATED, async (event, tx) => {
+    const payload = event.payload;
+
+    await (tx.client as PoolClient).query(
+      `INSERT INTO analytics.institution_directory
+         (institution_id, code, name, short_name, city)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (institution_id) DO UPDATE SET
+         code       = EXCLUDED.code,
+         name       = EXCLUDED.name,
+         short_name = EXCLUDED.short_name,
+         city       = EXCLUDED.city,
+         updated_at = now()`,
+      [payload.institutionId, payload.code, payload.name, payload.shortName, payload.city ?? ''],
+    );
+  });
+
+  // Un colegio suspendido NO se borra del directorio: su historico academico
+  // sigue existiendo y el panel tiene que poder decir de quien es. Solo cambia
+  // de estado, para que la pantalla pueda distinguirlo de un cliente activo.
+  consumer.on<InstitutionSuspendedPayload>(EVENTS.INSTITUTION_SUSPENDED, async (event, tx) => {
+    await (tx.client as PoolClient).query(
+      `UPDATE analytics.institution_directory
+          SET status = 'suspended', updated_at = now()
+        WHERE institution_id = $1`,
+      [event.payload.institutionId],
+    );
+  });
 
   consumer.on<ActivationCodeRedeemedPayload>(
     EVENTS.ACTIVATION_CODE_REDEEMED,

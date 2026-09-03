@@ -46,6 +46,12 @@ export interface ClassroomDashboard {
 
 export interface InstitutionDashboard {
   institutionId: string;
+  /** Del directorio propio de analitica. `null` si el evento de alta todavia no
+   *  se proyecto: aparece sin nombre, que es mejor que no aparecer. */
+  name?: string | null;
+  shortName?: string | null;
+  city?: string | null;
+  status?: string;
   classrooms: number;
   studentsMeasured: number;
   averagePercentage: number | null;
@@ -154,6 +160,54 @@ export async function fetchTeachingReport(
   }
 
   return { data: result.data, failed: false };
+}
+
+/** Un kit con mal resultado en TODAS partes: si falla en todos los colegios, el
+ *  problema es del contenido y no de los alumnos. */
+export interface WeakKit {
+  kitId: string;
+  studentsMeasured: number;
+  averagePercentage: number | null;
+}
+
+/**
+ * Vista de plataforma: un colegio por fila.
+ *
+ * Solo la ve el personal de GLEXCO. Devuelve lista vacia -y no un error- cuando
+ * la llamada falla, por lo mismo que los demas paneles: la pantalla se pinta
+ * igual y dice que algo no fue bien.
+ */
+export async function fetchPlatformInstitutions(): Promise<{
+  items: InstitutionDashboard[];
+  failed: boolean;
+}> {
+  const result = await api<{ institutions: InstitutionDashboard[] }>('/analytics/institutions');
+
+  if (!result.ok) {
+    console.error('No se pudo leer la vista de plataforma', {
+      status: result.status,
+      code: result.error.code,
+      correlationId: result.error.correlationId,
+    });
+    return { items: [], failed: true };
+  }
+
+  return { items: result.data.institutions ?? [], failed: false };
+}
+
+export async function fetchWeakestKits(limit = 10): Promise<{ items: WeakKit[]; failed: boolean }> {
+  const result = await api<{ kits: WeakKit[] }>(`/analytics/kits/weakest?limit=${limit}`);
+
+  if (!result.ok) {
+    console.error('No se pudieron leer los kits con peor resultado', {
+      status: result.status,
+      code: result.error.code,
+      correlationId: result.error.correlationId,
+    });
+    return { items: [], failed: true };
+  }
+
+  return { items: result.data.kits ?? [], failed: false };
 }
 
 /**

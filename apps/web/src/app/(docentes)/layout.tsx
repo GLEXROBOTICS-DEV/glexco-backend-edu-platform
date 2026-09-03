@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
-import { ClassroomIcon, LevelIcon, RobotIcon } from '@glexco/icons';
+import { ClassroomIcon, KitIcon, LevelIcon, RobotIcon } from '@glexco/icons';
+import { PERMISSIONS } from '@glexco/contracts';
 import { getSession } from '../../lib/session';
 import { logout } from '../../lib/auth.actions';
 
@@ -29,6 +30,11 @@ export default async function DocentesLayout({ children }: { children: React.Rea
   }
 
   const isAdmin = session.portal === 'institution' || session.portal === 'admin';
+  // El panel de plataforma es de GLEXCO, no del colegio. Se decide por PERMISO
+  // y no por el portal: `admin` incluye a perfiles internos que no leen la
+  // plataforma entera, y darles un enlace que acaba en una redireccion es peor
+  // que no darselo.
+  const isPlatform = session.permissions.includes(PERMISSIONS.ANALYTICS_READ_PLATFORM);
 
   return (
     <div data-portal="academy" className="min-h-dvh bg-surface-100">
@@ -48,6 +54,7 @@ export default async function DocentesLayout({ children }: { children: React.Rea
               {isAdmin ? (
                 <NavLink href="/docentes/institucion" label="Mi institución" Icon={LevelIcon} />
               ) : null}
+              {isPlatform ? <NavLink href="/admin" label="Plataforma" Icon={KitIcon} /> : null}
             </ul>
           </nav>
 

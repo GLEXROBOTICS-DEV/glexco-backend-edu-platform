@@ -451,17 +451,64 @@ export class PgAnalyticsQueryRepository implements AnalyticsQueryRepository {
   }
 
   async institutionsOverview(): Promise<InstitutionDashboard[]> {
-    const { rows } = await this.readPool.query<{ institution_id: string }>(
-      `SELECT institution_id FROM analytics.institution_rollups
-       ORDER BY last_activity_at DESC NULLS LAST
-       LIMIT 200`,
+    // Las DOS fuentes, unidas: el directorio -que llega por evento de alta- y los
+    // resumenes -que llegan por actividad-. Ninguna de las dos basta sola.
+    //
+    // Partiendo solo de los resumenes, un colegio recien firmado que todavia no
+    // ha activado ningun codigo NO aparece. Y ese es precisamente el que GLEXCO
+    // necesita ver: libros comprados que nadie activa son dinero pagado y sin
+    // usar, y la señal mas temprana de que un centro no va a renovar. Un panel
+    // comercial que oculta al cliente que no arranca es un panel que informa de
+    // todo menos de lo unico accionable.
+    //
+    // Partiendo solo del directorio se perderia el camino contrario: un colegio
+    // con actividad cuyo evento de alta es anterior a esta proyeccion. Sale sin
+    // nombre, y sin nombre es mejor que ausente.
+    //
+    // Las dos tablas son de ESTE schema. Sigue sin haber ningun JOIN contra el
+    // schema de instituciones, que es lo que la regla prohibe.
+    const { rows } = await this.readPool.query<{
+      institution_id: string;
+      name: string | null;
+      short_name: string | null;
+      city: string | null;
+      status: string | null;
+    }>(
+      `WITH conocidas AS (
+         SELECT institution_id, last_activity_at FROM analytics.institution_rollups
+         UNION
+         SELECT institution_id, NULL::timestamptz FROM analytics.institution_directory
+       ),
+       unicas AS (
+         SELECT institution_id, max(last_activity_at) AS last_activity_at
+           FROM conocidas
+          GROUP BY institution_id
+       )
+       SELECT u.institution_id,
+              d.name,
+              d.short_name,
+              d.city,
+              d.status
+         FROM unicas u
+         LEFT JOIN analytics.institution_directory d
+                ON d.institution_id = u.institution_id
+        ORDER BY u.last_activity_at DESC NULLS LAST, d.name ASC
+        LIMIT 200`,
     );
 
     // Se resuelve una consulta por institucion en vez de una gigante con
     // agrupaciones anidadas: son doscientas como maximo, van a la replica, y el
     // SQL resultante es legible. Una consulta ilegible que nadie se atreve a
     // tocar es peor que doscientas rapidas.
-    return Promise.all(rows.map((row) => this.institutionDashboard(row.institution_id)));
+    return Promise.all(
+      rows.map(async (row) => ({
+        ...(await this.institutionDashboard(row.institution_id)),
+        name: row.name,
+        shortName: row.short_name,
+        city: row.city,
+        status: row.status ?? 'active',
+      })),
+    );
   }
 }
 

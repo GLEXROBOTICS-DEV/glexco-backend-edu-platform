@@ -21,6 +21,7 @@ const GATEWAY = process.env.GATEWAY_URL ?? 'http://localhost:3000';
 const ASSESSMENT = process.env.ASSESSMENT_URL ?? 'http://localhost:3105';
 const INSTITUTIONS = process.env.INSTITUTIONS_URL ?? 'http://localhost:3102';
 const CATALOG = process.env.CATALOG_URL ?? 'http://localhost:3103';
+const ANALYTICS = process.env.ANALYTICS_URL ?? 'http://localhost:3107';
 
 const colors = {
   ok: '\x1b[32m',
@@ -1149,6 +1150,306 @@ async function main() {
     'El kit recien activado aparece en la portada del alumno',
     Boolean(portada),
     portada ? '' : 'no aparecio en 40 s',
+  );
+
+
+  // ------------------------------------------------------------------
+  section('10. Biblioteca del kit: reproductor y descargas firmadas');
+  // ------------------------------------------------------------------
+
+  // Es lo que el alumno abre cada dia. La regla que la gobierna es la central
+  // del negocio -solo ve el contenido del libro que compro- y aqui se comprueba
+  // sobre las tres formas de entrega, que se resuelven por caminos distintos.
+  const bibKit = await seedCatalog({ codeCount: 1, grade: 'secondary_2' });
+  const [bibPupil] = await seedUsers(1);
+  const bibToken = mintAccessToken({ userId: bibPupil.id, roles: bibPupil.roles });
+  const bibJar = `glexco_at=${bibToken}`;
+
+  // Un alumno SIN el kit, para comprobar el aislamiento con datos reales.
+  const [otroPupil] = await seedUsers(1);
+  const otroToken = mintAccessToken({ userId: otroPupil.id, roles: otroPupil.roles });
+
+  const sinKitLista = await getJson(
+    `${CATALOG}/api/v1/catalog/library?kitId=${bibKit.kitId}`,
+    otroToken,
+  );
+  report(
+    'Sin derecho sobre el kit, la biblioteca se rechaza',
+    sinKitLista.status === 403 && sinKitLista.body?.code === 'KIT_NOT_ACCESSIBLE',
+    `status=${sinKitLista.status} code=${sinKitLista.body?.code}`,
+  );
+
+  const sinKitAbrir = await getJson(
+    `${CATALOG}/api/v1/catalog/library/${bibKit.assetId}/url`,
+    otroToken,
+  );
+  report(
+    'Y tampoco puede abrir un recurso suelto conociendo su identificador',
+    sinKitAbrir.status === 403,
+    `status=${sinKitAbrir.status}`,
+  );
+
+  const bibCanje = await postJson(`${CATALOG}/api/v1/catalog/redeem`, bibToken, {
+    code: bibKit.codes[0],
+  });
+  report('El alumno activa el codigo de su libro', bibCanje.status === 200, `status=${bibCanje.status}`);
+
+  const bibListado = await getJson(
+    `${CATALOG}/api/v1/catalog/library?kitId=${bibKit.kitId}`,
+    bibToken,
+  );
+
+  report(
+    'Con derecho, la biblioteca trae el material publicado',
+    bibListado.status === 200 && bibListado.body?.items?.length === 3,
+    `status=${bibListado.status} items=${bibListado.body?.items?.length}`,
+  );
+  report(
+    'El borrador NO aparece en la biblioteca del alumno',
+    !JSON.stringify(bibListado.body ?? {}).includes('Ficha en preparacion'),
+  );
+
+  // La clave del almacen es estructura interna. No abre nada por si sola -los
+  // buckets son privados- pero publicarla invita a construir rutas a mano y ata
+  // el formato de las claves a lo que ya vio un cliente.
+  const bibListadoCrudo = JSON.stringify(bibListado.body ?? {});
+  report(
+    'El listado NO filtra la clave del almacen ni el bucket',
+    !bibListadoCrudo.includes('storageRef') &&
+      !bibListadoCrudo.includes('bucket') &&
+      !bibListadoCrudo.includes('glexco-documents'),
+  );
+
+  // --- Las tres formas de entrega ---
+  const bibAbierto = {};
+  for (const [nombre, id] of [
+    ['documento', bibKit.assetId],
+    ['video', bibKit.videoAssetId],
+    ['enlace', bibKit.linkAssetId],
+  ]) {
+    bibAbierto[nombre] = await getJson(
+      `${CATALOG}/api/v1/catalog/library/${id}/url`,
+      bibToken,
+    );
+  }
+
+  report(
+    'Un documento se entrega como descarga firmada, no como direccion permanente',
+    bibAbierto.documento.status === 200 &&
+      bibAbierto.documento.body?.delivery === 'download' &&
+      bibAbierto.documento.body?.expiresInSeconds > 0 &&
+      /[?&]X-Amz-Signature=/.test(bibAbierto.documento.body?.url ?? ''),
+    `delivery=${bibAbierto.documento.body?.delivery} ttl=${bibAbierto.documento.body?.expiresInSeconds}`,
+  );
+  report(
+    'Un video se entrega para reproducir',
+    bibAbierto.video.status === 200 && bibAbierto.video.body?.delivery === 'stream',
+    `delivery=${bibAbierto.video.body?.delivery}`,
+  );
+  report(
+    'Un enlace externo se devuelve tal cual y sin caducidad, porque no lo firmamos',
+    bibAbierto.enlace.status === 200 &&
+      bibAbierto.enlace.body?.delivery === 'external' &&
+      bibAbierto.enlace.body?.expiresInSeconds === 0,
+    `delivery=${bibAbierto.enlace.body?.delivery} ttl=${bibAbierto.enlace.body?.expiresInSeconds}`,
+  );
+
+  const bibBorrador = await getJson(
+    `${CATALOG}/api/v1/catalog/library/${bibKit.draftAssetId}/url`,
+    bibToken,
+  );
+  report(
+    'Un recurso en borrador responde 404 aunque el alumno tenga el kit',
+    bibBorrador.status === 404,
+    `status=${bibBorrador.status}`,
+  );
+
+  // --- Las pantallas ---
+  const bibSinSesion = await fetch(`${WEB}/academy/biblioteca`, { redirect: 'manual' });
+  report(
+    'La biblioteca exige sesion',
+    bibSinSesion.status === 307,
+    `status=${bibSinSesion.status}`,
+  );
+
+  const bibPagina = await waitForHtml(`${WEB}/academy/biblioteca`, bibJar, (html) =>
+    html.includes('Monta tu primer robot'),
+  );
+
+  report(
+    'La biblioteca se sirve desde el servidor con el material del kit',
+    Boolean(bibPagina) && bibPagina.includes('Guia del docente'),
+    bibPagina ? '' : 'no aparecio en 40 s',
+  );
+  report(
+    'Lista los tres recursos publicados y ninguno mas',
+    /data-library="3"/.test(bibPagina ?? ''),
+    `data-library=${/data-library="(\d+)"/.exec(bibPagina ?? '')?.[1]}`,
+  );
+  report(
+    'El borrador tampoco llega al HTML de la pantalla',
+    Boolean(bibPagina) && !bibPagina.includes('Ficha en preparacion'),
+  );
+
+  // LA comprobacion que sostiene la biblioteca: el bibListado se pinta sin firmar
+  // nada. Si las URLs vinieran aqui, estarian muertas en quince minutos y
+  // ademas quedarian treinta enlaces vivos en una pagina que se puede guardar.
+  report(
+    'El listado NO trae ninguna URL firmada: la firma se pide al abrir',
+    Boolean(bibPagina) && !/X-Amz-Signature/.test(bibPagina),
+  );
+
+  const visorVideo = await fetchHtml(
+    `${WEB}/academy/biblioteca/${bibKit.videoAssetId}`,
+    bibJar,
+  );
+  report(
+    'El video se reproduce con el reproductor NATIVO, sin libreria',
+    visorVideo.status === 200 &&
+      visorVideo.html.includes('<video') &&
+      visorVideo.html.includes('data-delivery="stream"'),
+    `status=${visorVideo.status}`,
+  );
+
+  const visorDoc = await fetchHtml(`${WEB}/academy/biblioteca/${bibKit.assetId}`, bibJar);
+  report(
+    'Un documento descargable ofrece su enlace de descarga firmado',
+    visorDoc.html.includes('data-download="1"') && /X-Amz-Signature/.test(visorDoc.html),
+  );
+
+  const visorEnlace = await fetchHtml(`${WEB}/academy/biblioteca/${bibKit.linkAssetId}`, bibJar);
+  report(
+    'Un enlace externo se abre fuera, con noopener, y no se incrusta',
+    visorEnlace.html.includes('data-delivery="external"') &&
+      visorEnlace.html.includes('noopener') &&
+      !visorEnlace.html.includes('<iframe'),
+  );
+
+  const visorAjeno = await fetch(`${WEB}/academy/biblioteca/${bibKit.videoAssetId}`, {
+    headers: { cookie: `glexco_at=${otroToken}` },
+    redirect: 'manual',
+  });
+  report(
+    'Un alumno sin el kit no ve el recurso: misma pantalla que si no existiera',
+    visorAjeno.status === 404,
+    `status=${visorAjeno.status}`,
+  );
+
+  const visorBorrador = await fetch(`${WEB}/academy/biblioteca/${bibKit.draftAssetId}`, {
+    headers: { cookie: bibJar },
+    redirect: 'manual',
+  });
+  report(
+    'Y un borrador tampoco, aunque el kit sea suyo',
+    visorBorrador.status === 404,
+    `status=${visorBorrador.status}`,
+  );
+
+
+  // ------------------------------------------------------------------
+  section('11. Panel de GLEXCO');
+  // ------------------------------------------------------------------
+
+  // `/admin` existia como DESTINO y no como pantalla: `portalPath` manda ahi a
+  // los directores y al personal de GLEXCO desde que hay ingreso, asi que
+  // aterrizaban en un 404 nada mas entrar.
+  const [glexcoStaff] = await seedUsers(1, { roles: [ROLES.PLATFORM_ADMIN] });
+  const staffToken = mintAccessToken({ userId: glexcoStaff.id, roles: glexcoStaff.roles });
+  const staffJar = `glexco_at=${staffToken}`;
+
+  const panelSinSesion = await fetch(`${WEB}/admin`, { redirect: 'manual' });
+  report(
+    'El panel de plataforma exige sesion',
+    panelSinSesion.status === 307,
+    `status=${panelSinSesion.status}`,
+  );
+
+  const escuelaPanel = await seedInstitution();
+  const [director] = await seedUsers(1, {
+    roles: [ROLES.INSTITUTION_ADMIN],
+    institutionId: escuelaPanel.institutionId,
+  });
+  const directorToken = mintAccessToken({
+    userId: director.id,
+    roles: director.roles,
+    institutionId: escuelaPanel.institutionId,
+  });
+
+  const directorEnPanel = await fetch(`${WEB}/admin`, {
+    headers: { cookie: `glexco_at=${directorToken}` },
+    redirect: 'manual',
+  });
+  report(
+    'Un director de colegio NO ve el panel de plataforma: va al suyo',
+    directorEnPanel.status === 307 &&
+      (directorEnPanel.headers.get('location') ?? '').includes('/docentes/institucion'),
+    `status=${directorEnPanel.status} location=${directorEnPanel.headers.get('location')}`,
+  );
+
+  const panelApi = await getJson(`${ANALYTICS}/api/v1/analytics/institutions`, directorToken);
+  report(
+    'Y el backend tambien se lo niega, no solo la pantalla',
+    panelApi.status === 403,
+    `status=${panelApi.status}`,
+  );
+
+  const panel = await fetchHtml(`${WEB}/admin`, staffJar);
+  report(
+    'GLEXCO ve el panel de plataforma',
+    panel.status === 200 && panel.html.includes('Panel de GLEXCO'),
+    `status=${panel.status}`,
+  );
+  report(
+    'Lista instituciones reales, no un dato de ejemplo',
+    /data-institutions="[1-9]\d*"/.test(panel.html),
+    `data-institutions=${/data-institutions="(\d+)"/.exec(panel.html)?.[1]}`,
+  );
+
+  // --- El directorio de nombres, que llega por evento ---
+  //
+  // Un colegio dado de alta por la API emite `institutions.institution.created`,
+  // y analitica lo proyecta en su PROPIO directorio. Sin esa proyeccion el panel
+  // listaba la cartera de clientes por UUID, y la alternativa -un JOIN contra el
+  // schema de instituciones- es justo lo que este servicio no puede hacer: el
+  // rol `glexco_analytics` no tiene permiso sobre ese schema.
+  const sello = Date.now().toString(36).toUpperCase();
+  const nuevaEscuela = await postJson(`${INSTITUTIONS}/api/v1/institutions`, staffToken, {
+    code: `EVT${sello}`,
+    name: `Colegio San Ejemplo ${sello}`,
+    shortName: 'San Ejemplo',
+    educationLevels: ['primary', 'secondary'],
+    responsibleName: 'Ana Directora',
+    contactEmail: `ana.${sello.toLowerCase()}@sanejemplo.pe`,
+    city: 'Arequipa',
+  });
+
+  report(
+    'Se da de alta un colegio por la API, que es lo que emite el evento',
+    nuevaEscuela.status === 201,
+    `status=${nuevaEscuela.status}`,
+  );
+
+  // La proyeccion es asincrona: se espera a que llegue en vez de suponerlo.
+  const proyectado = await waitFor(async () => {
+    const overview = await getJson(`${ANALYTICS}/api/v1/analytics/institutions`, staffToken);
+    return (overview.body?.institutions ?? []).some(
+      (row) => row.institutionId === nuevaEscuela.body?.institutionId && row.name,
+    );
+  }, 30_000);
+
+  report(
+    'El nombre del colegio llega a la analitica por EVENTO, sin consultar su schema',
+    proyectado,
+    proyectado ? '' : 'no se proyecto en 30 s',
+  );
+
+  const conNombre = await waitForHtml(`${WEB}/admin`, staffJar, (html) =>
+    html.includes(`Colegio San Ejemplo ${sello}`),
+  );
+  report(
+    'Y el panel lo muestra con su nombre y su ciudad, no con su identificador',
+    Boolean(conNombre) && conNombre.includes('Arequipa'),
+    conNombre ? '' : 'el nombre no aparecio en 40 s',
   );
 
   console.log(

@@ -116,6 +116,18 @@ export interface ClassroomDashboard {
 
 export interface InstitutionDashboard {
   institutionId: string;
+  /**
+   * Nombre del colegio, del directorio propio de analitica.
+   *
+   * Opcional porque llega por evento y puede ir unos segundos por detras: un
+   * colegio recien creado que ya tiene actividad aparece sin nombre durante ese
+   * rato. Sale `null` y no una cadena vacia para que la pantalla pueda decir
+   * "sin nombre todavia" en vez de pintar un hueco que parece un fallo.
+   */
+  name?: string | null;
+  shortName?: string | null;
+  city?: string | null;
+  status?: string;
   classrooms: number;
   studentsMeasured: number;
   averagePercentage: number | null;
