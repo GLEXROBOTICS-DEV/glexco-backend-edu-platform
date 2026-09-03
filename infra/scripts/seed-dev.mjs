@@ -245,7 +245,18 @@ export async function seedInstitution({
 
     await client.query('COMMIT');
 
-    return { institutionId, classroomId, teacherId, capacity, grade, academicYear };
+    // El codigo viaja de vuelta porque es lo que teclea el alumno en el
+    // formulario de registro: sin el, una comprobacion del portal tendria que
+    // ir a buscarlo a la base, que es justo lo que este sembrador evita.
+    return {
+      institutionId,
+      classroomId,
+      teacherId,
+      capacity,
+      grade,
+      academicYear,
+      code: `DEV${suffix}`,
+    };
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     throw error;

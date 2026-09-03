@@ -856,6 +856,301 @@ async function main() {
       Boolean(copiaEditor?.includes('Cual de estas piezas es un servomotor?')),
   );
 
+
+  // ------------------------------------------------------------------
+  section('9. Registro de alumno y activacion del codigo desde el portal');
+  // ------------------------------------------------------------------
+
+  // Es el camino que permite que un colegio empiece a usar la plataforma sin
+  // que nadie de GLEXCO cree cuentas por API. Se comprueba entero: los dos
+  // pasos del asistente, el alta real, el canje y la pantalla de activacion
+  // para quien ya tiene cuenta.
+  const altaKit = await seedCatalog({ codeCount: 4, grade: 'primary_4' });
+  const altaSchool = await seedInstitution({ capacity: 30, grade: 'primary_4' });
+
+  const [altaTeacher] = await seedUsers(1, {
+    roles: [ROLES.TEACHER],
+    institutionId: altaSchool.institutionId,
+  });
+  const altaTeacherToken = mintAccessToken({
+    userId: altaTeacher.id,
+    roles: altaTeacher.roles,
+    institutionId: altaSchool.institutionId,
+  });
+
+  // Un salon de OTRO grado en el MISMO colegio. Es lo que hace falta para
+  // comprobar dos cosas distintas: que el paso 2 filtra por grado, y que el
+  // backend no se fia de ese filtrado.
+  const otroGrado = await postJson(`${INSTITUTIONS}/api/v1/classrooms`, altaTeacherToken, {
+    name: `Salon de sexto ${Date.now()}`,
+    grade: 'primary_6',
+    capacity: 30,
+    academicYear: new Date().getFullYear(),
+    teacherId: altaTeacher.id,
+  });
+
+  // --- Paso 1: colegio y grado ---
+  const paso1 = await fetchHtml(`${WEB}/registro`, null);
+
+  report(
+    'La pantalla de registro responde 200 sin sesion',
+    paso1.status === 200,
+    `status=${paso1.status}`,
+  );
+  report(
+    'El primer paso viene en el HTML del servidor: funciona sin JavaScript',
+    paso1.html.includes('name="colegio"') &&
+      paso1.html.includes('name="grado"') &&
+      paso1.html.includes('method="get"'),
+  );
+  report(
+    'Lo seleccionado no se comunica solo con color: lleva su etiqueta de texto',
+    paso1.html.includes('(seleccionado)') && paso1.html.includes('aria-current="true"'),
+  );
+
+  const independiente = await fetchHtml(`${WEB}/registro?tipo=independiente`, null);
+  report(
+    'El registro independiente no pide colegio',
+    independiente.status === 200 && !independiente.html.includes('name="colegio"'),
+  );
+
+  const malCodigo = await fetchHtml(`${WEB}/registro?colegio=NOEXISTE-2026&grado=primary_4`, null);
+  report(
+    'Un codigo de colegio inexistente lo dice, y se queda en el paso 1',
+    malCodigo.html.includes('No encontramos') && malCodigo.html.includes('data-step="1"'),
+  );
+
+  // --- Paso 2: salones reales del colegio ---
+  const paso2 = await fetchHtml(`${WEB}/registro?colegio=${altaSchool.code}&grado=primary_4`, null);
+
+  report(
+    'Con colegio y grado validos pasa al segundo paso',
+    paso2.status === 200 && paso2.html.includes('data-step="2"'),
+    `status=${paso2.status}`,
+  );
+  report(
+    'Confirma de que colegio se trata antes de pedir los datos',
+    paso2.html.includes('Institucion Educativa de Desarrollo'),
+  );
+  report(
+    'Lista los salones REALES del colegio, con el nombre de su docente',
+    paso2.html.includes(`value="${altaSchool.classroomId}"`) &&
+      paso2.html.includes('Docente de Desarrollo'),
+  );
+  report(
+    'Solo ofrece salones del grado elegido',
+    !paso2.html.includes(`value="${otroGrado.body?.classroomId}"`),
+    `salon de sexto=${otroGrado.body?.classroomId}`,
+  );
+  report(
+    'Los salones usan radios nativos dentro de un fieldset',
+    paso2.html.includes('<fieldset') && paso2.html.includes('type="radio"'),
+  );
+  report(
+    'El formulario de alta se sirve desde el servidor, con el codigo del libro',
+    paso2.html.includes('name="activationCode"') &&
+      paso2.html.includes('name="acceptedTerms"') &&
+      paso2.html.includes('name="birthDate"'),
+  );
+  report(
+    'Pide el correo del apoderado siempre, y no solo si ya se escribio la edad',
+    paso2.html.includes('name="guardianEmail"'),
+  );
+
+  const paso2Solo = await fetchHtml(`${WEB}/registro?tipo=independiente&grado=primary_4`, null);
+  report(
+    'El alta independiente llega al formulario sin pedir salon',
+    paso2Solo.html.includes('name="activationCode"') &&
+      !paso2Solo.html.includes('name="classroomId"'),
+  );
+
+  // --- El alta de verdad, con el mismo cuerpo que arma la Server Action ---
+  const altaStamp = Date.now();
+  const altaEmail = `alta.${altaStamp}@colegio.pe`;
+  const altaPassword = 'construyo-robots-2026';
+
+  const alta = await fetch(`${GATEWAY}/api/v1/auth/register/student`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      accountType: 'institutional',
+      email: altaEmail,
+      password: altaPassword,
+      firstName: 'Mateo',
+      lastName: 'Quispe',
+      birthDate: '2016-05-14',
+      guardianEmail: `apoderado.${altaStamp}@correo.pe`,
+      grade: 'primary_4',
+      institutionId: altaSchool.institutionId,
+      classroomId: altaSchool.classroomId,
+      activationCode: altaKit.codes[0],
+      acceptedTerms: true,
+      locale: 'es',
+    }),
+  });
+  const altaBody = await alta.json().catch(() => null);
+
+  report(
+    'Un alumno de primaria se registra con su codigo y su salon',
+    alta.status === 201,
+    `status=${alta.status} ${JSON.stringify(altaBody).slice(0, 160)}`,
+  );
+  report(
+    'El alta de un menor de 14 exige y registra el correo del apoderado',
+    altaBody?.requiresGuardianConsent === true,
+  );
+
+  // LA comprobacion que sostiene este formulario. El portal ya solo ofrece
+  // salones del grado elegido, pero eso es comodidad del cliente: si el backend
+  // no lo revalidase, una peticion forjada matricularia al alumno en el salon
+  // de otro grado del mismo colegio, y ni el docente ni el alumno lo notarian
+  // hasta ver la lista de clase.
+  const gradoCruzado = await fetch(`${GATEWAY}/api/v1/auth/register/student`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      accountType: 'institutional',
+      email: `cruzado.${altaStamp}@colegio.pe`,
+      password: altaPassword,
+      firstName: 'Lucia',
+      lastName: 'Rojas',
+      birthDate: '2016-03-01',
+      guardianEmail: `apoderado2.${altaStamp}@correo.pe`,
+      grade: 'primary_4',
+      institutionId: altaSchool.institutionId,
+      // El salon es de sexto y el grado declarado es cuarto.
+      classroomId: otroGrado.body?.classroomId,
+      activationCode: altaKit.codes[1],
+      acceptedTerms: true,
+      locale: 'es',
+    }),
+  });
+  const cruzadoBody = await gradoCruzado.json().catch(() => null);
+
+  report(
+    'El backend rechaza un salon que no es del grado declarado',
+    gradoCruzado.status === 422 && cruzadoBody?.code === 'CLASSROOM_GRADE_MISMATCH',
+    `status=${gradoCruzado.status} code=${cruzadoBody?.code}`,
+  );
+  report(
+    'Y senala el campo, para que el formulario lo pinte donde toca',
+    cruzadoBody?.details?.field === 'classroomId',
+    `details=${JSON.stringify(cruzadoBody?.details)}`,
+  );
+
+  // --- La sesion y la pantalla de confirmacion ---
+  const altaLogin = await fetch(`${GATEWAY}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: altaEmail, password: altaPassword, rememberMe: false }),
+  });
+  const altaLoginBody = await altaLogin.json().catch(() => null);
+
+  report(
+    'Puede ingresar de inmediato con lo que acaba de elegir',
+    altaLogin.status === 200 && altaLoginBody?.user?.portal === 'discover',
+    `status=${altaLogin.status} portal=${altaLoginBody?.user?.portal}`,
+  );
+
+  const altaJar = `glexco_at=${altaLoginBody?.accessToken}`;
+
+  const sinSesion = await fetch(`${WEB}/registro/listo`, { redirect: 'manual' });
+  report(
+    'La pantalla de confirmacion exige sesion',
+    sinSesion.status === 307 && (sinSesion.headers.get('location') ?? '').includes('/ingresar'),
+    `status=${sinSesion.status}`,
+  );
+
+  // El canje es ASINCRONO: identidad crea la cuenta y encola el evento, y
+  // catalogo lo canjea al consumirlo. Por eso se espera a que aparezca en vez
+  // de dar por hecho que ya esta, que es justo el hueco que esta pantalla tapa.
+  const listo = await waitForHtml(`${WEB}/registro/listo`, altaJar, (html) =>
+    html.includes('data-activation="done"'),
+  );
+
+  report(
+    'La confirmacion acaba mostrando el kit que activo el codigo',
+    Boolean(listo) && listo.includes('4.º de primaria'),
+    listo ? '' : 'el kit no aparecio en 40 s',
+  );
+  report(
+    'No promete ningun correo de verificacion, porque hoy no se envia',
+    Boolean(listo) && !/te enviamos un correo/i.test(listo),
+  );
+
+  const yaRegistrado = await fetch(`${WEB}/registro`, {
+    headers: { cookie: altaJar },
+    redirect: 'manual',
+  });
+  report(
+    'Quien ya tiene sesion no vuelve a ver el formulario de alta',
+    yaRegistrado.status === 307,
+    `status=${yaRegistrado.status}`,
+  );
+
+  // --- Activacion de un codigo por quien ya tiene cuenta ---
+  const activarSinSesion = await fetch(`${WEB}/discover/activar`, { redirect: 'manual' });
+  report(
+    'La pantalla de activacion exige sesion',
+    activarSinSesion.status === 307,
+    `status=${activarSinSesion.status}`,
+  );
+
+  const activar = await fetchHtml(`${WEB}/discover/activar`, altaJar);
+  report(
+    'Con sesion, el formulario de activacion viene en el HTML del servidor',
+    activar.status === 200 && activar.html.includes('name="activationCode"'),
+    `status=${activar.status}`,
+  );
+  report(
+    'Avisa de que el codigo es de un solo uso ANTES del boton',
+    activar.html.indexOf('una sola vez') > 0 &&
+      activar.html.indexOf('una sola vez') < activar.html.indexOf('data-submit="activar"'),
+  );
+
+  const academyActivar = await fetchHtml(`${WEB}/academy/activar`, altaJar);
+  report(
+    'Academy tiene la misma pantalla, y ya no un enlace muerto',
+    academyActivar.status === 200 && academyActivar.html.includes('name="activationCode"'),
+    `status=${academyActivar.status}`,
+  );
+
+  // El segundo kit por la via del portal: es el caso real de un alumno que pasa
+  // de grado y compra el libro siguiente. Un libro por grado significa un canje
+  // nuevo cada curso, sin cuenta nueva.
+  const segundoKit = await seedCatalog({ codeCount: 1, grade: 'primary_5' });
+  const segundoCanje = await postJson(
+    `${CATALOG}/api/v1/catalog/redeem`,
+    altaLoginBody?.accessToken,
+    { code: segundoKit.codes[0] },
+  );
+
+  report(
+    'Un alumno con cuenta activa un segundo codigo sin crear otra cuenta',
+    segundoCanje.status === 200 && segundoCanje.body?.firstRedemption === true,
+    `status=${segundoCanje.status} ${JSON.stringify(segundoCanje.body).slice(0, 120)}`,
+  );
+
+  const repetido = await postJson(
+    `${CATALOG}/api/v1/catalog/redeem`,
+    altaLoginBody?.accessToken,
+    { code: segundoKit.codes[0] },
+  );
+  report(
+    'Reenviar el mismo codigo no gasta nada, y se distingue del alta nueva',
+    repetido.status === 200 && repetido.body?.firstRedemption === false,
+    `status=${repetido.status} firstRedemption=${repetido.body?.firstRedemption}`,
+  );
+
+  const portada = await waitForHtml(`${WEB}/discover`, altaJar, (html) =>
+    html.includes('5.º de primaria'),
+  );
+  report(
+    'El kit recien activado aparece en la portada del alumno',
+    Boolean(portada),
+    portada ? '' : 'no aparecio en 40 s',
+  );
+
   console.log(
     `\n${colors.bold}Resultado:${colors.reset} ${colors.ok}${passed} pasan${colors.reset}` +
       (failed > 0 ? `, ${colors.fail}${failed} fallan${colors.reset}` : '') +
