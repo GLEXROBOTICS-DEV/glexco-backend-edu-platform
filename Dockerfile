@@ -138,5 +138,14 @@ EXPOSE 3000
 COPY --from=build --chown=node:node /app/infra/scripts /app/infra/scripts
 COPY --from=build --chown=node:node /app/infra/docker/postgres/init /app/infra/docker/postgres/init
 
+# `chmod +x` explicito y no confiado al bit de git: en Windows, git registra el
+# archivo como 100644 y el contenedor se queda sin permiso de ejecucion. El
+# sintoma es el peor posible -"Starting Container" seguido de "Stopping
+# Container" sin una sola linea de registro-, porque el fallo ocurre antes de que
+# haya nada que escribir.
 COPY --chown=node:node infra/docker/entrypoint.sh /entrypoint.sh
+USER root
+RUN chmod +x /entrypoint.sh
+USER node
+
 ENTRYPOINT ["/entrypoint.sh"]
