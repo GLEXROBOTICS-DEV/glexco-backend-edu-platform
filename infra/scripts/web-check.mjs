@@ -23,6 +23,7 @@ const INSTITUTIONS = process.env.INSTITUTIONS_URL ?? 'http://localhost:3102';
 const CATALOG = process.env.CATALOG_URL ?? 'http://localhost:3103';
 const ANALYTICS = process.env.ANALYTICS_URL ?? 'http://localhost:3107';
 const ENGAGEMENT = process.env.ENGAGEMENT_URL ?? 'http://localhost:3106';
+const LEARNING = process.env.LEARNING_URL ?? 'http://localhost:3104';
 /** Mailpit: un SMTP real que acepta cualquier cosa y no la entrega a nadie. Es
  *  lo que permite comprobar el correo de punta a punta sin escribirle a una
  *  direccion de verdad, que ademas serian datos de un menor. */
@@ -1830,6 +1831,148 @@ async function main() {
     'El ingreso llega a identidad y lo rechaza ELLA, no el borde',
     publicaLogin.status === 401,
     `status=${publicaLogin.status}`,
+  );
+
+
+  // ------------------------------------------------------------------
+  section('14. Progreso por contenido, XP e insignias');
+  // ------------------------------------------------------------------
+
+  // Hasta ahora el progreso se medía SOLO con evaluaciones. Falta la señal
+  // temprana: quien se descolgó antes del primer examen. Un alumno que lleva dos
+  // semanas sin terminar una leccion se detecta aqui; en analytics no aparece
+  // hasta que suspende, que es cuando ya es tarde para ayudarle.
+  const aprKit = await seedCatalog({ codeCount: 1, grade: 'primary_4' });
+  const [aprPupil] = await seedUsers(1);
+  const aprToken = mintAccessToken({ userId: aprPupil.id, roles: aprPupil.roles });
+  const aprJar = `glexco_at=${aprToken}`;
+
+  await postJson(`${CATALOG}/api/v1/catalog/redeem`, aprToken, { code: aprKit.codes[0] });
+
+  // El directorio de contenido llega por evento; para esta comprobacion se
+  // siembra directamente, porque lo que se verifica es el PROGRESO y no la
+  // proyeccion, que ya se comprueba en otras secciones.
+  await pgQuery(
+    process.env.DATABASE_URL_LEARNING,
+    `INSERT INTO learning.course_directory (course_id, kit_id, title, lesson_count)
+     VALUES ($1,$2,$3,1) ON CONFLICT (course_id) DO UPDATE SET lesson_count = 1`,
+    [aprKit.courseId, aprKit.kitId, 'Primeros pasos con uKit'],
+  );
+  await pgQuery(
+    process.env.DATABASE_URL_LEARNING,
+    `INSERT INTO learning.lesson_directory (lesson_id, course_id, kit_id, title, order_index)
+     VALUES ($1,$2,$3,$4,0) ON CONFLICT (lesson_id) DO NOTHING`,
+    [aprKit.lessonId, aprKit.courseId, aprKit.kitId, 'Conoce tu robot'],
+  );
+
+  const recursoInicial = await fetchHtml(
+    `${WEB}/discover/biblioteca/${aprKit.assetId}`,
+    aprJar,
+  );
+  report(
+    'El recurso de una leccion ofrece marcarla como vista',
+    recursoInicial.status === 200 && recursoInicial.html.includes('data-submit="completar"'),
+    `status=${recursoInicial.status}`,
+  );
+
+  const completa = await postJson(
+    `${LEARNING}/api/v1/learning/lessons/${aprKit.lessonId}/complete`,
+    aprToken,
+    {},
+  );
+  report(
+    'Completar una leccion concede XP',
+    completa.status === 200 && completa.body?.xpAwarded > 0,
+    `status=${completa.status} xp=${completa.body?.xpAwarded}`,
+  );
+  report(
+    'Terminar la ultima leccion completa el curso y paga aparte',
+    completa.body?.courseCompleted === true && completa.body?.xpAwarded > 25,
+    `curso=${completa.body?.courseCompleted} xp=${completa.body?.xpAwarded}`,
+  );
+  report(
+    'Y concede las insignias del hito, sin compararlo con nadie',
+    (completa.body?.newBadges ?? []).length >= 2,
+    `insignias=${(completa.body?.newBadges ?? []).map((b) => b.code).join(',')}`,
+  );
+
+  // LA garantia de la gamificacion: un contador que se puede inflar deja de
+  // significar nada para quien se lo gano. Reabrir una leccion completada o un
+  // reintento de red no pueden volver a pagar.
+  const repetida = await postJson(
+    `${LEARNING}/api/v1/learning/lessons/${aprKit.lessonId}/complete`,
+    aprToken,
+    {},
+  );
+  report(
+    'Completar DOS veces no paga dos veces, y se distingue del hito nuevo',
+    repetida.status === 200 &&
+      repetida.body?.firstCompletion === false &&
+      repetida.body?.xpAwarded === 0 &&
+      repetida.body?.totalXp === completa.body?.totalXp,
+    `first=${repetida.body?.firstCompletion} xp=${repetida.body?.xpAwarded} total=${repetida.body?.totalXp}`,
+  );
+
+  const miProgreso = await getJson(`${LEARNING}/api/v1/learning/me`, aprToken);
+  report(
+    'El alumno ve su nivel, sus puntos y cuanto le falta para el siguiente',
+    miProgreso.status === 200 &&
+      miProgreso.body?.explorerLevel >= 1 &&
+      miProgreso.body?.totalXp > 0 &&
+      typeof miProgreso.body?.xpToNext === 'number',
+    `nivel=${miProgreso.body?.explorerLevel} xp=${miProgreso.body?.totalXp}`,
+  );
+
+  // El alcance sale del token y NUNCA de un parametro.
+  const [otroApr] = await seedUsers(1);
+  const otroAprToken = mintAccessToken({ userId: otroApr.id, roles: otroApr.roles });
+  const progresoAjeno = await getJson(`${LEARNING}/api/v1/learning/me`, otroAprToken);
+  report(
+    'El progreso propio sale del token: otro alumno ve el suyo, vacio',
+    progresoAjeno.status === 200 && progresoAjeno.body?.totalXp === 0,
+    `xp=${progresoAjeno.body?.totalXp}`,
+  );
+
+  const salonAjeno = await getJson(
+    `${LEARNING}/api/v1/learning/classrooms/${escuelaPanel.classroomId}`,
+    aprToken,
+  );
+  report(
+    'Un alumno no puede leer el progreso de un salon que no es suyo',
+    salonAjeno.status === 403 || salonAjeno.status === 401,
+    `status=${salonAjeno.status}`,
+  );
+
+  // --- Las pantallas ---
+  const recursoVisto = await fetchHtml(`${WEB}/discover/biblioteca/${aprKit.assetId}`, aprJar);
+  report(
+    'Una leccion ya completada se muestra como tal, sin volver a ofrecer el boton',
+    recursoVisto.html.includes('data-lesson="done"') &&
+      !recursoVisto.html.includes('data-submit="completar"'),
+  );
+
+  const pantallaProgreso = await waitForHtml(`${WEB}/discover/progreso`, aprJar, (html) =>
+    /data-xp="[1-9]/.test(html),
+  );
+  report(
+    'La pantalla de progreso muestra el nivel, los puntos y las insignias',
+    Boolean(pantallaProgreso) &&
+      /data-explorer-level="\d"/.test(pantallaProgreso) &&
+      /data-badges="[1-9]/.test(pantallaProgreso),
+    pantallaProgreso ? '' : 'no aparecio en 40 s',
+  );
+  report(
+    'Y el avance del curso, en lecciones y no solo en porcentaje',
+    Boolean(pantallaProgreso?.includes('data-course-progress')) &&
+      Boolean(pantallaProgreso?.includes('data-lessons="1/1"')),
+  );
+
+  // LA decision de producto de toda la gamificacion: no se compara a un menor
+  // con sus companeros. La propuesta lo pide para el ranking y aqui vale igual.
+  report(
+    'NUNCA compara al alumno con sus companeros: ni posicion, ni ranking',
+    Boolean(pantallaProgreso) &&
+      !/\bpuesto\b|\branking\b|\bposici[óo]n\b|de 30 alumnos/i.test(pantallaProgreso),
   );
 
   console.log(

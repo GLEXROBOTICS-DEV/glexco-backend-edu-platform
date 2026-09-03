@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { openLibraryAsset } from '../../../../../lib/catalog';
+import { startLesson } from '../../../../../lib/learning.actions';
+import { fetchMyClassroom } from '../../../../../lib/classrooms';
 import { AssetViewer } from '../../../../../components/asset-viewer';
 
 export const metadata: Metadata = { title: 'Material del kit' };
@@ -26,5 +28,29 @@ export default async function DiscoverRecurso({ params }: PageProps) {
   // catalogo probando identificadores.
   if (!asset) notFound();
 
-  return <AssetViewer asset={asset} backHref="/discover/biblioteca" />;
+  // Abrir la leccion se registra al RENDERIZAR, no al pulsar nada: el hecho que
+  // interesa es "la abrio", y exigir un clic extra mediria quien pulsa botones y
+  // no quien entra al contenido. Nunca falla hacia el alumno: registrar que
+  // abrio algo no puede impedirle verlo.
+  const lessonId = asset.lessonId;
+  let completed = false;
+
+  if (lessonId) {
+    // El salon hace falta para que el progreso aparezca en la lista del docente.
+    // Es `null` en una cuenta independiente, que es la mitad del modelo de
+    // negocio y tiene que funcionar igual.
+    const classroomId = await fetchMyClassroom();
+    const opened = await startLesson({ lessonId, classroomId });
+    completed = opened.alreadyCompleted;
+  }
+
+  return (
+    <AssetViewer
+      asset={asset}
+      backHref="/discover/biblioteca"
+      portal="discover"
+      lessonId={lessonId}
+      lessonCompleted={completed}
+    />
+  );
 }

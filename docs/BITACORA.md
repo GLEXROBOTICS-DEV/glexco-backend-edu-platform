@@ -7,6 +7,230 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 11 — 2026-09-03 — Los nueve servicios en pie
+
+Sesión larga y de mucho terreno: se cerraron los dos servicios que quedaban
+vacíos —`engagement` y `learning`— y se cubrieron tres pantallas que existían
+solo como enlace muerto. **Ya no queda ningún servicio sin escribir.**
+
+### 1. Biblioteca del kit
+
+Es lo que el alumno abre cada día, y `/discover/biblioteca` era un enlace muerto
+desde su propia portada.
+
+**El adaptador S3 se movió de `media` a `@glexco/nest-platform`.** El puerto
+`ObjectStorage` ya vivía en el kernel; lo que faltaba era que el adaptador
+estuviera donde lo pueden usar dos servicios. Media firma las **subidas** y
+catálogo firma la **descarga** del material del kit: duplicarlo habría dejado dos
+sitios donde arreglar una firma mal formada, y uno de los dos se queda atrás.
+
+El endpoint nuevo vive en catálogo porque catálogo posee las dos mitades: la fila
+del recurso y la regla del derecho. Y comprueba el derecho **sobre el kit al que
+pertenece el recurso**, no sobre uno que venga en la petición: aceptarlo
+permitiría pedir material de un kit ajeno diciendo tener derecho sobre el propio.
+
+**La diferencia entre `stream` y `embed` la decide el backend.** Un proveedor de
+vídeo no sirve un MP4: sirve su propio reproductor con la restricción de dominio
+aplicada, y meterlo en un `<video>` no muestra nada. Que lo adivine el cliente es
+como se consigue que la pantalla se rompa el día que se contrate el proveedor,
+sin que nadie haya tocado el frontend.
+
+El reproductor es el `<video>` nativo, sin librería: entre 50 y 150 kB de más en
+la primera carga, en pantallas que abre un aula entera desde la misma línea.
+
+### 2. Panel de GLEXCO
+
+**`/admin` existía como destino y no como pantalla.** `portalPath` manda ahí a
+los directores y al personal de GLEXCO desde que hay ingreso, así que aterrizaban
+en un 404 nada más entrar. No se había visto porque las comprobaciones del portal
+arman la cookie a mano y van directas a `/docentes/institucion`.
+
+La vista de plataforma listaba la cartera de clientes **por UUID**, que no es un
+informe. Analítica gana su propio `institution_directory`, alimentado por evento:
+la alternativa —un JOIN contra el schema de instituciones— es justo lo que este
+servicio no puede hacer, y además el rol `glexco_analytics` no tiene permiso
+sobre ese schema.
+
+Y la consulta parte ahora de **las dos fuentes**, no solo de los resúmenes de
+actividad. Partiendo solo de la actividad, un colegio recién firmado que todavía
+no ha activado ningún código no aparecía —y ese es precisamente el que hay que
+ver: libros comprados que nadie activa son dinero pagado y sin usar, y la señal
+más temprana de que un centro no va a renovar—.
+
+### 3. `engagement-service`: el correo sale de verdad
+
+Era el hueco más urgente: identidad emitía el token de verificación y **nadie lo
+consumía**, así que un alumno que olvidara su contraseña no tenía forma de
+recuperarla.
+
+**La decisión que define este servicio: el token NO viaja en el evento.** Un
+evento vive días en la outbox y en el stream de JetStream; un token de
+recuperación escrito ahí convierte el acceso de lectura a una tabla —o a una
+copia de seguridad vieja— en el control de cualquier cuenta de la plataforma. Es
+el mismo criterio por el que el código de activación viaja como id de fila.
+
+Lo que viaja es **a quién** hay que escribir y **por qué**. Engagement pide el
+token a identidad por la API interna en el momento de enviar, así que el secreto
+cruza la red una sola vez y no queda escrito en ningún registro duradero. De
+regalo, la hora de vida del enlace empieza cuando el correo sale: con la outbox
+retrasada, un token embebido llegaría al buzón ya medio caducado.
+
+La tabla de envíos guarda **qué** se envió y nunca **qué decía**, por lo mismo.
+Está comprobado que no tiene ninguna columna donde quepa el enlace.
+
+Otras decisiones que no son evidentes:
+
+- **Cada correo lleva siempre versión en texto plano.** Hay filtros de correo de
+  colegio que eliminan el HTML, y un mensaje que en ellos llega en blanco
+  equivale a no haberlo enviado.
+- **El aviso al apoderado va en un envío separado y no en copia**: ponerlo en
+  copia le revelaría a cada familia el correo de la otra en cuanto alguien
+  reenvíe el mensaje, y son datos de menores.
+- El envío no puede ser transaccional —un SMTP no participa en una transacción de
+  PostgreSQL—, así que se elige a conciencia el lado seguro: **es preferible un
+  correo duplicado a uno que no llega**. Cada enlace nuevo invalida el anterior,
+  así que el segundo es el que funciona y el duplicado tampoco confunde.
+- Tras cambiar la contraseña **no se inicia sesión automática**, al contrario que
+  en el registro: un restablecimiento suele hacerse porque alguien pudo tomar la
+  cuenta, el backend acaba de revocar todas las sesiones, y entrar sin
+  credenciales contradiría esa decisión.
+
+Identidad estrena además su primera API interna **como servidor** —hasta ahora
+solo era cliente de las de otros—, con su guard y su token compartido.
+
+### 4. `learning-service`: la señal temprana
+
+El progreso que mide aprendizaje se mide con evaluaciones, y de eso ya se ocupa
+`analytics`. Lo que faltaba es la señal **temprana**: quién se descolgó antes del
+primer examen. Un alumno que lleva dos semanas sin terminar una lección se
+detecta aquí; en analytics no aparece hasta que suspende, que es cuando ya es
+tarde para ayudarle.
+
+- **La garantía de la gamificación es que el XP no se puede inflar.** El índice
+  único `(alumno, motivo, referencia)` vive en la base, no en el código: dos
+  peticiones simultáneas no pueden pagar dos veces, mientras que comprobar antes
+  y escribir después deja la carrera abierta. Un contador que se puede inflar
+  deja de significar nada para quien se lo ganó.
+- **El resumen se recalcula entero desde los hechos**, nunca sumando
+  incrementos. Misma decisión que en analytics, y por lo mismo.
+- El XP de una evaluación se referencia por la **evaluación** y no por la
+  entrega: con la entrega, el camino más rápido para subir de nivel sería
+  reenviar el mismo examen, que no enseña nada.
+- **Aprobar vale cuatro veces más que abrir una lección.** Si abrir contenido
+  diera tanto XP como demostrar que se aprendió, el sistema premiaría pasar
+  páginas.
+- **Lo marca el alumno, no lo deduce el sistema.** Se pensó en dar la lección por
+  completada al abrir el recurso y se descartó: abrir un PDF no es haberlo leído,
+  y un progreso que se rellena solo deja de significar nada —ni para el alumno,
+  que ve barras llenas sin haber hecho nada, ni para el docente, que pierde la
+  única señal de quién se descolgó—.
+- **La lista del docente parte de las matrículas y no del progreso**: un alumno
+  que nunca abrió nada no tiene fila de progreso, y es justo el que hay que ver.
+  Partiendo del progreso, el que peor va es el único que no aparece.
+- **No hay ranking, y es una decisión de producto.** El alumno solo se compara
+  consigo mismo. La propuesta lo pide para el ranking —*celebra logros, no señala
+  rezagos*— y entre menores vale igual: a un niño de ocho años, «eres el 24 de
+  30» no le enseña nada. Está comprobado que la pantalla no contiene ni posición
+  ni ranking.
+- Las insignias **no se retiran nunca**. Una que aparece y desaparece —porque el
+  alumno bajó de una media— convierte un reconocimiento en un castigo.
+
+### 5. El gateway aplica `publicPaths`
+
+La tabla de rutas declaraba qué rutas son públicas desde el primer día, **y el
+proxy no consultaba ese campo**. Un campo que se lee como un control de seguridad
+y no hace nada es peor que no tenerlo: el siguiente que lo vea creerá que añadir
+una línea ahí expone o cierra algo.
+
+Comprueba **presencia** de credencial, no validez, y es a propósito: el gateway
+no tiene el secreto de firma y no debe tenerlo. Lo que aporta es la protección
+que queda cuando la del servicio falla —si alguien marca un controlador
+`@Public()` por error, esta tabla sigue sin exponerlo—. Sin `publicPaths`
+declarado, un prefijo entero exige credencial: exponer algo tiene que costar
+añadir una línea, no olvidarse de añadirla.
+
+### Errores reales encontrados y corregidos
+
+1. **Añadir un asunto a un consumidor duradero de NATS lo rompía entero.**
+   `consumers.add` sobre un duradero que ya existe con otra configuración falla
+   con «consumer already exists», y ese fallo tumbaba el arranque del consumidor
+   completo. Lo dispara el caso más normal del mundo: alguien añade un asunto y
+   despliega. Y era especialmente traicionero: el servicio arrancaba, el health
+   check pasaba, y el aviso decía que los dashboards seguirían sirviendo lo ya
+   proyectado «hasta que el bus vuelva» —pero el bus estaba perfectamente—. La
+   proyección quedaba muerta hasta que alguien se fijara. Ahora se actualiza en
+   su lugar, lo que conserva la posición del consumidor.
+
+2. **`/admin` era un 404 al que el ingreso mandaba a directores y personal de
+   GLEXCO.** Ver el punto 2.
+
+3. **El panel de plataforma ocultaba justo al cliente que no arranca.** Ver el
+   punto 2.
+
+4. **El backend no devolvía `lessonId` al abrir un recurso**, y TypeScript no lo
+   detectó porque el tipo del cliente lo heredaba de `LibraryItem`. El botón de
+   «ya lo vi» no aparecía nunca. Es un recordatorio de que un tipo compartido
+   entre cliente y servidor solo garantiza la forma que **ambos** declaran, no la
+   que uno rellena.
+
+5. **Completar una lección nunca abierta se comportaba como «ya estaba hecha»**,
+   y le negaba su XP para siempre. Pasa cuando el registro de apertura falla —no
+   puede impedir ver el contenido, así que se ignora— y el alumno pulsa el botón
+   igualmente. Ahora se abre y se completa de una vez.
+
+6. **El curso y el kit venían del cliente al abrir una lección**, contradiciendo
+   el comentario que yo mismo había escrito al lado. Los resuelve ahora el propio
+   servicio desde su directorio: aceptarlos permitiría a un alumno atribuirse
+   progreso en un curso que no es el suyo, y con él, los 150 puntos de
+   completarlo.
+
+7. **Dos comprobaciones de humo contaban recursos con una cifra fija**, así que
+   mejorar el sembrador —añadir un vídeo y un enlace externo para cubrir los tres
+   caminos de entrega— las rompía. Reescritas para afirmar lo que de verdad
+   quieren decir: que el borrador no está, y que publicar añade exactamente uno.
+
+8. El tropiezo del **JSX interpolado**, otras dos veces. Resuelto como siempre,
+   con anclas `data-*` estables y no relajando la comprobación.
+
+### Estado al cerrar
+
+| Comprobación | Antes | Ahora |
+|---|---|---|
+| `pnpm build` | 13/13 | **15/15** |
+| `pnpm test` | 155 | **176** |
+| `pnpm smoke` | 95 | 95 |
+| `pnpm concurrency` | 14 | 14 |
+| `pnpm smoke:web` | 99 | **175** |
+
+**Los nueve servicios escritos.** Fases 0–3 cerradas; 4, 5, 6 y 7 en curso; 8 sin
+empezar.
+
+### Qué falta
+
+1. **Certificados** (Fase 6): plantilla, firma digital, QR y verificación pública
+   sin iniciar sesión. Es lo único grande que le queda a la fase.
+2. **Rúbricas de corrección** (Fase 5), y los tipos de pregunta `ordering` y
+   `matching`: están en el vocabulario pero su corrección automática no está
+   escrita, así que hoy se tratan como manuales.
+3. **i18n es/en con next-intl** (Fase 4). Hoy los textos están en español en el
+   código, y el vocabulario ya contempla los dos idiomas.
+4. **Las pantallas que faltan de los portales** (Fase 4): laboratorio de robots,
+   retos y logros en Discover; proyectos, certificaciones y portafolio en
+   Academy.
+5. **Portal Admin completo** (Fase 7): instituciones, usuarios, gestión académica
+   y de contenidos, comercial.
+6. **Exportación a PDF, Excel y CSV** de los dashboards.
+7. **Auditoría WCAG 2.1 AA** pantalla a pantalla.
+8. **Fase 8 entera**: pruebas de carga, revisión de seguridad, CI/CD y
+   despliegue. Queda para más adelante por decisión del cliente.
+
+Sigue pendiente la pregunta abierta del **límite de altas por IP**: diez por hora
+es correcto contra un abuso desde internet, pero una clase de treinta alumnos
+detrás del NAT del colegio lo agota en el minuto tres. Es una decisión del
+cliente, no técnica.
+
+---
+
 ## Sesión 10 — 2026-09-03 — Un colegio ya puede empezar solo
 
 Hasta esta sesión faltaba lo único que impedía que una institución usara la

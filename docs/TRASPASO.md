@@ -32,8 +32,8 @@ deja lo mismo. Si trabajas desde el zip, comprueba que la carpeta `.git` llegó
 npm i -g pnpm          # pnpm 11; corepack falla por permisos en Windows
 pnpm install
 pnpm setup             # genera .env con secretos nuevos
-pnpm build             # deben compilar 12 paquetes, servicios y el portal
-pnpm test              # 155 pruebas en memoria, sin Docker
+pnpm build             # deben compilar 15 paquetes, servicios y el portal
+pnpm test              # 176 pruebas en memoria, sin Docker
 ```
 
 **El puerto de Postgres.** En la máquina de origen el 5432 estaba ocupado por
@@ -57,6 +57,7 @@ pnpm --filter @glexco/catalog      db:migrate
 pnpm --filter @glexco/media        db:migrate
 pnpm --filter @glexco/assessment   db:migrate
 pnpm --filter @glexco/engagement   db:migrate
+pnpm --filter @glexco/learning     db:migrate
 pnpm --filter @glexco/analytics    db:migrate
 ```
 
@@ -67,6 +68,7 @@ Cada servicio en su terminal:
 | `pnpm --filter @glexco/identity dev` | 3101 |
 | `pnpm --filter @glexco/institutions dev` | 3102 |
 | `pnpm --filter @glexco/catalog dev` | 3103 |
+| `pnpm --filter @glexco/learning dev` | 3104 |
 | `pnpm --filter @glexco/assessment dev` | 3105 |
 | `pnpm --filter @glexco/engagement dev` | 3106 |
 | `pnpm --filter @glexco/analytics dev` | 3107 |
@@ -80,11 +82,11 @@ Y la verificación:
 pnpm seed          # kit, curso, lote de codigos, institucion y salon
 pnpm smoke         # 95 comprobaciones de punta a punta
 pnpm concurrency   # 14 comprobaciones de concurrencia real
-pnpm smoke:web     # 99 comprobaciones del portal
+pnpm smoke:web     # 175 comprobaciones del portal
 ```
 
 **Si algo de eso no da el número indicado, algo se rompió en el traslado.** Esos
-cuatro números son el contrato de este traspaso: 95, 14, 99, más las 155 pruebas
+cuatro números son el contrato de este traspaso: 95, 14, 175, más las 176 pruebas
 en memoria.
 
 ---
@@ -127,11 +129,11 @@ desarrollo con la sesión iniciada.
 | 3 · Catálogo, kits, códigos y medios | ✅ |
 | 4 · Portales de alumno | 🔄 registro y activación, ingreso, portadas, progreso y cuestionarios |
 | 5 · Evaluación y Teacher Center | 🔄 casi cerrada: falta rúbricas y recursos del docente |
-| 6 · Progreso y gamificación | ⬜ `learning-service` sin empezar |
+| 6 · Progreso y gamificación | 🔄 progreso, XP, niveles e insignias; faltan certificados |
 | 7 · Comunicación, analítica y admin | 🔄 los cinco dashboards funcionando |
 | 8 · Endurecimiento y despliegue | ⬜ |
 
-Ocho servicios escritos de nueve; solo `learning` y `engagement` siguen vacíos.
+**Los nueve servicios escritos.** Ya no queda ninguno vacío.
 
 **El ciclo completo de evaluación funciona de punta a punta**: el alumno ve su
 kit, responde el cuestionario desde el portal, la máquina corrige lo de marcar al

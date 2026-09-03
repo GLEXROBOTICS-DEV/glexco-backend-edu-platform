@@ -57,11 +57,11 @@ Verificado:
 
 | Comprobación | Resultado |
 |---|---|
-| `pnpm build` | 13/13 paquetes, servicios y portal |
-| `pnpm test` | **155 pruebas** en memoria |
+| `pnpm build` | 15/15 paquetes, servicios y portal |
+| `pnpm test` | **176 pruebas** en memoria |
 | `pnpm smoke` | **95 comprobaciones** de punta a punta |
 | `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
-| `pnpm smoke:web` | **99 comprobaciones** del portal contra el backend |
+| `pnpm smoke:web` | **175 comprobaciones** del portal contra el backend |
 
 Las de concurrencia son las que justifican la arquitectura: un solo canje de
 veinte simultáneos, cinco plazas de veinte solicitudes, la outbox reteniendo el
@@ -86,7 +86,7 @@ Plataforma-Glexco/
 │   ├── media/           ✅ subidas prefirmadas, tipo real, miniaturas, enlaces externos
 │   ├── assessment/      ✅ cuestionarios, banco GLEXCO vs docente, bandeja de corrección
 │   ├── analytics/       ✅ los cinco dashboards, como proyección de eventos
-│   ├── learning/        ⬜ vacío
+│   ├── learning/        ✅ progreso por leccion, XP, niveles e insignias
 │   └── engagement/      ✅ correo real (verificacion y recuperacion), anuncios de salon
 ├── apps/web/            🔄 Next.js 15: registro y activación, ingreso, portadas,
 │                        progreso, cuestionarios, panel del docente, corrección
@@ -126,12 +126,13 @@ pnpm --filter @glexco/api-gateway dev      # arrancar gateway (3000)
 pnpm --filter @glexco/media dev            # arrancar medios (3108)
 pnpm --filter @glexco/assessment dev       # arrancar evaluacion (3105)
 pnpm --filter @glexco/engagement dev       # arrancar comunicacion (3106)
+pnpm --filter @glexco/learning dev         # arrancar aprendizaje (3104)
 pnpm --filter @glexco/analytics dev        # arrancar analitica (3107)
 pnpm seed                                  # kit, lote de codigos, institucion y salon
 pnpm smoke                                 # 95 comprobaciones de punta a punta
 pnpm concurrency                           # las 4 garantias de concurrencia real
 pnpm --filter @glexco/web dev              # portal (3010)
-pnpm smoke:web                             # 99 comprobaciones del portal
+pnpm smoke:web                             # 175 comprobaciones del portal
 ```
 
 ### Requisitos de entorno
@@ -315,6 +316,16 @@ alguna, para y pregunta antes de continuar.
   interpolado.** React lo parte con separadores de comentario, así que
   `"1 pregunta"` no aparece en el HTML aunque la pantalla lo pinte bien. Usa un
   atributo `data-*` como ancla estable (`data-chart`, `data-pending`).
+- **Añadir un asunto a un consumidor duradero de NATS lo rompía entero.**
+  `consumers.add` sobre un duradero que ya existe con otra configuración falla
+  con `consumer already exists`, y ese fallo tumbaba el arranque del consumidor
+  completo — con un aviso que decía "el bus volverá" aunque el bus estuviera
+  perfectamente. Ya está resuelto en `EventConsumer`, que ahora lo actualiza.
+- **Un tipo compartido entre cliente y servidor solo garantiza la forma que
+  AMBOS declaran.** `OpenedAsset extends LibraryItem` hacía creer al frontend que
+  el backend devolvía `lessonId`, y no lo devolvía: TypeScript no dijo nada y el
+  botón simplemente no aparecía. Al extender un tipo del cliente, comprueba que
+  el backend rellena todos los campos heredados.
 - **Nunca recortes una contraseña.** Un ayudante que normaliza los campos de un
   formulario con `trim()` no debe aplicarse a la contraseña: se guardaría `abc`
   cuando el usuario escribió `␣abc␣`, y al ingresar —donde no se recorta nada— no

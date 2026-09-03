@@ -1,0 +1,400 @@
+import type { Pool, PoolClient } from 'pg';
+import type { TransactionContext } from '@glexco/kernel';
+import { BADGE_RULES, isStale, levelFor } from '../../domain/gamification';
+import type {
+  ClassroomProgressRow,
+  GamificationRepository,
+  LearningRepository,
+  StudentProgressView,
+} from '../../domain/repositories';
+
+interface PgTransaction extends TransactionContext {
+  client: PoolClient;
+}
+
+const clientOf = (tx?: TransactionContext): PoolClient | null =>
+  tx ? ((tx as PgTransaction).client ?? null) : null;
+
+export class PgLearningRepository implements LearningRepository {
+  constructor(
+    private readonly writePool: Pool,
+    private readonly readPool: Pool,
+  ) {}
+
+  async startLesson(input: {
+    studentId: string;
+    lessonId: string;
+    courseId: string;
+    kitId: string;
+    classroomId: string | null;
+    institutionId: string | null;
+    now: Date;
+  }): Promise<{ alreadyCompleted: boolean }> {
+    // `DO UPDATE` que NO toca `started_at` ni `completed_at`: reabrir una
+    // leccion no reinicia su comienzo ni deshace su finalizacion. Volver a
+    // consultar algo ya aprendido es normal, y un contador que retrocede al
+    // repasar castiga justo el habito que se quiere fomentar.
+    //
+    // El salon si se rellena si estaba vacio: un intento abierto antes de que la
+    // matricula estuviera proyectada quedaria sin salon para siempre, y su
+    // progreso no aparecerria en la lista de ningun docente. Es el mismo hueco
+    // que ya aparecio con las entregas.
+    const { rows } = await this.writePool.query(
+      `INSERT INTO learning.lesson_progress
+         (student_id, lesson_id, course_id, kit_id, classroom_id, institution_id, started_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$7)
+       ON CONFLICT (student_id, lesson_id) DO UPDATE SET
+         classroom_id   = COALESCE(learning.lesson_progress.classroom_id, EXCLUDED.classroom_id),
+         institution_id = COALESCE(learning.lesson_progress.institution_id, EXCLUDED.institution_id),
+         updated_at     = EXCLUDED.updated_at
+       RETURNING completed_at`,
+      [
+        input.studentId,
+        input.lessonId,
+        input.courseId,
+        input.kitId,
+        input.classroomId,
+        input.institutionId,
+        input.now,
+      ],
+    );
+
+    return { alreadyCompleted: rows[0]?.completed_at !== null };
+  }
+
+  async completeLesson(input: {
+    studentId: string;
+    lessonId: string;
+    secondsSpent: number;
+    now: Date;
+    tx: TransactionContext;
+  }): Promise<{ firstCompletion: boolean; courseId: string; kitId: string }> {
+    const client = clientOf(input.tx)!;
+
+    // `WHERE completed_at IS NULL` hace la operacion idempotente EN LA BASE y no
+    // en el codigo: dos peticiones simultaneas -un doble clic, un reintento de
+    // red- solo pueden actualizar una, y la segunda no devuelve fila. Sin eso,
+    // comprobar antes y escribir despues deja la carrera abierta.
+    const { rows: updated } = await client.query(
+      `UPDATE learning.lesson_progress
+          SET completed_at  = $3,
+              seconds_spent = seconds_spent + $4,
+              version       = version + 1,
+              updated_at    = $3
+        WHERE student_id = $1 AND lesson_id = $2 AND completed_at IS NULL
+        RETURNING course_id, kit_id`,
+      [input.studentId, input.lessonId, input.now, input.secondsSpent],
+    );
+
+    if (updated[0]) {
+      return {
+        firstCompletion: true,
+        courseId: updated[0].course_id,
+        kitId: updated[0].kit_id,
+      };
+    }
+
+    const { rows } = await client.query(
+      `SELECT course_id, kit_id FROM learning.lesson_progress
+        WHERE student_id = $1 AND lesson_id = $2`,
+      [input.studentId, input.lessonId],
+    );
+
+    // Hay fila: estaba completada de antes. Es un reintento y no paga.
+    if (rows[0]) {
+      return { firstCompletion: false, courseId: rows[0].course_id, kitId: rows[0].kit_id };
+    }
+
+    // NO hay fila: se marca completada una leccion que nunca se abrio. Pasa
+    // cuando el registro de apertura fallo -no puede impedir ver el contenido,
+    // asi que se ignora- y el alumno pulsa "ya lo vi" igualmente. Se abre y se
+    // completa de una vez: devolver "ya estaba hecha" seria mentirle sobre un
+    // hito que si es nuevo, y ademas le negaria su XP para siempre.
+    const located = await client.query(
+      `SELECT course_id, kit_id FROM learning.lesson_directory WHERE lesson_id = $1`,
+      [input.lessonId],
+    );
+
+    if (!located.rows[0]) {
+      // La leccion no existe en el directorio. No se inventa una fila.
+      return { firstCompletion: false, courseId: '', kitId: '' };
+    }
+
+    await client.query(
+      `INSERT INTO learning.lesson_progress
+         (student_id, lesson_id, course_id, kit_id, started_at, completed_at, seconds_spent, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$5,$6,$5)
+       ON CONFLICT (student_id, lesson_id) DO NOTHING`,
+      [
+        input.studentId,
+        input.lessonId,
+        located.rows[0].course_id,
+        located.rows[0].kit_id,
+        input.now,
+        input.secondsSpent,
+      ],
+    );
+
+    return {
+      firstCompletion: true,
+      courseId: located.rows[0].course_id,
+      kitId: located.rows[0].kit_id,
+    };
+  }
+
+  async courseCompletion(
+    studentId: string,
+    courseId: string,
+    tx?: TransactionContext,
+  ): Promise<{ completed: number; total: number }> {
+    // Dentro de la transaccion cuando la hay: dos lecciones terminadas a la vez
+    // -que pasa en clase- tienen que ver el estado de la otra, o ninguna
+    // detectaria que el curso quedo completo.
+    const executor = clientOf(tx) ?? this.readPool;
+
+    const { rows } = await executor.query(
+      `SELECT
+         (SELECT count(*) FROM learning.lesson_progress
+           WHERE student_id = $1 AND course_id = $2 AND completed_at IS NOT NULL) AS completed,
+         (SELECT lesson_count FROM learning.course_directory WHERE course_id = $2) AS total`,
+      [studentId, courseId],
+    );
+
+    return {
+      completed: Number(rows[0]?.completed ?? 0),
+      total: Number(rows[0]?.total ?? 0),
+    };
+  }
+
+  async progressFor(studentId: string): Promise<StudentProgressView> {
+    const [summary, badges, courses] = await Promise.all([
+      this.readPool.query(
+        `SELECT total_xp, explorer_level, lessons_completed, courses_completed
+           FROM learning.student_gamification WHERE student_id = $1`,
+        [studentId],
+      ),
+      this.readPool.query(
+        `SELECT badge_code, category, awarded_at FROM learning.badges
+          WHERE student_id = $1 ORDER BY awarded_at DESC`,
+        [studentId],
+      ),
+      this.readPool.query(
+        `SELECT d.course_id,
+                d.kit_id,
+                d.title,
+                d.lesson_count,
+                count(*) FILTER (WHERE p.completed_at IS NOT NULL) AS completed,
+                count(*)                                            AS started,
+                max(p.updated_at)                                   AS last_activity
+           FROM learning.lesson_progress p
+           JOIN learning.course_directory d ON d.course_id = p.course_id
+          WHERE p.student_id = $1
+          GROUP BY d.course_id, d.kit_id, d.title, d.lesson_count
+          ORDER BY max(p.updated_at) DESC`,
+        [studentId],
+      ),
+    ]);
+
+    const totalXp = Number(summary.rows[0]?.total_xp ?? 0);
+    const level = levelFor(totalXp);
+
+    // El nombre y la descripcion de la insignia salen del dominio y NO de la
+    // base: son texto de producto, cambian, y guardarlos en cada fila obligaria
+    // a una migracion para corregir una errata.
+    const catalogue = new Map(BADGE_RULES.map((rule) => [rule.code, rule]));
+
+    return {
+      studentId,
+      totalXp,
+      explorerLevel: level.level,
+      levelName: level.name,
+      xpToNext: level.xpToNext,
+      nextLevelName: level.nextName,
+      lessonsCompleted: Number(summary.rows[0]?.lessons_completed ?? 0),
+      coursesCompleted: Number(summary.rows[0]?.courses_completed ?? 0),
+      badges: badges.rows.map((row) => ({
+        code: row.badge_code,
+        name: catalogue.get(row.badge_code)?.name ?? row.badge_code,
+        category: row.category,
+        awardedAt: (row.awarded_at as Date).toISOString(),
+      })),
+      courses: courses.rows.map((row) => ({
+        courseId: row.course_id,
+        kitId: row.kit_id,
+        title: row.title,
+        lessonCount: Number(row.lesson_count),
+        lessonsCompleted: Number(row.completed),
+        lessonsStarted: Number(row.started),
+        lastActivityAt: row.last_activity ? (row.last_activity as Date).toISOString() : null,
+      })),
+    };
+  }
+
+  async classroomProgress(classroomId: string, now: Date): Promise<ClassroomProgressRow[]> {
+    // Se parte de las MATRICULAS y no del progreso: un alumno que nunca abrio
+    // nada no tiene ninguna fila de progreso, y es justo el que hay que ver.
+    // Partiendo del progreso, el que peor va es el unico que no aparece.
+    const { rows } = await this.readPool.query(
+      `SELECT m.student_id,
+              m.full_name,
+              count(p.lesson_id) FILTER (WHERE p.completed_at IS NOT NULL) AS completed,
+              count(p.lesson_id)                                            AS started,
+              max(p.updated_at)                                             AS last_activity
+         FROM learning.classroom_members m
+         LEFT JOIN learning.lesson_progress p
+                ON p.student_id = m.student_id AND p.classroom_id = m.classroom_id
+        WHERE m.classroom_id = $1 AND m.active
+        GROUP BY m.student_id, m.full_name
+        ORDER BY m.full_name`,
+      [classroomId],
+    );
+
+    return rows.map((row) => {
+      const lastActivity = row.last_activity ? (row.last_activity as Date) : null;
+      return {
+        studentId: row.student_id,
+        fullName: row.full_name,
+        lessonsCompleted: Number(row.completed),
+        lessonsStarted: Number(row.started),
+        lastActivityAt: lastActivity ? lastActivity.toISOString() : null,
+        // La regla vive en el dominio y no en el SQL: cambiar el umbral no puede
+        // exigir tocar una consulta, y ademas asi se puede probar en memoria.
+        stale: isStale(lastActivity, now),
+      };
+    });
+  }
+
+  async locateLesson(lessonId: string): Promise<{ courseId: string; kitId: string } | null> {
+    const { rows } = await this.readPool.query(
+      `SELECT course_id, kit_id FROM learning.lesson_directory WHERE lesson_id = $1`,
+      [lessonId],
+    );
+    return rows[0] ? { courseId: rows[0].course_id, kitId: rows[0].kit_id } : null;
+  }
+
+  async classroomsFor(userId: string): Promise<{ classroomId: string; teacherId: string | null }[]> {
+    const { rows } = await this.readPool.query(
+      `SELECT classroom_id, teacher_id FROM learning.classroom_members
+        WHERE student_id = $1 AND active
+       UNION
+       SELECT DISTINCT classroom_id, teacher_id FROM learning.classroom_members
+        WHERE teacher_id = $1 AND active`,
+      [userId],
+    );
+
+    return rows.map((row) => ({ classroomId: row.classroom_id, teacherId: row.teacher_id }));
+  }
+}
+
+export class PgGamificationRepository implements GamificationRepository {
+  constructor(private readonly readPool: Pool) {}
+
+  async award(input: {
+    id: string;
+    studentId: string;
+    reason: string;
+    reference: string;
+    points: number;
+    now: Date;
+    tx: TransactionContext;
+  }): Promise<boolean> {
+    // `ON CONFLICT DO NOTHING` sobre el indice unico (alumno, motivo,
+    // referencia). Es la garantia de un solo cobro, y vive en la BASE: dos
+    // peticiones simultaneas no pueden pagar dos veces, mientras que comprobar
+    // antes y escribir despues deja la carrera abierta. Un contador de puntos
+    // que se puede inflar deja de significar nada para quien se lo gano.
+    const { rowCount } = await clientOf(input.tx)!.query(
+      `INSERT INTO learning.xp_awards (id, student_id, reason, reference, points, awarded_at)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (student_id, reason, reference) DO NOTHING`,
+      [input.id, input.studentId, input.reason, input.reference, input.points, input.now],
+    );
+
+    return (rowCount ?? 0) > 0;
+  }
+
+  async refreshSummary(
+    studentId: string,
+    tx: TransactionContext,
+  ): Promise<{
+    totalXp: number;
+    explorerLevel: number;
+    lessonsCompleted: number;
+    coursesCompleted: number;
+    assessmentsPassed: number;
+  }> {
+    const client = clientOf(tx)!;
+
+    // Se recalcula ENTERO desde los hechos, nunca sumando incrementos. Es la
+    // misma decision que en analytics y por lo mismo: un evento entregado dos
+    // veces -que JetStream garantiza *al menos* una vez- no puede inflar un
+    // total que se reconstruye desde su origen.
+    const { rows } = await client.query(
+      `SELECT
+         COALESCE(sum(points), 0)::int                                          AS total_xp,
+         count(*) FILTER (WHERE reason = 'lesson_completed')::int               AS lessons,
+         count(*) FILTER (WHERE reason = 'course_completed')::int               AS courses,
+         count(*) FILTER (WHERE reason = 'assessment_passed')::int              AS assessments
+       FROM learning.xp_awards WHERE student_id = $1`,
+      [studentId],
+    );
+
+    const totalXp = Number(rows[0]?.total_xp ?? 0);
+    const level = levelFor(totalXp);
+
+    await client.query(
+      `INSERT INTO learning.student_gamification
+         (student_id, total_xp, explorer_level, lessons_completed, courses_completed, updated_at)
+       VALUES ($1,$2,$3,$4,$5, now())
+       ON CONFLICT (student_id) DO UPDATE SET
+         total_xp          = EXCLUDED.total_xp,
+         explorer_level    = EXCLUDED.explorer_level,
+         lessons_completed = EXCLUDED.lessons_completed,
+         courses_completed = EXCLUDED.courses_completed,
+         updated_at        = now()`,
+      [
+        studentId,
+        totalXp,
+        level.level,
+        Number(rows[0]?.lessons ?? 0),
+        Number(rows[0]?.courses ?? 0),
+      ],
+    );
+
+    return {
+      totalXp,
+      explorerLevel: level.level,
+      lessonsCompleted: Number(rows[0]?.lessons ?? 0),
+      coursesCompleted: Number(rows[0]?.courses ?? 0),
+      assessmentsPassed: Number(rows[0]?.assessments ?? 0),
+    };
+  }
+
+  async badgesOf(studentId: string, tx?: TransactionContext): Promise<string[]> {
+    const executor = clientOf(tx) ?? this.readPool;
+    const { rows } = await executor.query(
+      `SELECT badge_code FROM learning.badges WHERE student_id = $1`,
+      [studentId],
+    );
+    return rows.map((row) => row.badge_code as string);
+  }
+
+  async grantBadges(
+    studentId: string,
+    badges: { code: string; category: string }[],
+    tx: TransactionContext,
+  ): Promise<void> {
+    if (badges.length === 0) return;
+
+    const client = clientOf(tx)!;
+    for (const badge of badges) {
+      // `DO NOTHING`: una insignia se concede una vez y no se retira nunca.
+      // Una que aparece y desaparece convierte un reconocimiento en un castigo.
+      await client.query(
+        `INSERT INTO learning.badges (student_id, badge_code, category)
+         VALUES ($1,$2,$3) ON CONFLICT (student_id, badge_code) DO NOTHING`,
+        [studentId, badge.code, badge.category],
+      );
+    }
+  }
+}

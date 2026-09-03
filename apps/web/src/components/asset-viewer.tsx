@@ -4,6 +4,7 @@ import {
   sizeLabel,
   type OpenedAsset,
 } from '../lib/catalog';
+import { LessonComplete } from './lesson-complete';
 
 /**
  * Visor de un recurso de la biblioteca.
@@ -20,9 +21,17 @@ import {
 export function AssetViewer({
   asset,
   backHref,
+  portal,
+  lessonId,
+  lessonCompleted = false,
 }: {
   asset: OpenedAsset;
   backHref: string;
+  portal: 'discover' | 'academy';
+  /** La leccion a la que pertenece el recurso. `null` en material suelto del
+   *  kit, que no cuenta para el progreso porque no forma parte de ningun curso. */
+  lessonId: string | null;
+  lessonCompleted?: boolean;
 }) {
   const duration = durationLabel(asset.durationSeconds);
   const size = sizeLabel(asset.sizeBytes);
@@ -45,6 +54,19 @@ export function AssetViewer({
       <div className="mt-6">
         <Player asset={asset} />
       </div>
+
+      {/* Marcar la leccion va DESPUES del reproductor y antes de la descarga:
+          el orden es el del gesto real -verlo, decir que lo viste, y llevartelo
+          si quieres-. */}
+      {lessonId ? (
+        <div className="mt-6">
+          <LessonComplete
+            lessonId={lessonId}
+            portal={portal}
+            alreadyCompleted={lessonCompleted}
+          />
+        </div>
+      ) : null}
 
       {/* La descarga es una decision del catalogo, no del alumno: hay material
           que se puede llevar -una ficha para imprimir- y material que solo se

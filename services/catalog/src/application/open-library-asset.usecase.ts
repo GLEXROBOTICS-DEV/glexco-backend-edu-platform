@@ -30,6 +30,10 @@ export interface OpenLibraryAssetInput {
 
 export interface OpenLibraryAssetOutput {
   assetId: string;
+  /** La leccion a la que pertenece, si pertenece a alguna. Es lo que permite al
+   *  portal ofrecer "ya lo vi": el material suelto del kit no cuenta para el
+   *  progreso porque no forma parte de ningun curso. */
+  lessonId: string | null;
   title: string;
   description: string;
   type: string;
@@ -91,6 +95,7 @@ export class OpenLibraryAssetUseCase
   private describe(asset: ContentAsset) {
     return {
       assetId: asset.id,
+      lessonId: asset.lessonId,
       title: asset.title,
       description: asset.description,
       type: asset.type as string,

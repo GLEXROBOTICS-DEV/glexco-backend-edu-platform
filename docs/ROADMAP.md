@@ -220,8 +220,8 @@ frontend o clientes reales:
       mi perfil.
 - [ ] Academy: laboratorio por niveles, cursos, proyectos y desafíos,
       certificaciones, portafolio, perfil.
-- [ ] Biblioteca multimedia con reproductor y descargas por URL prefirmada.
-- [ ] Registro de alumno y activación de código desde el portal.
+- [x] Biblioteca multimedia con reproductor y descargas por URL prefirmada.
+- [x] Registro de alumno y activación de código desde el portal.
 - [x] El alumno responde los cuestionarios desde el portal, sin JavaScript si
       hace falta, y ve su nota al instante.
 - [ ] i18n es/en con next-intl (hoy los textos están en español en el código).
@@ -262,10 +262,16 @@ frontend o clientes reales:
 - [ ] Tipos de pregunta `ordering` y `matching`: están en el vocabulario pero su
       corrección automática no está escrita, así que se tratan como manuales.
 
-## ⬜ Fase 6 — Progreso, gamificación y certificados
+## 🔄 Fase 6 — Progreso, gamificación y certificados
 
-- [ ] `learning-service`: progreso por lección/curso, retos, portafolio.
-- [ ] XP, niveles del Explorador, medallas, insignias, ranking.
+- [x] `learning-service`: progreso por lección y curso, con la señal de **quién
+      se descolgó** antes del primer examen, que es lo que la evaluación sola no
+      puede dar.
+- [x] XP, niveles del Explorador e insignias. **No hay ranking, y es una
+      decisión:** el progreso solo se compara con uno mismo. La propuesta ya lo
+      pide para el ranking —*celebra logros, no señala rezagos*— y entre menores
+      vale igual.
+- [ ] Retos de construcción y programación, misiones semanales, portafolio.
 - [ ] Certificados con plantilla, firma digital, QR y verificación pública.
 - [ ] Emisión individual y masiva.
 
@@ -293,15 +299,17 @@ frontend o clientes reales:
       panel del docente con su salón, y panel de institución con la eficacia
       docente. Gráficos en SVG propio, sin librería: +2 kB sobre la carga base.
 - [ ] Exportación a PDF, Excel y CSV (la tabla de datos ya permite copiar).
-- [ ] Panel de GLEXCO en el portal: el endpoint por institución existe, no la
-      pantalla.
-- [ ] `engagement-service`: anuncios de salón, notificaciones, correo,
-      mesa de ayuda, base de conocimiento.
+- [x] Panel de GLEXCO en el portal, con el directorio de instituciones que lo
+      hace legible: antes listaba la cartera de clientes por UUID.
+- [x] `engagement-service`: **correo real** (verificación y recuperación) y
+      anuncios de salón. El token del enlace NO viaja en el evento: se pide a
+      identidad en el momento de enviar, para que no quede escrito en la outbox
+      ni en el stream.
+- [ ] `engagement-service`, lo que falta: notificaciones, mesa de ayuda y base
+      de conocimiento.
 - [ ] Portal Admin completo: panel ejecutivo, instituciones, usuarios, gestión
       académica y de contenidos, certificaciones, comercial, configuración.
-- [ ] Progreso por consumo de contenido (`learning-service`, Fase 6). Hoy el
-      progreso se mide **solo** con evaluaciones, que es la fuente que cuenta;
-      el consumo de contenido añadiría la señal de "quién se descolgó".
+- [x] Progreso por consumo de contenido (`learning-service`, Fase 6).
 
 ## ⬜ Fase 8 — Endurecimiento y despliegue
 
