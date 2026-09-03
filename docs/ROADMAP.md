@@ -212,6 +212,8 @@ frontend o clientes reales:
 
 **Pendiente:**
 
+- [x] **Mi progreso** en los dos portales: medias separadas de GLEXCO y del
+      docente, cuánto ha mejorado, y la evolución en el tiempo.
 - [ ] Discover: laboratorio de robots, mis cursos, zona de retos, mis logros,
       mi perfil.
 - [ ] Academy: laboratorio por niveles, cursos, proyectos y desafíos,
@@ -244,8 +246,9 @@ frontend o clientes reales:
 
 - [ ] Rúbricas de corrección (`Rubric`): hoy la corrección manual es por puntos
       libres sobre cada pregunta.
-- [ ] Bandeja de corrección y panel del docente en el portal
-      (`listPendingForClassroom` ya existe; falta la interfaz).
+- [x] Panel del docente en el portal, con el dashboard de su salón.
+- [ ] Bandeja de corrección (`listPendingForClassroom` ya existe; falta la
+      interfaz para puntuar).
 - [ ] Portal docente completo: gestión de cursos y estudiantes, recursos
       pedagógicos, capacitación docente.
 - [ ] Tipos de pregunta `ordering` y `matching`: están en el vocabulario pero su
@@ -278,9 +281,12 @@ frontend o clientes reales:
 
 **Pendiente:**
 
-- [ ] Las pantallas de los dashboards en el portal. El backend está listo y
-      probado; no hay interfaz.
-- [ ] Exportación a PDF, Excel y CSV.
+- [x] **Pantallas de los dashboards**: progreso del alumno en los dos portales,
+      panel del docente con su salón, y panel de institución con la eficacia
+      docente. Gráficos en SVG propio, sin librería: +2 kB sobre la carga base.
+- [ ] Exportación a PDF, Excel y CSV (la tabla de datos ya permite copiar).
+- [ ] Panel de GLEXCO en el portal: el endpoint por institución existe, no la
+      pantalla.
 - [ ] `engagement-service`: anuncios de salón, notificaciones, correo,
       mesa de ayuda, base de conocimiento.
 - [ ] Portal Admin completo: panel ejecutivo, instituciones, usuarios, gestión

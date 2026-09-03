@@ -83,7 +83,7 @@ pnpm seed           # kit, lote de codigos, institucion y salon
 pnpm smoke          # 95 comprobaciones de punta a punta
 pnpm smoke:direct   # las mismas contra identity, saltándose el gateway
 pnpm concurrency    # las cuatro comprobaciones de la seccion 3
-pnpm smoke:web      # 17 comprobaciones del portal (necesita el portal en marcha)
+pnpm smoke:web      # 34 comprobaciones del portal (necesita el portal en marcha)
 ```
 
 `pnpm seed` hace falta porque identidad habla con el catálogo **real**: un código
@@ -203,8 +203,8 @@ Ver [ROADMAP.md](ROADMAP.md) para el detalle. Resumen del estado:
 | 2 · Instituciones y salones | ✅ (falta ejecutarlo) |
 | 3 · Catálogo, kits, códigos y medios | ✅ |
 | 5 · Evaluación | 🔄 servicio funcionando, falta el portal docente |
-| 7 · Analítica | 🔄 los cinco dashboards en backend, sin interfaz |
-| 4 · Portales de alumno | 🔄 ingreso y portadas funcionando |
+| 7 · Analítica | 🔄 los cinco dashboards; tres con pantalla |
+| 4 · Portales de alumno | 🔄 ingreso, portadas y progreso funcionando |
 | 5–8 | ⬜ |
 
 **La Fase 3 está cerrada.** El siguiente paso es la **Fase 4**: los portales de

@@ -11,13 +11,15 @@
  *
  * Uso:  node --env-file-if-exists=.env infra/scripts/web-check.mjs
  */
-import { mintAccessToken, seedCatalog, seedUsers } from './seed-dev.mjs';
+import { mintAccessToken, seedCatalog, seedInstitution, seedUsers } from './seed-dev.mjs';
 import contracts from '@glexco/contracts';
 
 const { ROLES } = contracts;
 
 const WEB = process.env.WEB_URL ?? 'http://localhost:3010';
 const GATEWAY = process.env.GATEWAY_URL ?? 'http://localhost:3000';
+const ASSESSMENT = process.env.ASSESSMENT_URL ?? 'http://localhost:3105';
+const INSTITUTIONS = process.env.INSTITUTIONS_URL ?? 'http://localhost:3102';
 
 const colors = {
   ok: '\x1b[32m',
@@ -211,6 +213,205 @@ async function main() {
     `status=${otherPortal.status}`,
   );
 
+  // ------------------------------------------------------------------
+  section('5. Dashboards en el portal');
+  // ------------------------------------------------------------------
+  // Se monta el escenario completo por la API real: kit, cuestionario de
+  // GLEXCO publicado, salon creado con su docente, y un alumno que responde.
+  // Sembrarlo por SQL no serviria: la analitica aprende quien es el docente
+  // del evento `institutions.classroom.created.v1`.
+  const dashKit = await seedCatalog({ codeCount: 1 });
+
+  const [contentManager] = await seedUsers(1, { roles: [ROLES.CONTENT_MANAGER] });
+  const glexcoToken = mintAccessToken({ userId: contentManager.id, roles: contentManager.roles });
+
+  const quiz = await postJson(`${ASSESSMENT}/api/v1/assessments`, glexcoToken, {
+    kitId: dashKit.kitId,
+    kind: 'quiz',
+    title: 'Piezas del uKit',
+    passingScore: 60,
+  });
+
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${quiz.body?.assessmentId}/questions`,
+    glexcoToken,
+    {
+      type: 'single_choice',
+      prompt: 'Cual de estas piezas es un servomotor?',
+      options: [{ text: 'El bloque' }, { text: 'El servo' }],
+      correctOptions: [1],
+      points: 10,
+    },
+  );
+  await postJson(`${ASSESSMENT}/api/v1/assessments/${quiz.body?.assessmentId}/publish`, glexcoToken, {});
+
+  const school = await seedInstitution({ capacity: 30, grade: dashKit.grade });
+
+  const [teacher] = await seedUsers(1, {
+    roles: [ROLES.TEACHER],
+    institutionId: school.institutionId,
+  });
+  const teacherToken = mintAccessToken({
+    userId: teacher.id,
+    roles: teacher.roles,
+    institutionId: school.institutionId,
+  });
+
+  const classroom = await postJson(`${INSTITUTIONS}/api/v1/classrooms`, teacherToken, {
+    name: `Salon Portal ${Date.now()}`,
+    grade: dashKit.grade,
+    capacity: 30,
+    academicYear: new Date().getFullYear(),
+    teacherId: teacher.id,
+  });
+
+  report(
+    'Prepara el escenario: kit, cuestionario publicado y salon',
+    quiz.status === 201 && classroom.status === 201,
+    `quiz=${quiz.status} salon=${classroom.status}`,
+  );
+
+  const [pupil] = await seedUsers(1, { institutionId: school.institutionId });
+  const pupilToken = mintAccessToken({
+    userId: pupil.id,
+    roles: pupil.roles,
+    institutionId: school.institutionId,
+  });
+
+  const attempt = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${quiz.body?.assessmentId}/attempts`,
+    pupilToken,
+    { classroomId: classroom.body?.classroomId },
+  );
+  const question = attempt.body?.questions?.[0];
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${attempt.body?.submissionId}/answers`,
+    pupilToken,
+    {
+      questionId: question?.id,
+      selectedOptionIds: [question?.options?.find((o) => o.text === 'El servo')?.id],
+    },
+  );
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${attempt.body?.submissionId}/submit`,
+    pupilToken,
+    {},
+  );
+
+  // --- Dashboard del alumno ---
+  const pupilJar = `glexco_at=${pupilToken}`;
+  const progreso = await waitForHtml(`${WEB}/discover/progreso`, pupilJar, (html) =>
+    html.includes('Nota media GLEXCO') && html.includes('100'),
+  );
+
+  report(
+    'El alumno ve su dashboard con la nota que acaba de sacar',
+    Boolean(progreso),
+    progreso ? '' : 'no aparecio en 40 s',
+  );
+  report(
+    'Distingue la media de GLEXCO de la del docente',
+    Boolean(progreso?.includes('Nota media GLEXCO') && progreso?.includes('Nota media de tu docente')),
+  );
+  report(
+    'Muestra el progreso, no solo la nota',
+    Boolean(progreso?.includes('Cuánto has mejorado') && progreso?.includes('primer intento')),
+  );
+  report(
+    'El grafico se renderiza en el SERVIDOR, sin depender del JavaScript',
+    Boolean(progreso?.includes('data-chart="timeline"') && progreso?.includes('<circle')),
+  );
+  report(
+    'Trae la tabla de datos, para lector de pantalla y para copiar',
+    Boolean(progreso?.includes('Ver datos')),
+  );
+  report(
+    'NO muestra la posicion del alumno frente a sus companeros',
+    Boolean(progreso) && !/puesto|posici[oó]n|ranking|de 30/i.test(progreso),
+  );
+
+  // --- Portal del docente ---
+  const teacherJar = `glexco_at=${teacherToken}`;
+  const misSalones = await fetchHtml(`${WEB}/docentes`, teacherJar);
+
+  report(
+    'El docente entra a su panel y ve su salon',
+    misSalones.status === 200 && misSalones.html.includes('Mis salones'),
+    `status=${misSalones.status}`,
+  );
+
+  const salonDash = await waitForHtml(
+    `${WEB}/docentes/salones/${classroom.body?.classroomId}`,
+    teacherJar,
+    (html) => html.includes('Nota media') && !html.includes('Aún no hay resultados'),
+  );
+
+  report(
+    'Ve el dashboard de su salon con datos reales',
+    Boolean(salonDash),
+    salonDash ? '' : 'no aparecio en 40 s',
+  );
+  report(
+    'Muestra la dispersion interpretada, no un numero suelto',
+    Boolean(salonDash?.includes('Qué tan parejo va el salón')),
+  );
+  report(
+    'Senala lo que mas falla el salon',
+    Boolean(salonDash?.includes('Lo que más falla tu salón')),
+  );
+
+  // --- Aislamiento en el portal ---
+  const pupilInTeacherPortal = await fetchHtml(`${WEB}/docentes`, pupilJar);
+  report(
+    'Un alumno que entra al panel del docente va a SU portal',
+    pupilInTeacherPortal.status === 307,
+    `status=${pupilInTeacherPortal.status} location=${pupilInTeacherPortal.location}`,
+  );
+
+  const teacherInInstitution = await fetchHtml(`${WEB}/docentes/institucion`, teacherJar);
+  report(
+    'Un docente no entra a la pantalla de institucion',
+    teacherInInstitution.status === 307,
+    `status=${teacherInInstitution.status}`,
+  );
+
+  // --- Admin de institucion ---
+  const [schoolAdmin] = await seedUsers(1, {
+    roles: [ROLES.INSTITUTION_ADMIN],
+    institutionId: school.institutionId,
+  });
+  const adminJar = `glexco_at=${mintAccessToken({
+    userId: schoolAdmin.id,
+    roles: schoolAdmin.roles,
+    institutionId: school.institutionId,
+  })}`;
+
+  const institucion = await waitForHtml(`${WEB}/docentes/institucion`, adminJar, (html) =>
+    html.includes('Mi institución'),
+  );
+
+  report(
+    'El admin de institucion ve el panel de su colegio',
+    Boolean(institucion),
+    institucion ? '' : 'no cargo en 40 s',
+  );
+  report(
+    'Ve la activacion de codigos, que es la metrica comercial',
+    Boolean(institucion?.includes('Códigos activados')),
+  );
+  report(
+    'La eficacia docente sale con su aviso ARRIBA, no en un pie',
+    Boolean(
+      institucion?.includes('Dónde hace falta apoyo') &&
+        institucion?.includes('Qué mide') &&
+        institucion?.includes('refuerzo'),
+    ),
+  );
+  report(
+    'No se presenta como ranking de profesores',
+    Boolean(institucion) && !/ranking|mejores profesores|peores/i.test(institucion),
+  );
+
   console.log(
     `\n${colors.bold}Resultado:${colors.reset} ${colors.ok}${passed} pasan${colors.reset}` +
       (failed > 0 ? `, ${colors.fail}${failed} fallan${colors.reset}` : '') +
@@ -220,12 +421,49 @@ async function main() {
   process.exit(failed > 0 ? 1 : 0);
 }
 
+async function postJson(url, token, payload) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  const text = await response.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { raw: text };
+  }
+  return { status: response.status, body };
+}
+
+/**
+ * Sondea una pagina hasta que su HTML cumple la condicion.
+ *
+ * Los dashboards salen de una proyeccion alimentada por eventos, asi que el dato
+ * tarda un instante en aparecer. Lo que se puede exigir es que ACABE
+ * apareciendo, no cuando.
+ */
+async function waitForHtml(url, cookie, matches, timeoutMs = 40_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const page = await fetchHtml(url, cookie).catch(() => null);
+    if (page?.status === 200 && matches(page.html)) return page.html;
+    await sleep(1_500);
+  }
+  return null;
+}
+
 async function fetchHtml(url, cookie) {
   const response = await fetch(url, {
     headers: cookie ? { cookie } : {},
     redirect: 'manual',
   });
-  return { status: response.status, html: await response.text() };
+  return {
+    status: response.status,
+    html: await response.text(),
+    location: response.headers.get('location'),
+  };
 }
 
 /**

@@ -59,7 +59,7 @@ Verificado:
 | `pnpm test` | **118 pruebas** en memoria |
 | `pnpm smoke` | **95 comprobaciones** de punta a punta |
 | `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
-| `pnpm smoke:web` | **17 comprobaciones** del portal contra el backend |
+| `pnpm smoke:web` | **34 comprobaciones** del portal contra el backend |
 
 Las de concurrencia son las que justifican la arquitectura: un solo canje de
 veinte simultáneos, cinco plazas de veinte solicitudes, la outbox reteniendo el
@@ -86,7 +86,7 @@ Plataforma-Glexco/
 │   ├── analytics/       🔄 los cinco dashboards, como proyección de eventos
 │   ├── learning/        ⬜ vacío
 │   └── engagement/      ⬜ vacío
-├── apps/web/            🔄 Next.js 15, ingreso y portadas de Discover y Academy
+├── apps/web/            🔄 Next.js 15: ingreso, portadas, progreso y panel docente
 ├── design/canvas/       ✅ dirección visual aprobada (10 artboards)
 ├── infra/
 │   ├── docker/          ✅ docker-compose + init SQL (schemas, roles, outbox)
@@ -183,6 +183,16 @@ pnpm smoke:web                             # comprobaciones del portal
 - **Los formularios funcionan sin JavaScript.** `useActionState` sobre
   `<form action>` degrada a un envío normal del navegador.
 - **La densidad la fija el layout** con `data-portal`, no cada componente.
+- **Los gráficos son SVG propio, sin librería.** Recharts o Chart.js añaden
+  100-200 KB a la primera carga y estas pantallas las abren equipos de
+  laboratorio escolar: las primitivas de `components/charts.tsx` cuestan 2 KB.
+- **Una sola hue para los datos.** Ningún gráfico es multiserie, así que no hay
+  paleta categórica que validar; y dos azules de la marca dan ΔE 4.8 incluso con
+  visión normal, o sea que son el mismo color.
+- **Un estado nunca se comunica solo con color**: lleva siempre su etiqueta de
+  texto. El par verde/ámbar queda en ΔE 6.9 para protanopía.
+- **Todo gráfico trae su tabla de datos.** Es la vía por la que un lector de
+  pantalla accede a las cifras, y la que permite copiarlas.
 
 ### Al añadir un microservicio nuevo
 
