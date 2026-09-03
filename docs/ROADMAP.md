@@ -138,7 +138,7 @@ El servicio del que dependen todos los demás.
       confusa. Una institución suspendida se rechaza para altas nuevas, pero sus
       usuarios actuales conservan el acceso.
 
-## 🔄 Fase 3 — Catálogo, kits y códigos de activación
+## ✅ Fase 3 — Catálogo, kits y códigos de activación
 
 **Hecho:**
 
@@ -170,13 +170,25 @@ El servicio del que dependen todos los demás.
       peticiones simultáneas, tope de plazas, durabilidad de la outbox y
       deduplicación de eventos (`pnpm concurrency`).
 
-**Pendiente:**
+- [x] **Caché de catálogo con invalidación por etiqueta.** `CachedContentRepository`
+      decora el repositorio y agrupa por `kit:<id>`; publicar invalida el kit
+      entero. No se cachea nada que decida un permiso.
+- [x] **Publicación de contenido** con tabla explícita de transiciones: de
+      borrador a publicado hay que pasar por revisión.
+- [x] **Revocación de códigos y derechos.** Anular un código retira, en la misma
+      transacción, el acceso que concedió.
+- [x] **`media-service`**: subida con URL prefirmada (POST con política, que sí
+      puede limitar el tamaño), validación del tipo **real** por firma binaria,
+      miniaturas con sharp y proveedor de video externo tras un puerto.
 
-- [ ] `media-service`: subida con URL prefirmada, validación de tipo real,
-      miniaturas, proveedor de video.
-- [ ] Caché de catálogo con invalidación por etiqueta al publicar.
-- [ ] Revocación de códigos y de derechos (`ACTIVATION_CODE_REVOKE` existe como
-      permiso pero todavía no hay caso de uso que lo ejerza).
+**Pendiente:** nada bloqueante. Lo que queda son mejoras que dependen de tener
+frontend o clientes reales:
+
+- [ ] Tarea periódica de limpieza de subidas abandonadas (`listAbandoned` ya
+      existe; falta programarla).
+- [ ] Contratar el proveedor de video real y configurarlo (`VIDEO_PROVIDER_URL`).
+- [ ] Endpoints de alta y edición de contenido (hoy se siembra por SQL; el
+      cambio de estado de publicación sí está).
 
 ## ⬜ Fase 4 — Portales de alumno (Discover y Academy)
 

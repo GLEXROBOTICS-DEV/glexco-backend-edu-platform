@@ -27,6 +27,18 @@ const secret = z
   .string()
   .min(32, 'El secreto debe tener al menos 32 caracteres (openssl rand -base64 48)');
 
+/**
+ * Trata una variable vacia como ausente.
+ *
+ * En un `.env` no hay forma de escribir "no definida": lo que se pone es
+ * `VIDEO_PROVIDER_URL=`, y eso llega como cadena vacia. Sin esto,
+ * `z.string().url().optional()` la recibe como valor presente e invalido, y el
+ * servicio se niega a arrancar por una variable que precisamente se dejo en
+ * blanco a proposito.
+ */
+export const optionalEnv = <S extends z.ZodTypeAny>(schema: S) =>
+  z.preprocess((value) => (value === '' ? undefined : value), schema.optional());
+
 export const baseEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   SERVICE_NAME: z.string().min(1),

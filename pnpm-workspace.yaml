@@ -8,6 +8,9 @@ packages:
 allowBuilds:
   esbuild: true
   protobufjs: true
+  # sharp trae binarios nativos por plataforma; sin su postinstall, media-service
+  # no puede generar miniaturas.
+  sharp: true
 
 # Solo estas dependencias pueden ejecutar scripts de instalacion (postinstall).
 # Es una medida contra ataques de cadena de suministro: un paquete transitivo

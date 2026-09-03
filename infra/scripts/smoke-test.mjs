@@ -28,6 +28,7 @@ const { ROLES } = contracts;
 /** El catalogo se prueba directo: no tiene rutas de autenticacion, asi que el
  *  gateway no anade nada a lo que aqui se verifica. */
 const CATALOG = 'http://localhost:3103';
+const MEDIA = 'http://localhost:3108';
 
 const DIRECT = process.argv.includes('--direct');
 const BASE = DIRECT ? 'http://localhost:3101' : 'http://localhost:3000';
@@ -69,6 +70,26 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * esta hecho cuando la peticion de registro responde. Sondear es lo correcto
  * aqui: lo que se comprueba es que acaba ocurriendo, no cuando.
  */
+/**
+ * Sube al almacen con el POST prefirmado.
+ *
+ * Es multipart y el orden importa: los campos de la politica van ANTES del
+ * archivo. S3 y MinIO leen el formulario en orden y descartan lo que llegue
+ * despues del contenido.
+ */
+async function putToPresignedPost(presigned, body, contentType) {
+  if (!presigned?.url) return 0;
+
+  const form = new FormData();
+  for (const [key, value] of Object.entries(presigned.fields ?? {})) {
+    form.append(key, value);
+  }
+  form.append('file', new Blob([body], { type: contentType }));
+
+  const response = await fetch(presigned.url, { method: 'POST', body: form });
+  return response.status;
+}
+
 async function getJson(url, token) {
   const response = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
   const text = await response.text();
@@ -650,6 +671,127 @@ ${colors.fail}Sin codigos sembrados no se puede registrar a nadie.${colors.reset
     'Anular dos veces es idempotente, no un error',
     reRevoke.status === 200,
     `status=${reRevoke.status}`,
+  );
+
+  // --------------------------------------------------------------------
+  section('10. Medios: subida prefirmada y validacion de tipo real');
+  // --------------------------------------------------------------------
+  const [uploader] = await seedUsers(1);
+  const uploaderToken = mintAccessToken({ userId: uploader.id, roles: uploader.roles });
+
+  // Un PNG minimo valido: firma de ocho bytes mas una cabecera IHDR.
+  const realPng = Buffer.from(
+    '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a4944415478' +
+      '9c6300010000050001' +
+      '0d0a2db40000000049454e44ae426082',
+    'hex',
+  );
+
+  const upload = await postJson(`${MEDIA}/api/v1/media/uploads`, uploaderToken, {
+    scope: 'evidence',
+    mimeType: 'image/png',
+    filename: 'evidencia.png',
+    sizeBytes: realPng.length,
+  });
+
+  report(
+    'Entrega una URL prefirmada con politica de tamano',
+    upload.status === 201 && Boolean(upload.body?.url) && Boolean(upload.body?.fields),
+    `status=${upload.status} ${JSON.stringify(upload.body).slice(0, 160)}`,
+  );
+
+  const uploaded = await putToPresignedPost(upload.body, realPng, 'image/png');
+  report('El archivo sube directo al almacen, sin pasar por el servicio', uploaded < 400, `status=${uploaded}`);
+
+  const confirmed = await postJson(
+    `${MEDIA}/api/v1/media/uploads/${upload.body?.mediaAssetId}/confirm`,
+    uploaderToken,
+    {},
+  );
+  report(
+    'Confirma la subida y detecta image/png por su firma binaria',
+    confirmed.status === 200 &&
+      confirmed.body?.status === 'ready' &&
+      confirmed.body?.mimeType === 'image/png',
+    JSON.stringify(confirmed.body),
+  );
+  report(
+    'Genera la miniatura de la imagen',
+    Boolean(confirmed.body?.thumbnailKey),
+    `thumbnail=${confirmed.body?.thumbnailKey}`,
+  );
+
+  const downloadUrl = await getJson(
+    `${MEDIA}/api/v1/media/${upload.body?.mediaAssetId}/url`,
+    uploaderToken,
+  );
+  report(
+    'Entrega una URL de descarga firmada y de vida corta',
+    downloadUrl.status === 200 &&
+      typeof downloadUrl.body?.url === 'string' &&
+      downloadUrl.body.url.includes('X-Amz-Signature'),
+    `status=${downloadUrl.status}`,
+  );
+
+  // Aislamiento: otro alumno, de otra institucion, no descarga esto.
+  const [stranger] = await seedUsers(1);
+  const strangerAccess = await getJson(
+    `${MEDIA}/api/v1/media/${upload.body?.mediaAssetId}/url`,
+    mintAccessToken({ userId: stranger.id, roles: stranger.roles }),
+  );
+  report(
+    'Otro usuario no obtiene la URL de un archivo ajeno',
+    strangerAccess.status === 422 && strangerAccess.body?.code === 'MEDIA_NOT_ACCESSIBLE',
+    `status=${strangerAccess.status} code=${strangerAccess.body?.code}`,
+  );
+
+  // LA comprobacion que justifica el servicio: un ejecutable renombrado a .pdf
+  // y declarado como application/pdf. Pasa cualquier validacion que se fie de
+  // la extension o del Content-Type; no pasa la de la firma binaria.
+  const fakePdf = Buffer.concat([
+    Buffer.from('MZ', 'ascii'), // cabecera de ejecutable de Windows
+    Buffer.from('90000300000004000000ffff0000', 'hex'),
+  ]);
+
+  const badUpload = await postJson(`${MEDIA}/api/v1/media/uploads`, uploaderToken, {
+    scope: 'document',
+    mimeType: 'application/pdf',
+    filename: 'inofensivo.pdf',
+    sizeBytes: fakePdf.length,
+  });
+  await putToPresignedPost(badUpload.body, fakePdf, 'application/pdf');
+
+  const badConfirm = await postJson(
+    `${MEDIA}/api/v1/media/uploads/${badUpload.body?.mediaAssetId}/confirm`,
+    uploaderToken,
+    {},
+  );
+  report(
+    'Rechaza un ejecutable renombrado a .pdf, pese a declararse application/pdf',
+    badConfirm.status === 200 && badConfirm.body?.status === 'rejected',
+    JSON.stringify(badConfirm.body),
+  );
+
+  const rejectedAccess = await getJson(
+    `${MEDIA}/api/v1/media/${badUpload.body?.mediaAssetId}/url`,
+    uploaderToken,
+  );
+  report(
+    'Un archivo rechazado no se puede descargar',
+    rejectedAccess.status === 422 && rejectedAccess.body?.code === 'MEDIA_NOT_READY',
+    `status=${rejectedAccess.status} code=${rejectedAccess.body?.code}`,
+  );
+
+  const notAccepted = await postJson(`${MEDIA}/api/v1/media/uploads`, uploaderToken, {
+    scope: 'document',
+    mimeType: 'application/x-msdownload',
+    filename: 'programa.exe',
+    sizeBytes: 1024,
+  });
+  report(
+    'Un tipo fuera de la lista no llega ni a firmarse',
+    notAccepted.status === 422,
+    `status=${notAccepted.status} code=${notAccepted.body?.code}`,
   );
 
   // --------------------------------------------------------------------

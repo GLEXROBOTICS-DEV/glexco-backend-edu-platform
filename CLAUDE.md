@@ -45,7 +45,7 @@ defecto**, pero el registro independiente debe funcionar igual de bien.
 
 ## 2. Estado actual
 
-**Fases 0, 1 y 2 completas; Fase 3 casi cerrada.** El backend **ya se ejecuta
+**Fases 0 a 3 completas.** El backend **ya se ejecuta
 contra Postgres, Redis y NATS reales**. Ver [docs/BITACORA.md](docs/BITACORA.md)
 para el detalle y el pendiente exacto, y [docs/ROADMAP.md](docs/ROADMAP.md) para
 lo que falta de cada fase.
@@ -56,7 +56,7 @@ Verificado:
 |---|---|
 | `pnpm build` | 9/9 paquetes y servicios |
 | `pnpm test` | **118 pruebas** en memoria |
-| `pnpm smoke` | **32 comprobaciones** de punta a punta por el gateway |
+| `pnpm smoke` | **51 comprobaciones** de punta a punta |
 | `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
 
 Las de concurrencia son las que justifican la arquitectura: un solo canje de
@@ -78,8 +78,9 @@ Plataforma-Glexco/
 │   ├── api-gateway/     ✅ enrutado, rate limiting, circuit breakers, apagado ordenado
 │   ├── institutions/    ✅ instituciones, salones con tope, licencias, matrículas
 │   ├── catalog/         ✅ kits, códigos, lotes de imprenta, derechos, canje asíncrono
+│   ├── media/           ✅ subidas prefirmadas, validación de tipo real, miniaturas
 │   ├── learning/        ⬜ vacío        assessment/   ⬜ vacío
-│   └── engagement/      ⬜ vacío        analytics/    ⬜ vacío     media/ ⬜ vacío
+│   └── engagement/      ⬜ vacío        analytics/    ⬜ vacío
 ├── apps/web/            ⬜ vacío (Next.js, Fase 4)
 ├── design/canvas/       ✅ dirección visual aprobada (10 artboards)
 ├── infra/
@@ -113,6 +114,7 @@ pnpm --filter @glexco/kernel build     # compilar un paquete concreto
 pnpm --filter @glexco/identity db:migrate  # aplicar migraciones
 pnpm --filter @glexco/identity dev         # arrancar identidad (3101)
 pnpm --filter @glexco/api-gateway dev      # arrancar gateway (3000)
+pnpm --filter @glexco/media dev            # arrancar medios (3108)
 pnpm seed                                  # kit, lote de codigos, institucion y salon
 pnpm smoke                                 # 32 comprobaciones de punta a punta
 pnpm concurrency                           # las 4 comprobaciones de concurrencia real

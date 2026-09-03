@@ -7,6 +7,135 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 6 — 2026-09-02 — Cierre de la Fase 3
+
+Continuación directa de la sesión 5, en la misma máquina y con la
+infraestructura ya en marcha. Se cerraron los cuatro pendientes que quedaban de
+la Fase 3.
+
+### Qué se construyó
+
+**Lotes de códigos para imprenta.** `POST /catalog/batches` genera la tirada y
+devuelve los códigos **en claro una sola vez**; con `format=csv` la respuesta es
+directamente el fichero que va a la imprenta. `GET /catalog/batches/:id` responde
+la pregunta comercial de verdad: de los mil libros del colegio, cuántos niños
+entraron.
+
+**Canje asíncrono.** Catálogo consume `identity.user.registered.v1` y completa el
+canje. Es lo que cierra el flujo del registro sin transacción distribuida:
+identidad solo puede *comprobar* el código.
+
+**Anulación de códigos y derechos.** Anular un código retira, en la misma
+transacción, el acceso que concedió. `GET /catalog/batches/:id/codes` lista los
+códigos por sufijo para que soporte localice la fila.
+
+**Caché de catálogo con invalidación por etiqueta.** `CachedContentRepository`
+decora el repositorio y agrupa las entradas por `kit:<id>`. `POST
+/catalog/content/:id/status` publica, revisa, devuelve a borrador o archiva, e
+invalida el kit entero.
+
+**`media-service` completo.** Subidas con URL prefirmada, validación del tipo
+real por firma binaria, miniaturas con sharp y proveedor de video tras un puerto.
+
+### Decisiones no obvias
+
+- **El evento de registro lleva el `activationCodeId`, no el código.** El canje
+  asíncrono necesita saber qué fila tocar, pero el código es un secreto con valor
+  económico y el evento vive días en la outbox y en el stream. Un UUID de fila no
+  permite deducirlo, y el endpoint público solo acepta el código.
+
+- **Las dos vías de canje comparten el mismo caso de uso.** Una busca por hash y
+  la otra por id, pero desde el bloqueo de fila en adelante el camino es
+  idéntico. La garantía de un solo uso escrita dos veces es la forma segura de
+  que una de las copias se quede atrás.
+
+- **No hay endpoint para volver a descargar el CSV de un lote.** En la base solo
+  queda el hash, así que reconstruirlo es imposible por diseño. Si alguien lo
+  pide, la respuesta es repetir la tirada, no relajar el hasheo.
+
+- **La URL de subida se firma como POST con política, no como PUT.** Es la
+  diferencia entre poder limitar el tamaño y no poder: un PUT prefirmado
+  autoriza a escribir en esa clave y punto, así que cualquiera con la URL sube un
+  fichero de cien gigabytes. La política del POST lleva `content-length-range` y
+  es el propio almacén quien rechaza, sin que nosotros veamos un byte.
+
+- **El tipo de un archivo se decide por sus bytes.** La extensión y el
+  `Content-Type` los escribe el cliente. `MagicBytesSniffer` tiene una lista
+  cerrada de firmas y se escribió a mano en vez de traer una librería de
+  detección: una librería genérica reconoce cientos de formatos, y lo que
+  interesa aquí es rechazar todo lo que no esté en la lista. La comprobación que
+  decide si un fichero entra al bucket no debería depender de código que nadie
+  del equipo ha leído.
+
+- **Se leen solo los primeros bytes, con `Range`.** Para decidir si un fichero es
+  lo que dice bastan doce. Bajarse dos gigabytes de vídeo por cada subida sería
+  absurdo, y con un aula entera entregando evidencias a la vez, ruinoso.
+
+- **El límite de píxeles de sharp no es opcional.** Una imagen de 40000×40000
+  comprime a pocos kilobytes y pasa cualquier límite de tamaño, pero obliga a
+  reservar gigabytes al descomprimirla. Con subidas abiertas a miles de alumnos
+  no es un escenario teórico.
+
+- **La caché no cubre nada que decida un permiso.** Los derechos de acceso se
+  consultan siempre contra la base: cachearlos convertiría un acceso retirado en
+  un acceso que sigue funcionando hasta que expire.
+
+- **Si la invalidación de caché falla, la operación falla.** Al revés que la
+  lectura, que se degrada en silencio. Si alguien archiva un contenido y la caché
+  sigue sirviéndolo, quien lo retiró cree que ya no se ve.
+
+- **Publicar exige pasar por revisión.** La tabla de transiciones prohíbe el
+  salto de borrador a publicado: este contenido lo ven niños de seis años y la
+  revisión es el único punto donde alguien distinto del autor lo mira.
+
+### Errores encontrados y corregidos
+
+- **`redeemed_fields_consistent` impedía anular un código canjeado.** La
+  restricción exigía que cualquier estado distinto de `redeemed` tuviera
+  `redeemed_by` a NULL. Estaba pensada para los estados que *preceden* al canje y
+  atrapaba también a `revoked`, así que la única forma de anular habría sido
+  borrar quién lo usó. De los tres motivos de anulación —error de imprenta,
+  devolución, fraude— en el tercero ese dato es el principal de la investigación.
+  Corregido en la migración `0002`.
+
+- **Anular dos veces daba un conflicto de concurrencia inventado.** Misma clase
+  de error que el del inicio de sesión en la sesión 5: el agregado sale sin
+  cambiar nada, la versión no avanza y el `UPDATE ... WHERE version < :nueva` no
+  encuentra fila. Aquí lo correcto es no escribir, así que se sale antes de
+  guardar.
+
+- **Una variable vacía en `.env` no es lo mismo que ausente.**
+  `VIDEO_PROVIDER_URL=` llegaba como cadena vacía y `z.string().url().optional()`
+  la trataba como valor presente e inválido: el servicio se negaba a arrancar por
+  una variable que se dejó en blanco a propósito. Se añadió `optionalEnv` a
+  `@glexco/config`.
+
+- **La identidad de git en esta máquina era un marcador de posición**
+  (`OTRO_USUARIO <otro_correo@ejemplo.com>`). Los dos commits de la sesión 5
+  llevaban ese autor. Como no se habían subido, se reescribieron a
+  `SvaleraG <svalera.glexco@gmail.com>`, que es el resto del historial.
+
+### Estado al cerrar
+
+- `pnpm build`: **10/10**. `pnpm test`: **118 en verde**.
+- `pnpm smoke`: **51/51**, con secciones nuevas de catálogo, contenido y medios.
+- `pnpm concurrency`: **14/14**.
+- Cinco servicios en marcha: identity, institutions, catalog, media y el gateway.
+- **Sin push todavía**, por decisión del cliente: se subirá cuando haga falta
+  probar el backend desplegado.
+
+### Qué falta
+
+**La Fase 3 está cerrada.** El siguiente paso es la **Fase 4**, los portales de
+alumno, con la dirección visual ya aprobada en `design/canvas/`.
+
+Sueltos, sin bloquear nada: programar la limpieza de subidas abandonadas
+(`listAbandoned` ya existe), contratar el proveedor de video real, y los
+endpoints de alta y edición de contenido —hoy se siembra por SQL y solo el cambio
+de estado de publicación tiene API—.
+
+---
+
 ## Sesión 5 — 2026-09-02 — Primera ejecución real, y cierre del canje asíncrono
 
 Primera sesión en una máquina con Docker. Todo el backend estaba escrito,

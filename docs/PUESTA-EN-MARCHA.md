@@ -3,7 +3,7 @@
 **Cómo levantar la plataforma en local y qué comprobar.**
 
 > **Actualizado en la sesión 5.** La primera ejecución real ya ocurrió: las
-> migraciones se aplican, los cuatro servicios arrancan, `pnpm smoke` pasa 32
+> migraciones se aplican, los cinco servicios arrancan, `pnpm smoke` pasa 51
 > comprobaciones y `pnpm concurrency` pasa 14. Los nueve fallos que aparecieron
 > en esa primera ejecución están corregidos y explicados en
 > [BITACORA.md](BITACORA.md). Lo que sigue es el procedimiento, no una
@@ -54,6 +54,7 @@ schema y un rol por servicio más las tablas `outbox` y `processed_events`.
 pnpm --filter @glexco/identity     db:migrate
 pnpm --filter @glexco/institutions db:migrate
 pnpm --filter @glexco/catalog      db:migrate
+pnpm --filter @glexco/media        db:migrate
 ```
 
 Si el puerto 5432 ya lo ocupa otro proyecto, ajusta `GLEXCO_POSTGRES_PORT` en
@@ -66,6 +67,7 @@ Cada servicio en su terminal:
 pnpm --filter @glexco/identity     dev   # 3101
 pnpm --filter @glexco/institutions dev   # 3102
 pnpm --filter @glexco/catalog      dev   # 3103
+pnpm --filter @glexco/media        dev   # 3108
 pnpm --filter @glexco/api-gateway  dev   # 3000
 ```
 
@@ -73,7 +75,7 @@ Y la verificación:
 
 ```bash
 pnpm seed           # kit, lote de codigos, institucion y salon
-pnpm smoke          # 32 comprobaciones a través del gateway
+pnpm smoke          # 51 comprobaciones de punta a punta
 pnpm smoke:direct   # las mismas contra identity, saltándose el gateway
 pnpm concurrency    # las cuatro comprobaciones de la seccion 3
 ```
@@ -193,20 +195,19 @@ Ver [ROADMAP.md](ROADMAP.md) para el detalle. Resumen del estado:
 | 0 · Cimientos | ✅ |
 | 1 · Identidad y acceso | ✅ (falta ejecutarlo) |
 | 2 · Instituciones y salones | ✅ (falta ejecutarlo) |
-| 3 · Catálogo, kits y códigos | 🔄 dominio, persistencia y API listos |
+| 3 · Catálogo, kits, códigos y medios | ✅ |
 | 4 · Portales de alumno | ⬜ el canvas de diseño ya está aprobado |
 | 5–8 | ⬜ |
 
-**Pendiente inmediato de la Fase 3:**
+**La Fase 3 está cerrada.** El siguiente paso es la **Fase 4**: los portales de
+alumno. La dirección visual ya está aprobada en `design/canvas/`, así que no hay
+que decidir nada de diseño antes de empezar a codificar.
 
-- `media-service`: subidas con URL prefirmada y validación de tipo real.
-- Invalidación de caché por etiqueta al publicar contenido.
-- Revocación de códigos y de derechos (`ACTIVATION_CODE_REVOKE` existe como
-  permiso pero todavía no hay caso de uso que lo ejerza).
-
-Ya cerrados: la generación de lotes con exportación CSV para imprenta
-(`POST /catalog/batches`) y el consumidor de `identity.user.registered.v1` que
-canjea el código de forma asíncrona.
+Queda suelto, sin bloquear nada: programar la limpieza de subidas abandonadas
+(`listAbandoned` ya existe), contratar y configurar el proveedor de video real
+(`VIDEO_PROVIDER_URL`), y los endpoints de alta y edición de contenido —hoy el
+contenido se siembra por SQL y solo el cambio de estado de publicación tiene
+API—.
 
 **La Fase 4 (frontend) tiene su dirección visual ya aprobada** — el canvas está
 en `design/canvas/` y publicado como artifact. La paleta sale del logo real:
@@ -241,6 +242,14 @@ todos los códigos ya emitidos**. Se fija una vez y no se rota.
 y compañía) aceptan cualquier código que empiece por `GLX-TEST`. Solo se activan
 si falta la URL del servicio real, y `loadIdentityConfig` aborta el arranque en
 producción si eso pasa. No relajes esa comprobación.
+
+**El tipo de un archivo se decide por sus BYTES, nunca por su extension ni por
+el `Content-Type`.** Las dos ultimas las escribe el cliente. `MagicBytesSniffer`
+tiene la lista cerrada de firmas admitidas; ampliarla es anadir una firma, no
+relajar la comprobacion.
+
+**La URL de subida se firma como POST con política, no como PUT.** Un PUT
+prefirmado no puede limitar el tamaño: quien tenga la URL sube lo que quiera.
 
 **El evento de registro lleva el `activationCodeId`, nunca el código.** Es lo que
 permite a catálogo canjear al consumir el alta sin que un secreto con valor

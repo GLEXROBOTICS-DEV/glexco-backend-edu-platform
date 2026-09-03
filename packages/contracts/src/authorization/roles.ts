@@ -155,6 +155,11 @@ export const PERMISSIONS = {
   COMMERCIAL_READ: 'commercial:read',
   COMMERCIAL_MANAGE: 'commercial:manage',
 
+  // --- Archivos subidos (evidencias, material, avatares) ---
+  MEDIA_UPLOAD: 'media:upload',
+  MEDIA_READ: 'media:read',
+  MEDIA_DELETE: 'media:delete',
+
   // --- Configuracion de plataforma ---
   PLATFORM_SETTINGS_MANAGE: 'platform_settings:manage',
   AUDIT_LOG_READ: 'audit_log:read',
@@ -169,6 +174,14 @@ const SELF_SERVICE: readonly Permission[] = [
   P.SUPPORT_TICKET_CREATE,
   P.SUPPORT_TICKET_READ_OWN,
   P.ANNOUNCEMENT_READ,
+  // Subir y leer archivos lo puede TODO usuario autenticado: un alumno entrega
+  // evidencias, un docente sube material. El permiso solo dice "puede operar
+  // con archivos"; QUE archivo concreto puede ver lo decide el propio recurso
+  // en `MediaAsset.assertReadableBy`. Las dos comprobaciones hacen falta y
+  // ninguna sustituye a la otra: el guard no conoce el recurso, y el recurso no
+  // conoce la matriz de roles.
+  P.MEDIA_UPLOAD,
+  P.MEDIA_READ,
 ];
 
 const STUDENT_PERMISSIONS: readonly Permission[] = [
@@ -287,6 +300,7 @@ const PLATFORM_ADMIN_PERMISSIONS: readonly Permission[] = [
     P.CLASSROOM_READ,
     P.ACTIVATION_CODE_GENERATE,
     P.ACTIVATION_CODE_REVOKE,
+    P.MEDIA_DELETE,
     P.ASSESSMENT_ASSIGN,
     P.PROGRESS_READ_PLATFORM,
     P.ANALYTICS_READ_PLATFORM,
