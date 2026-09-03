@@ -1,5 +1,6 @@
 import {
   BusinessRuleError,
+  ConflictError,
   NotFoundError,
   type Clock,
   type ExecutionContext,
@@ -117,6 +118,23 @@ export class RedeemActivationCodeUseCase
 
       const alreadyMine =
         activationCode.status === 'redeemed' && activationCode.redeemedBy === input.studentId;
+
+      // Ya tiene ESTE kit por OTRO codigo.
+      //
+      // Se comprueba ANTES de canjear, y ahi esta lo importante: sin esto, el
+      // codigo se marcaba como usado y la insercion del derecho moria despues
+      // contra `entitlements_student_kit_uq`. El alumno se llevaba un 500 y,
+      // peor, un codigo quemado a cambio de nada -y un codigo vale dinero-.
+      //
+      // Pasa mas de lo que parece: el colegio reparte un codigo de repuesto, o
+      // la familia compra el libro sin saber que el centro ya lo dio.
+      if (!alreadyMine && (await this.entitlements.hasActiveForKit(input.studentId, activationCode.kitId))) {
+        throw new ConflictError(
+          'KIT_ALREADY_OWNED',
+          'Ya tienes acceso a este kit. Guarda el codigo: no hace falta usarlo.',
+          { field: 'activationCode', kitId: activationCode.kitId },
+        );
+      }
 
       // Lanza si el codigo no es canjeable; es idempotente si lo canjeo el mismo
       // alumno, lo que cubre el reintento de red y el evento entregado dos veces.

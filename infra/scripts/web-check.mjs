@@ -1125,7 +1125,9 @@ async function main() {
   // El segundo kit por la via del portal: es el caso real de un alumno que pasa
   // de grado y compra el libro siguiente. Un libro por grado significa un canje
   // nuevo cada curso, sin cuenta nueva.
-  const segundoKit = await seedCatalog({ codeCount: 1, grade: 'primary_5' });
+  // Dos codigos del MISMO kit: uno para el canje nuevo y otro para comprobar
+  // que un segundo codigo del kit que ya tiene se rechaza sin quemarse.
+  const segundoKit = await seedCatalog({ codeCount: 2, grade: 'primary_5' });
   const segundoCanje = await postJson(
     `${CATALOG}/api/v1/catalog/redeem`,
     altaLoginBody?.accessToken,
@@ -1147,6 +1149,35 @@ async function main() {
     'Reenviar el mismo codigo no gasta nada, y se distingue del alta nueva',
     repetido.status === 200 && repetido.body?.firstRedemption === false,
     `status=${repetido.status} firstRedemption=${repetido.body?.firstRedemption}`,
+  );
+
+  // Un segundo codigo del MISMO kit. Antes esto quemaba el codigo y moria con un
+  // 500 contra el indice unico de derechos: el alumno perdia un codigo -que vale
+  // dinero- a cambio de un error sin explicacion. Pasa mas de lo que parece,
+  // porque el colegio reparte un codigo de repuesto o la familia compra el libro
+  // sin saber que el centro ya lo dio.
+  const otroDelMismo = await postJson(
+    `${CATALOG}/api/v1/catalog/redeem`,
+    altaLoginBody?.accessToken,
+    { code: segundoKit.codes[1] },
+  );
+  report(
+    'Un segundo codigo del mismo kit se rechaza SIN quemarlo, y con un motivo claro',
+    otroDelMismo.status === 409 && otroDelMismo.body?.code === 'KIT_ALREADY_OWNED',
+    `status=${otroDelMismo.status} code=${otroDelMismo.body?.code}`,
+  );
+
+  // Y el codigo sigue sirviendo: es la mitad que de verdad importa.
+  const [terceroPupil] = await seedUsers(1);
+  const rescatado = await postJson(
+    `${CATALOG}/api/v1/catalog/redeem`,
+    mintAccessToken({ userId: terceroPupil.id, roles: terceroPupil.roles }),
+    { code: segundoKit.codes[1] },
+  );
+  report(
+    'El codigo rechazado NO se quemo: otro alumno puede usarlo',
+    rescatado.status === 200 && rescatado.body?.firstRedemption === true,
+    `status=${rescatado.status} first=${rescatado.body?.firstRedemption}`,
   );
 
   const portada = await waitForHtml(`${WEB}/discover`, altaJar, (html) =>

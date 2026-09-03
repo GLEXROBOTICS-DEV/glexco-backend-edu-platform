@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "@glexco/contracts": "workspace:*",
+    "@node-rs/argon2": "^2.0.2",
     "@types/node": "^22.10.5",
     "jsonwebtoken": "^9.0.3",
     "nats": "^2.29.3",
