@@ -20,6 +20,7 @@ const WEB = process.env.WEB_URL ?? 'http://localhost:3010';
 const GATEWAY = process.env.GATEWAY_URL ?? 'http://localhost:3000';
 const ASSESSMENT = process.env.ASSESSMENT_URL ?? 'http://localhost:3105';
 const INSTITUTIONS = process.env.INSTITUTIONS_URL ?? 'http://localhost:3102';
+const CATALOG = process.env.CATALOG_URL ?? 'http://localhost:3103';
 
 const colors = {
   ok: '\x1b[32m',
@@ -410,6 +411,92 @@ async function main() {
   report(
     'No se presenta como ranking de profesores',
     Boolean(institucion) && !/ranking|mejores profesores|peores/i.test(institucion),
+  );
+
+  // ------------------------------------------------------------------
+  section('6. Responder un cuestionario desde el portal');
+  // ------------------------------------------------------------------
+  const [quizPupil] = await seedUsers(1, { institutionId: school.institutionId });
+  const quizPupilJar = `glexco_at=${mintAccessToken({
+    userId: quizPupil.id,
+    roles: quizPupil.roles,
+    institutionId: school.institutionId,
+  })}`;
+
+  // Este alumno no tiene el kit todavia: la evaluacion existe pero su listado
+  // debe salir vacio. Es la misma regla del canje -solo ves el contenido del
+  // libro que compraste- aplicada a las evaluaciones.
+  const sinKit = await fetchHtml(`${WEB}/academy/evaluaciones`, quizPupilJar);
+  report(
+    'Sin kit activado, el listado de evaluaciones sale vacio',
+    sinKit.status === 200 && sinKit.html.includes('Todavia no tienes contenido activado'),
+    `status=${sinKit.status}`,
+  );
+
+  // El alumno del escenario canjea el codigo de su libro, que es lo que le da
+  // derecho al kit y por tanto a sus evaluaciones. Sin ese paso su listado sale
+  // vacio, que es exactamente la regla del negocio.
+  const redeemed = await postJson(`${CATALOG}/api/v1/catalog/redeem`, pupilToken, {
+    code: dashKit.codes[0],
+  });
+  report(
+    'El alumno canjea el codigo de su libro',
+    redeemed.status === 200,
+    `status=${redeemed.status} ${JSON.stringify(redeemed.body).slice(0, 120)}`,
+  );
+
+  const listado = await waitForHtml(`${WEB}/academy/evaluaciones`, `glexco_at=${pupilToken}`, (html) =>
+    html.includes('Piezas del uKit'),
+  );
+
+  report(
+    'El alumno con kit ve el cuestionario en su listado',
+    Boolean(listado),
+    listado ? '' : 'no aparecio en 40 s',
+  );
+  report(
+    'Dice de donde viene la evaluacion',
+    Boolean(listado?.includes('Incluida en tu kit')),
+  );
+
+  const quizPage = await fetchHtml(
+    `${WEB}/academy/evaluaciones/${quiz.body?.assessmentId}`,
+    `glexco_at=${pupilToken}`,
+  );
+
+  report(
+    'La pantalla del cuestionario abre un intento y pinta las preguntas',
+    quizPage.status === 200 && quizPage.html.includes('Cual de estas piezas es un servomotor?'),
+    `status=${quizPage.status}`,
+  );
+  report(
+    'Usa controles nativos, que traen teclado y lector de pantalla gratis',
+    quizPage.html.includes('type="radio"') && quizPage.html.includes('<fieldset'),
+  );
+  report(
+    'El formulario se sirve desde el servidor: funciona sin JavaScript',
+    quizPage.html.includes('<form') && quizPage.html.includes('name="submissionId"'),
+  );
+
+  // LA comprobacion que sostiene el cuestionario entero.
+  report(
+    'La clave de correccion NO llega al HTML del alumno',
+    !quizPage.html.includes('correctOptionIds') &&
+      !quizPage.html.includes('correctOptions') &&
+      !/\bexplanation\b/.test(quizPage.html),
+  );
+
+  // Volver a cargar no gasta otro intento.
+  const reopened = await fetchHtml(
+    `${WEB}/academy/evaluaciones/${quiz.body?.assessmentId}`,
+    `glexco_at=${pupilToken}`,
+  );
+  const firstId = /name="submissionId" value="([^"]+)"/.exec(quizPage.html)?.[1];
+  const secondId = /name="submissionId" value="([^"]+)"/.exec(reopened.html)?.[1];
+  report(
+    'Recargar la pagina no gasta otro intento',
+    Boolean(firstId) && firstId === secondId,
+    `${firstId} vs ${secondId}`,
   );
 
   console.log(

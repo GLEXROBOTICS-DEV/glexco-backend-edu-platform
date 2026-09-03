@@ -28,7 +28,7 @@ const DISCOVER_NAV: readonly NavItem[] = [
   { href: '/discover', label: 'Inicio', Icon: RobotIcon },
   { href: '/discover/kits', label: 'Mis kits', Icon: KitIcon },
   { href: '/discover/progreso', label: 'Mi progreso', Icon: LevelIcon },
-  { href: '/discover/retos', label: 'Retos', Icon: ChallengeIcon },
+  { href: '/discover/evaluaciones', label: 'Actividades', Icon: ChallengeIcon },
   { href: '/discover/biblioteca', label: 'Biblioteca', Icon: LibraryIcon },
   { href: '/discover/logros', label: 'Mis logros', Icon: BadgeIcon },
 ];
@@ -37,7 +37,7 @@ const ACADEMY_NAV: readonly NavItem[] = [
   { href: '/academy', label: 'Inicio', Icon: RobotIcon },
   { href: '/academy/cursos', label: 'Cursos', Icon: KitIcon },
   { href: '/academy/progreso', label: 'Mi progreso', Icon: LevelIcon },
-  { href: '/academy/proyectos', label: 'Proyectos', Icon: ChallengeIcon },
+  { href: '/academy/evaluaciones', label: 'Evaluaciones', Icon: ChallengeIcon },
   { href: '/academy/biblioteca', label: 'Biblioteca', Icon: LibraryIcon },
   { href: '/academy/certificaciones', label: 'Certificaciones', Icon: CertificateIcon },
 ];
