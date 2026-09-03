@@ -7,6 +7,175 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 10 — 2026-09-03 — Un colegio ya puede empezar solo
+
+Hasta esta sesión faltaba lo único que impedía que una institución usara la
+plataforma sin que nadie de GLEXCO interviniera: **no había forma de darse de
+alta desde el portal**. El backend sabía registrar alumnos y canjear códigos
+desde la fase 1, pero el alta se hacía por API, así que cada colegio nuevo era
+una tarea manual. Esta sesión cierra ese hueco.
+
+### 1. El registro, en dos pasos y con el estado en la URL
+
+`/registro` es un asistente de dos pasos, y los dos son **formularios `GET`
+normales**. Es la decisión de diseño de la que cuelga todo lo demás:
+
+- Funciona **sin una línea de JavaScript**. Importa más aquí que en ninguna otra
+  pantalla, porque es la primera que abre un alumno y todavía no sabe si la
+  plataforma le funciona.
+- El botón «atrás» del navegador hace lo que se espera, y recargar no saca el
+  aviso de reenvío de formulario.
+- Un docente puede pasarle a su clase **un enlace con el colegio y el grado ya
+  puestos** (`/registro?colegio=XXX&grado=primary_4`). Con el estado en React eso
+  no existiría.
+
+El primer paso pide **el código del colegio y el grado juntos**. Podrían ser dos
+pantallas, pero el alumno sabe las dos cosas desde el principio y cada pantalla
+intermedia es gente que abandona. El segundo paso ya conoce el colegio, así que
+puede listar sus salones reales con el nombre del docente.
+
+**El registro independiente no es un caso degradado.** Tiene su propia opción,
+igual de visible, y no toca el servicio de instituciones en ningún momento: hay
+familias que compran el libro por su cuenta y son la mitad del modelo de negocio.
+
+Detalles que no son evidentes:
+
+- **El correo del apoderado se pide siempre**, no solo cuando la fecha de
+  nacimiento ya escrita indica menos de 14 años. Condicionarlo exigiría
+  JavaScript para hacer cumplir una regla legal, y sin JavaScript el campo
+  obligatorio no aparecería: el alumno enviaría el formulario y recibiría un
+  error por un campo que no ve.
+- **No hay cronómetro ni pasos ocultos**: el indicador dice «Paso 1 de 2» en
+  texto, y no solo con el color de dos puntos, que es lo único que un lector de
+  pantalla no puede anunciar.
+- Los salones son **radios nativos dentro de un `fieldset`**, por lo mismo que el
+  cuestionario de la sesión 9: traen gratis el agrupado, el teclado y el anuncio
+  correcto. Con un solo salón viene marcado; con varios, ninguno.
+- Cuando el grado del colegio **no tiene salones o están todos llenos**, la
+  pantalla lo dice, explica quién puede arreglarlo y ofrece la salida (cuenta
+  independiente). Un callejón sin salida en el alta es un cliente perdido.
+
+### 2. Termina con la sesión iniciada, a propósito
+
+La Server Action registra y, acto seguido, **inicia sesión con las mismas
+credenciales**. El alumno acaba de teclear su contraseña, así que pedírsela otra
+vez no comprueba nada nuevo, y dejarlo en la pantalla de ingreso justo después de
+registrarse contradice el objetivo de la sesión.
+
+Si el inicio automático falla, **el alta ya está hecha** y no se repinta el
+formulario: se manda a `/ingresar?registrado=1`, que lo explica. Repintar el
+formulario haría que el alumno reintentase y chocara con «ese correo ya está
+registrado», creyendo que el registro no funcionó.
+
+### 3. `/registro/listo`: la pantalla que tapa un hueco asíncrono real
+
+**El canje del código no es síncrono.** Identidad crea la cuenta y encola el
+evento; catálogo lo canjea al consumirlo. Si al alumno se le mandara directo a su
+portal, en ese hueco vería el estado vacío —«todavía no tienes ningún kit, activa
+el código de tu libro»—, que es exactamente lo que acaba de hacer. Es la peor
+frase posible en el instante en que un producto de pago tiene que demostrar que
+sirvió.
+
+Así que la confirmación **lee los kits de verdad** y dice la verdad en los dos
+casos: si ya llegó, enseña cuál; y si no, dice que se está activando y ofrece
+volver a mirar. Nunca afirma que el kit está listo sin haberlo comprobado.
+
+**No anuncia ningún correo de verificación**, y está comprobado que no lo haga.
+Identidad emite el token, pero hoy nadie consume ese evento: decir «te enviamos
+un correo» dejaría a media clase esperando un mensaje que no existe.
+
+### 4. Activar un código con la cuenta ya creada
+
+`/discover/activar` y `/academy/activar` eran enlaces muertos desde la fase 4: el
+estado vacío de la portada apuntaba a una ruta que no existía. Ahora existen, y
+cubren el caso real del modelo de negocio: **un libro por grado** significa un
+canje nuevo cada curso, sin cuenta nueva.
+
+El aviso de que el código es de un solo uso va **antes** del botón. Un código es
+irreversible, y una advertencia bajo el botón se lee cuando ya se ha pulsado.
+
+### Errores reales encontrados y corregidos
+
+1. **Reenviar el mismo código devolvía un 500.** El agregado `ActivationCode`
+   declara el canje idempotente para el mismo alumno —y lo cumple: sale sin
+   cambios y sin eventos—, pero el caso de uso creaba de todas formas un
+   `Entitlement` nuevo, que chocaba contra `entitlements_student_kit_uq`. El
+   camino afectado es de lo más común: un reintento de red, o el alumno que
+   reenvía el formulario de activación. No se había visto antes porque el canje
+   por evento se protege con `processed_events` y nunca llega dos veces al caso
+   de uso; solo la vía HTTP lo destapa. Además, volver a emitir
+   `entitlement.granted` habría sido una concesión duplicada para todo el que
+   consuma el evento.
+
+2. **El grado declarado no se contrastaba con el del salón.** El formulario solo
+   ofrece salones del grado elegido, pero eso es comodidad del cliente. Sin
+   revalidarlo en el servidor, una petición forjada matriculaba a un alumno de
+   sexto en el salón de primero del mismo colegio, y ni el docente ni el alumno
+   lo notarían hasta ver la lista de clase. El aislamiento **entre** colegios sí
+   estaba comprobado; lo que faltaba era el de dentro. `PrecheckClassroomOutput`
+   devuelve ahora el grado y `RegisterStudentUseCase` lo compara, con el campo
+   señalado para que el formulario pinte el error donde toca.
+
+3. **La contraseña se recortaba en el alta y no en el ingreso.** El ayudante que
+   normaliza los campos del formulario quita los espacios de los extremos, y
+   aplicarlo a la contraseña la altera en silencio: se guardaría `abc` cuando el
+   alumno escribió `␣abc␣`, y al ingresar —donde no se recorta nada— no
+   coincidiría nunca. Un usuario encerrado fuera de su cuenta el primer día, sin
+   ningún mensaje que lo explicara. Error introducido y corregido en esta misma
+   sesión; queda comprobado que una contraseña con espacios en los extremos
+   sobrevive el viaje de ida y vuelta.
+
+4. **Una comprobación buscaba el texto de un botón JSX interpolado.** El mismo
+   tropiezo documentado en la sesión 9: React parte ese texto con separadores de
+   comentario en el HTML servido. Se resolvió como entonces, con un ancla
+   estable (`data-submit`), no relajando la comprobación.
+
+### Dos cosas que quedan anotadas, no arregladas
+
+- **`publicPaths` del gateway no lo usa nadie.** La tabla de rutas de
+  `services/api-gateway/src/config.ts` declara qué rutas son públicas, pero el
+  proxy no lee ese campo: cada servicio decide con su propio `@Public()`. Hoy no
+  hay agujero —los servicios sí comprueban—, pero un campo que se lee como un
+  control de seguridad y no hace nada es una trampa: alguien añadirá una ruta ahí
+  creyendo que la ha expuesto, o la quitará creyendo que la ha cerrado. O se
+  implementa o se borra.
+- **El límite de altas es por IP, y un laboratorio escolar comparte una.** Diez
+  registros por IP y hora es correcto contra un abuso desde internet, pero una
+  clase de treinta alumnos registrándose a la vez detrás del NAT del colegio
+  agota el límite en el minuto tres. Es una pregunta para el cliente, no una
+  decisión nuestra: lo razonable sería una excepción para las IP declaradas de
+  una institución con licencia vigente.
+
+### Estado al cerrar
+
+| Comprobación | Resultado |
+|---|---|
+| `pnpm build` | 13/13 |
+| `pnpm test` | 155 |
+| `pnpm smoke` | 95 |
+| `pnpm concurrency` | 14 |
+| `pnpm smoke:web` | **99** (eran 70; +29 del registro y la activación) |
+
+### Qué falta
+
+Por orden de valor, y sin cambios respecto a lo previsto salvo que el punto 1 ya
+está hecho:
+
+1. **Biblioteca del kit** con reproductor y descargas por URL prefirmada. Es lo
+   que el alumno abre cada día, y hoy `/discover/biblioteca?kit=…` sigue siendo
+   un enlace muerto desde la propia portada. `media-service` está terminado.
+2. **Panel de GLEXCO en el portal.** El endpoint por institución existe; la
+   pantalla no.
+3. **`learning-service` (Fase 6)**: progreso por lección, retos, XP, medallas,
+   certificados.
+4. **`engagement-service` (Fase 7)**: anuncios de salón y **correo real**. Sube de
+   prioridad después de esta sesión: ahora que los alumnos se registran solos,
+   nadie recibe el correo de verificación ni el de recuperación de contraseña, y
+   un alumno que olvide su contraseña no tiene forma de recuperarla.
+5. Las dos cosas anotadas arriba: `publicPaths` y el límite por IP del colegio.
+
+---
+
 ## Sesión 9 — 2026-09-03 — Los cinco dashboards, y el ciclo completo de evaluación
 
 Sesión larga, con un hilo único: **cerrar el ciclo por el que un alumno responde,

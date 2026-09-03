@@ -61,7 +61,7 @@ Verificado:
 | `pnpm test` | **155 pruebas** en memoria |
 | `pnpm smoke` | **95 comprobaciones** de punta a punta |
 | `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
-| `pnpm smoke:web` | **70 comprobaciones** del portal contra el backend |
+| `pnpm smoke:web` | **99 comprobaciones** del portal contra el backend |
 
 Las de concurrencia son las que justifican la arquitectura: un solo canje de
 veinte simultáneos, cinco plazas de veinte solicitudes, la outbox reteniendo el
@@ -88,8 +88,9 @@ Plataforma-Glexco/
 │   ├── analytics/       ✅ los cinco dashboards, como proyección de eventos
 │   ├── learning/        ⬜ vacío
 │   └── engagement/      ⬜ vacío
-├── apps/web/            🔄 Next.js 15: ingreso, portadas, progreso, cuestionarios,
-│                        panel del docente, corrección y autoría de evaluaciones
+├── apps/web/            🔄 Next.js 15: registro y activación, ingreso, portadas,
+│                        progreso, cuestionarios, panel del docente, corrección
+│                        y autoría de evaluaciones
 ├── design/canvas/       ✅ dirección visual aprobada (10 artboards)
 ├── infra/
 │   ├── docker/          ✅ docker-compose + init SQL (schemas, roles, outbox)
@@ -129,7 +130,7 @@ pnpm seed                                  # kit, lote de codigos, institucion y
 pnpm smoke                                 # 95 comprobaciones de punta a punta
 pnpm concurrency                           # las 4 garantias de concurrencia real
 pnpm --filter @glexco/web dev              # portal (3010)
-pnpm smoke:web                             # 70 comprobaciones del portal
+pnpm smoke:web                             # 99 comprobaciones del portal
 ```
 
 ### Requisitos de entorno
@@ -313,6 +314,16 @@ alguna, para y pregunta antes de continuar.
   interpolado.** React lo parte con separadores de comentario, así que
   `"1 pregunta"` no aparece en el HTML aunque la pantalla lo pinte bien. Usa un
   atributo `data-*` como ancla estable (`data-chart`, `data-pending`).
+- **Nunca recortes una contraseña.** Un ayudante que normaliza los campos de un
+  formulario con `trim()` no debe aplicarse a la contraseña: se guardaría `abc`
+  cuando el usuario escribió `␣abc␣`, y al ingresar —donde no se recorta nada— no
+  coincidiría nunca. El usuario queda fuera de su cuenta sin ningún mensaje que
+  lo explique.
+- **Una operación declarada idempotente hay que comprobarla ENTERA.**
+  `ActivationCode.redeem` salía sin cambios al reintentar, pero el caso de uso
+  seguía creando el `Entitlement`, y el índice único devolvía un 500. Cuando un
+  agregado dice ser idempotente, todo lo que el caso de uso escriba a su lado
+  tiene que serlo también.
 - **Los límites de fuerza bruta son reales en local**: cinco códigos de
   activación por IP y hora, diez registros por IP y hora. Dos o tres ejecuciones
   seguidas de `pnpm smoke` los agotan. Para limpiarlos, ver el final de la

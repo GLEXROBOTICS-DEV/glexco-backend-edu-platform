@@ -78,11 +78,11 @@ Y la verificación:
 pnpm seed          # kit, curso, lote de codigos, institucion y salon
 pnpm smoke         # 95 comprobaciones de punta a punta
 pnpm concurrency   # 14 comprobaciones de concurrencia real
-pnpm smoke:web     # 70 comprobaciones del portal
+pnpm smoke:web     # 99 comprobaciones del portal
 ```
 
 **Si algo de eso no da el número indicado, algo se rompió en el traslado.** Esos
-cuatro números son el contrato de este traspaso: 95, 14, 70, más las 155 pruebas
+cuatro números son el contrato de este traspaso: 95, 14, 99, más las 155 pruebas
 en memoria.
 
 ---
@@ -115,7 +115,7 @@ desarrollo con la sesión iniciada.
 
 ---
 
-## 4. Estado exacto al cerrar la sesión 9
+## 4. Estado exacto al cerrar la sesión 10
 
 | Fase | Estado |
 |---|---|
@@ -123,7 +123,7 @@ desarrollo con la sesión iniciada.
 | 1 · Identidad y acceso | ✅ |
 | 2 · Instituciones y salones | ✅ |
 | 3 · Catálogo, kits, códigos y medios | ✅ |
-| 4 · Portales de alumno | 🔄 ingreso, portadas, progreso y cuestionarios |
+| 4 · Portales de alumno | 🔄 registro y activación, ingreso, portadas, progreso y cuestionarios |
 | 5 · Evaluación y Teacher Center | 🔄 casi cerrada: falta rúbricas y recursos del docente |
 | 6 · Progreso y gamificación | ⬜ `learning-service` sin empezar |
 | 7 · Comunicación, analítica y admin | 🔄 los cinco dashboards funcionando |
@@ -135,6 +135,11 @@ Ocho servicios escritos de nueve; solo `learning` y `engagement` siguen vacíos.
 kit, responde el cuestionario desde el portal, la máquina corrige lo de marcar al
 instante, lo abierto entra en la bandeja del docente, el docente puntúa y cierra
 la nota, y el resultado aparece en los cinco dashboards.
+
+**Y desde la sesión 10, el alumno entra solo.** Se registra en `/registro` con el
+código de su colegio, elige su salón de la lista real, activa el código de su
+libro y termina con la sesión ya iniciada. Un colegio puede empezar a usar la
+plataforma sin que nadie de GLEXCO cree una sola cuenta.
 
 **Identidad de git:** `SvaleraG <svalera.glexco@gmail.com>`, fijada en el
 `.git/config` del repositorio. **Los commits nunca llevan `Co-Authored-By` ni
@@ -156,24 +161,23 @@ puede haber avanzado desde el zip.
 
 Por orden de valor:
 
-1. **Registro de alumno y activación de código desde el portal.** Es lo único
-   que impide que un colegio use la plataforma sin que nadie de GLEXCO toque
-   nada: hoy el alta se hace por API. El backend está completo y probado
-   (`POST /auth/register/student` y `POST /catalog/redeem`), y el endpoint
-   público de salones elegibles (`GET /classrooms/selectable`) existe justamente
-   para ese formulario.
-2. **Biblioteca del kit** con reproductor y descargas por URL prefirmada. Es lo
-   que el alumno abre cada día. `media-service` está terminado.
+1. **Biblioteca del kit** con reproductor y descargas por URL prefirmada. Es lo
+   que el alumno abre cada día, y hoy `/discover/biblioteca?kit=…` sigue siendo
+   un enlace muerto desde la propia portada. `media-service` está terminado.
+2. **`engagement-service` (Fase 7)**: anuncios de salón y **correo real**. Sube
+   de prioridad desde la sesión 10: ahora que los alumnos se registran solos,
+   identidad emite el token de verificación pero **no hay quien lo consuma**, así
+   que nadie recibe el correo de verificación ni el de recuperación. Un alumno
+   que olvide su contraseña hoy no tiene forma de recuperarla.
 3. **Panel de GLEXCO en el portal.** El endpoint por institución existe, la
    pantalla no.
 4. **`learning-service` (Fase 6)**: progreso por lección, retos, XP, medallas,
    certificados. Hoy el progreso se mide **solo** con evaluaciones, que es la
    fuente que cuenta; el consumo de contenido añadiría la señal de "quién se
    descolgó" antes del primer examen.
-5. **`engagement-service` (Fase 7)**: anuncios de salón y **correo real**. Ojo
-   con esto último: identidad ya emite el token de verificación y el evento, pero
-   **no hay quien los consuma**, así que hoy nadie recibe el correo de
-   verificación ni el de recuperación de contraseña.
+5. Dos deudas anotadas en la sesión 10: el campo `publicPaths` del gateway, que
+   se lee como un control de seguridad y no lo usa nadie; y el límite de altas
+   por IP, que una clase entera detrás del NAT del colegio agota en minutos.
 
 La dirección visual está aprobada en `design/canvas/`, así que no hay que decidir
 nada de diseño antes de codificar.
