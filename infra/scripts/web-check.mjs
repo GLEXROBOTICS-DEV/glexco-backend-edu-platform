@@ -259,6 +259,7 @@ async function main() {
     roles: teacher.roles,
     institutionId: school.institutionId,
   });
+  const teacherJar = `glexco_at=${teacherToken}`;
 
   const classroom = await postJson(`${INSTITUTIONS}/api/v1/classrooms`, teacherToken, {
     name: `Salon Portal ${Date.now()}`,
@@ -334,7 +335,6 @@ async function main() {
   );
 
   // --- Portal del docente ---
-  const teacherJar = `glexco_at=${teacherToken}`;
   const misSalones = await fetchHtml(`${WEB}/docentes`, teacherJar);
 
   report(
@@ -708,6 +708,152 @@ async function main() {
   report(
     'Un alumno que teclea la URL de correccion no llega a la pantalla',
     !alumnoIntenta.html.includes('Cerrar la nota'),
+  );
+
+  // ------------------------------------------------------------------
+  section('8. El docente crea sus propias evaluaciones');
+  // ------------------------------------------------------------------
+  const banco = await fetchHtml(`${WEB}/docentes/evaluaciones`, teacherJar);
+
+  report(
+    'El banco separa las de GLEXCO de las propias',
+    banco.status === 200 &&
+      banco.html.includes('Incluidas en los kits') &&
+      banco.html.includes('Explica tu robot'),
+    `status=${banco.status}`,
+  );
+  report(
+    'Explica POR QUE no se editan las de GLEXCO, no solo que no se puede',
+    banco.html.includes('cambiaria el examen de todo el pais') ||
+      banco.html.includes('cambiar\u00eda el examen de todo el pa\u00eds'),
+  );
+
+  const nueva = await fetchHtml(`${WEB}/docentes/evaluaciones/nueva`, teacherJar);
+
+  report(
+    'El formulario de creacion ofrece los kits de SUS grados',
+    nueva.status === 200 && nueva.html.includes(dashKit.kitCode),
+    `status=${nueva.status}`,
+  );
+  report(
+    'Y por defecto la evaluacion vale para todos sus salones',
+    nueva.html.includes('Todos mis salones'),
+  );
+
+  // Se crea por la API con el token del docente, que es exactamente lo que hace
+  // la accion de servidor del formulario.
+  const propia = await postJson(`${ASSESSMENT}/api/v1/assessments`, teacherToken, {
+    kitId: dashKit.kitId,
+    kind: 'practical',
+    title: 'Repaso de sensores del salon',
+    passingScore: 70,
+  });
+
+  report(
+    'Un docente crea la suya, y nace como de su institucion',
+    propia.status === 201,
+    `status=${propia.status} ${JSON.stringify(propia.body).slice(0, 120)}`,
+  );
+
+  const editor = await waitForHtml(
+    `${WEB}/docentes/evaluaciones/${propia.body?.assessmentId}`,
+    teacherJar,
+    (html) => html.includes('Repaso de sensores del salon'),
+  );
+
+  report(
+    'El editor dice que sin preguntas no se puede publicar',
+    Boolean(editor?.includes('no se puede')),
+  );
+  report(
+    'Y no ofrece el boton de publicar todavia',
+    Boolean(editor) && !editor?.includes('>Publicar<'),
+  );
+
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${propia.body?.assessmentId}/questions`,
+    teacherToken,
+    {
+      type: 'single_choice',
+      prompt: 'Que sensor mide distancia?',
+      options: [{ text: 'El de ultrasonido' }, { text: 'El servo' }],
+      correctOptions: [0],
+      points: 10,
+    },
+  );
+
+  const conPregunta = await waitForHtml(
+    `${WEB}/docentes/evaluaciones/${propia.body?.assessmentId}`,
+    teacherJar,
+    (html) => html.includes('Que sensor mide distancia?'),
+  );
+
+  report(
+    'Con una pregunta ya ofrece publicar',
+    Boolean(conPregunta?.includes('>Publicar<')),
+  );
+  report(
+    'Y marca cual es la respuesta correcta para quien la escribio',
+    Boolean(conPregunta?.includes('correcta')),
+  );
+
+  // El banco de GLEXCO se ve pero no se edita, y la pantalla lo dice.
+  const ajenaDeGlexco = await fetchHtml(
+    `${WEB}/docentes/evaluaciones/${quiz.body?.assessmentId}`,
+    teacherJar,
+  );
+
+  report(
+    'Abrir una de GLEXCO ofrece duplicar, no editar',
+    ajenaDeGlexco.status === 200 &&
+      ajenaDeGlexco.html.includes('Duplicar para mi') &&
+      !ajenaDeGlexco.html.includes('Anadir una pregunta') &&
+      !ajenaDeGlexco.html.includes('A\u00f1adir una pregunta'),
+    `status=${ajenaDeGlexco.status}`,
+  );
+
+  // LA comprobacion de esta seccion: la clave del banco comun no viaja ni al
+  // docente que lo esta mirando, porque son las mismas preguntas que van a
+  // responder sus alumnos.
+  report(
+    'La clave del banco de GLEXCO no llega ni al docente que lo mira',
+    !ajenaDeGlexco.html.includes('correcta'),
+  );
+
+  const rechazo = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${quiz.body?.assessmentId}/questions`,
+    teacherToken,
+    { type: 'short_answer', prompt: 'Intento colar una pregunta.', points: 5 },
+  );
+
+  report(
+    'Y el backend rechaza modificarla aunque se llame directo',
+    rechazo.status === 403 && rechazo.body?.code === 'ASSESSMENT_IS_GLEXCO_CONTENT',
+    `status=${rechazo.status} ${JSON.stringify(rechazo.body).slice(0, 120)}`,
+  );
+
+  const copia = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${quiz.body?.assessmentId}/clone`,
+    teacherToken,
+    {},
+  );
+
+  report(
+    'Duplicarla si funciona, y la copia es suya',
+    copia.status === 201 && copia.body?.assessmentId !== quiz.body?.assessmentId,
+    `status=${copia.status}`,
+  );
+
+  const copiaEditor = await waitForHtml(
+    `${WEB}/docentes/evaluaciones/${copia.body?.assessmentId}`,
+    teacherJar,
+    (html) => html.includes('(copia)'),
+  );
+
+  report(
+    'La copia nace en borrador y con las preguntas dentro',
+    Boolean(copiaEditor?.includes('Borrador')) &&
+      Boolean(copiaEditor?.includes('Cual de estas piezas es un servomotor?')),
   );
 
   console.log(

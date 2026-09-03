@@ -437,3 +437,106 @@ export class ListAssessmentsUseCase
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Una evaluacion, para editarla
+// ---------------------------------------------------------------------------
+
+export interface AuthoredQuestion {
+  id: string;
+  type: string;
+  prompt: string;
+  options: { id: string; text: string }[];
+  points: number;
+  /** Presente SOLO si quien pregunta puede editar esta evaluacion. */
+  correctOptionIds?: string[];
+  explanation?: string | null;
+}
+
+export interface AssessmentDetail extends TeacherAssessmentSummary {
+  description: string;
+  kitId: string;
+  passingScore: number;
+  maxAttempts: number;
+  timeLimitMinutes: number | null;
+  submissionCount: number;
+  questions: AuthoredQuestion[];
+}
+
+/**
+ * Una evaluacion con sus preguntas, para la pantalla que la edita.
+ *
+ * La clave de correccion viaja **solo si el actor puede editar**. Es la misma
+ * regla de `assertEditableBy`, resuelta aqui una vez, y por eso no se le
+ * pregunta al frontend: un docente mirando el banco de GLEXCO -que puede ver
+ * para decidir si lo duplica- recibe las preguntas sin las respuestas, porque
+ * las respuestas de ese banco son las mismas que van a responder sus alumnos.
+ *
+ * Que un alumno no llegue aqui lo garantiza el permiso: `ASSESSMENT_UPDATE` no
+ * esta en su matriz de roles.
+ */
+export class GetAssessmentUseCase implements UseCase<{ assessmentId: string }, AssessmentDetail> {
+  constructor(private readonly assessments: AssessmentRepository) {}
+
+  async execute(
+    input: { assessmentId: string },
+    context: ExecutionContext,
+  ): Promise<AssessmentDetail> {
+    const actor = actorFrom(context);
+
+    const assessment = await this.assessments.findById(AssessmentId.create(input.assessmentId));
+    if (!assessment) {
+      throw new NotFoundError('ASSESSMENT_NOT_FOUND', 'La evaluacion no existe.');
+    }
+
+    const state = assessment.snapshot();
+
+    // Aislamiento entre instituciones: el examen de otro colegio no existe para
+    // este actor, y el error es el mismo que si no existiera para que no se
+    // puedan enumerar probando identificadores.
+    if (
+      state.origin === ASSESSMENT_ORIGIN.INSTITUTION &&
+      state.institutionId !== (actor.institutionId ?? null) &&
+      !actor.isPlatformStaff
+    ) {
+      throw new NotFoundError('ASSESSMENT_NOT_FOUND', 'La evaluacion no existe.');
+    }
+
+    let editable = true;
+    try {
+      assessment.assertEditableBy(actor);
+    } catch {
+      editable = false;
+    }
+
+    return {
+      assessmentId: assessment.id.value,
+      title: state.title,
+      description: state.description,
+      kitId: state.kitId,
+      kind: state.kind,
+      origin: state.origin,
+      status: state.status,
+      questionCount: state.questions.length,
+      totalPoints: assessment.totalPoints,
+      classroomId: state.classroomId,
+      editable,
+      dueAt: state.dueAt?.toISOString() ?? null,
+      passingScore: state.passingScore,
+      maxAttempts: state.maxAttempts,
+      timeLimitMinutes: state.timeLimitMinutes,
+      submissionCount: state.submissionCount,
+      questions: editable
+        ? assessment.forAuthor().map((question) => ({
+            id: question.id,
+            type: question.type,
+            prompt: question.prompt,
+            options: question.options.map((option) => ({ id: option.id, text: option.text })),
+            points: question.points,
+            correctOptionIds: question.correctOptionIds,
+            explanation: question.explanation,
+          }))
+        : assessment.forStudent(),
+    };
+  }
+}

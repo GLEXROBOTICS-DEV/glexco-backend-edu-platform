@@ -31,6 +31,7 @@ import {
   AddQuestionUseCase,
   CloneAssessmentUseCase,
   CreateAssessmentUseCase,
+  GetAssessmentUseCase,
   ListAssessmentsUseCase,
   PublishAssessmentUseCase,
 } from '../../application/manage-assessment.usecase';
@@ -82,6 +83,7 @@ export class AssessmentsController {
     private readonly publish: PublishAssessmentUseCase,
     private readonly clone: CloneAssessmentUseCase,
     private readonly list: ListAssessmentsUseCase,
+    private readonly get: GetAssessmentUseCase,
   ) {}
 
   @Post()
@@ -109,6 +111,19 @@ export class AssessmentsController {
       },
       contextFrom(request),
     );
+  }
+
+  /**
+   * Una evaluacion con sus preguntas, para la pantalla que la edita.
+   *
+   * Se declara DESPUES del listado y de `submissions/...`, que son rutas de un
+   * segmento distinto, asi que no compiten. La clave de correccion la incluye o
+   * no el caso de uso segun quien pregunte.
+   */
+  @Get(':assessmentId')
+  @RequirePermissions(PERMISSIONS.ASSESSMENT_READ)
+  async getAssessment(@Param('assessmentId') assessmentId: string, @Req() request: Request) {
+    return this.get.execute({ assessmentId }, contextFrom(request));
   }
 
   @Post(':assessmentId/questions')

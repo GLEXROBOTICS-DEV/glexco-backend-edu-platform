@@ -81,6 +81,10 @@ function contextFrom(request: Request): UseCaseContext {
 }
 
 const redeemSchema = z.object({ code: activationCodeSchema });
+const kitsQuerySchema = z.object({
+  grade: z.string().trim().max(40).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
 const libraryQuerySchema = z.object({
   kitId: uuidSchema,
   locale: z.enum(['es', 'en']).default('es'),
@@ -162,6 +166,38 @@ export class CatalogController {
     );
 
     return { kits: kits.filter(Boolean) };
+  }
+
+  /**
+   * Catalogo de kits, para elegir uno.
+   *
+   * Lo necesita el docente al crear una evaluacion: una evaluacion cuelga de un
+   * kit, y sin este listado tendria que teclear un identificador. Filtra por
+   * grado porque es asi como se pregunta -"que kit lleva 6.º de primaria"- y
+   * porque un docente rara vez ve mas de dos o tres grados.
+   *
+   * Devuelve solo lo PUBLICADO y nada de gestion: ni lotes de codigos, ni
+   * conteos, ni contenido. Es un indice para elegir, no la ficha del kit; ver
+   * el contenido sigue exigiendo tener el derecho.
+   */
+  @Get('kits')
+  @RequirePermissions(PERMISSIONS.KIT_READ)
+  async listKits(@Query(zodQuery(kitsQuerySchema)) query: { grade?: string; limit: number }) {
+    const page = await this.kits.list(
+      { grade: query.grade, status: 'published' },
+      { limit: query.limit },
+    );
+
+    return {
+      items: page.items.map((kit) => ({
+        kitId: kit.id,
+        code: kit.code,
+        name: kit.name,
+        program: kit.program,
+        grade: kit.grade,
+      })),
+      nextCursor: page.nextCursor,
+    };
   }
 
   /**

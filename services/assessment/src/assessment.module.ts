@@ -46,6 +46,7 @@ import {
   AddQuestionUseCase,
   CloneAssessmentUseCase,
   CreateAssessmentUseCase,
+  GetAssessmentUseCase,
   ListAssessmentsUseCase,
   PublishAssessmentUseCase,
 } from './application/manage-assessment.usecase';
@@ -211,6 +212,12 @@ export const loadAssessmentConfig = (): AssessmentConfig =>
       inject: [ASSESSMENT_REPOSITORY, UNIT_OF_WORK, CLOCK, SECURE_RANDOM, LOGGER_PORT],
     },
     {
+      provide: GetAssessmentUseCase,
+      useFactory: (...args: ConstructorParameters<typeof GetAssessmentUseCase>) =>
+        new GetAssessmentUseCase(...args),
+      inject: [ASSESSMENT_REPOSITORY],
+    },
+    {
       provide: ListAssessmentsUseCase,
       useFactory: (...args: ConstructorParameters<typeof ListAssessmentsUseCase>) =>
         new ListAssessmentsUseCase(...args),
@@ -259,6 +266,7 @@ export const loadAssessmentConfig = (): AssessmentConfig =>
         PublishAssessmentUseCase,
         CloneAssessmentUseCase,
         ListAssessmentsUseCase,
+        GetAssessmentUseCase,
       ],
     },
     {
