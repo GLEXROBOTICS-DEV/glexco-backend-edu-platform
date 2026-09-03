@@ -8,6 +8,7 @@ import { EnrollStudentUseCase } from '../../application/enroll-student.usecase';
 import type {
   ClassroomRepository,
   InstitutionRepository,
+  StudentDirectory,
   TeacherDirectory,
 } from '../../domain/repositories';
 
@@ -33,6 +34,7 @@ export interface IdentityConsumerDeps {
   classrooms: ClassroomRepository;
   institutions: InstitutionRepository;
   teachers: TeacherDirectory;
+  students: StudentDirectory;
   clock: Clock;
   logger: LoggerPort;
   /** Logger de pino que usa el propio consumidor; los casos de uso reciben el
@@ -109,6 +111,17 @@ export function buildIdentityConsumer(deps: IdentityConsumerDeps): EventConsumer
     if (payload.accountType !== 'institutional') return;
     if (!payload.institutionId || !payload.classroomId) return;
 
+    // El nombre entra ANTES de matricular, y por la misma via que el del
+    // docente. Sin esto, el portal del docente solo tendria identificadores:
+    // una bandeja de correccion que dice "a3f1-... entrego su examen" no sirve
+    // para nada.
+    await deps.students.upsert({
+      userId: payload.userId,
+      institutionId: payload.institutionId,
+      fullName: `${payload.firstName} ${payload.lastName}`,
+      email: payload.email,
+    });
+
     const enroll = new EnrollStudentUseCase(
       deps.classrooms,
       deps.institutions,
@@ -170,10 +183,13 @@ export function buildIdentityConsumer(deps: IdentityConsumerDeps): EventConsumer
     // `rename` y no `upsert`: este evento no trae institucion ni correo, y un
     // upsert los sobrescribiria con vacio. Ademas, si el usuario no esta en el
     // directorio no hace nada, que es lo correcto para un alumno.
-    await deps.teachers.rename(
-      event.payload.userId,
-      `${event.payload.firstName} ${event.payload.lastName}`,
-    );
+    const fullName = `${event.payload.firstName} ${event.payload.lastName}`;
+
+    // Se intenta en los dos directorios: cada `rename` es un UPDATE que no hace
+    // nada si la fila no esta, asi que el evento no necesita traer el rol -que
+    // no trae- para acertar con la tabla.
+    await deps.teachers.rename(event.payload.userId, fullName);
+    await deps.students.rename(event.payload.userId, fullName);
   });
 
   return consumer;

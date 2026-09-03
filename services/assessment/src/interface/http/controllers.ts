@@ -25,6 +25,7 @@ import {
   type SaveAnswerRequest,
 } from '@glexco/contracts';
 import { RequirePermissions, zodBody, zodQuery } from '@glexco/nest-platform';
+import { z } from 'zod';
 import type { ExecutionContext as UseCaseContext } from '@glexco/kernel';
 import {
   AddQuestionUseCase,
@@ -39,6 +40,10 @@ import {
   StartAttemptUseCase,
   SubmitAttemptUseCase,
 } from '../../application/take-assessment.usecase';
+import {
+  GetSubmissionForGradingUseCase,
+  ListPendingSubmissionsUseCase,
+} from '../../application/grading.usecase';
 
 function contextFrom(request: Request): UseCaseContext {
   const header = request.headers['accept-language'];
@@ -213,5 +218,50 @@ export class AttemptsController {
     @Req() request: Request,
   ) {
     return this.grade.execute({ submissionId, ...input }, contextFrom(request));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bandeja de correccion
+// ---------------------------------------------------------------------------
+
+const pendingQuerySchema = z.object({
+  classroomId: z.string().uuid(),
+  cursor: z.string().max(2048).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+});
+
+/**
+ * Lo que el docente necesita para corregir.
+ *
+ * Va en su propio controlador y no en el de intentos porque las respuestas de
+ * aqui SI llevan la clave de correccion. Tenerlas separadas hace visible de un
+ * vistazo cual es el controlador que puede filtrar un examen y cual no: en el
+ * de intentos, ninguna respuesta la incluye nunca.
+ *
+ * El `classroomId` es obligatorio en el listado. No es un filtro opcional: es
+ * lo que define el ambito, y sin el la pregunta seria "dame todo lo pendiente",
+ * que no tiene respuesta legitima para un docente.
+ */
+@Controller({ path: 'assessments', version: '1' })
+export class GradingController {
+  constructor(
+    private readonly listPending: ListPendingSubmissionsUseCase,
+    private readonly getForGrading: GetSubmissionForGradingUseCase,
+  ) {}
+
+  @Get('submissions/pending')
+  @RequirePermissions(PERMISSIONS.ASSESSMENT_GRADE)
+  async pending(
+    @Query(zodQuery(pendingQuerySchema)) query: { classroomId: string; cursor?: string; limit: number },
+    @Req() request: Request,
+  ) {
+    return this.listPending.execute(query, contextFrom(request));
+  }
+
+  @Get('submissions/:submissionId')
+  @RequirePermissions(PERMISSIONS.ASSESSMENT_GRADE)
+  async detail(@Param('submissionId') submissionId: string, @Req() request: Request) {
+    return this.getForGrading.execute({ submissionId }, contextFrom(request));
   }
 }

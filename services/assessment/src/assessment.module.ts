@@ -23,6 +23,7 @@ import {
 import { randomBytes, randomUUID } from 'node:crypto';
 import {
   ASSESSMENT_REPOSITORY,
+  CLASSROOM_DIRECTORY,
   CLOCK,
   CONFIG,
   LOGGER,
@@ -31,7 +32,16 @@ import {
   SUBMISSION_REPOSITORY,
   UNIT_OF_WORK,
 } from './tokens';
-import { AssessmentsController, AttemptsController } from './interface/http/controllers';
+import {
+  AssessmentsController,
+  AttemptsController,
+  GradingController,
+} from './interface/http/controllers';
+import {
+  GetSubmissionForGradingUseCase,
+  ListPendingSubmissionsUseCase,
+} from './application/grading.usecase';
+import { PgClassroomDirectory } from './application/directory';
 import {
   AddQuestionUseCase,
   CloneAssessmentUseCase,
@@ -52,6 +62,7 @@ import {
 
 export {
   ASSESSMENT_REPOSITORY,
+  CLASSROOM_DIRECTORY,
   CLOCK,
   CONFIG,
   LOGGER,
@@ -72,7 +83,12 @@ export const loadAssessmentConfig = (): AssessmentConfig =>
   loadEnv(assessmentEnvSchema, withServiceDatabaseUrl('assessment'));
 
 @Module({
-  controllers: [AssessmentsController, AttemptsController, HealthController],
+  controllers: [
+    AssessmentsController,
+    AttemptsController,
+    GradingController,
+    HealthController,
+  ],
   providers: [
     Reflector,
 
@@ -164,6 +180,11 @@ export const loadAssessmentConfig = (): AssessmentConfig =>
       useFactory: (read: Pool) => new PgSubmissionRepository(read),
       inject: [DB_READ_POOL],
     },
+    {
+      provide: CLASSROOM_DIRECTORY,
+      useFactory: (read: Pool) => new PgClassroomDirectory(read),
+      inject: [DB_READ_POOL],
+    },
 
     {
       provide: CreateAssessmentUseCase,
@@ -239,6 +260,24 @@ export const loadAssessmentConfig = (): AssessmentConfig =>
         CloneAssessmentUseCase,
         ListAssessmentsUseCase,
       ],
+    },
+    {
+      provide: ListPendingSubmissionsUseCase,
+      useFactory: (...args: ConstructorParameters<typeof ListPendingSubmissionsUseCase>) =>
+        new ListPendingSubmissionsUseCase(...args),
+      inject: [ASSESSMENT_REPOSITORY, SUBMISSION_REPOSITORY, CLASSROOM_DIRECTORY],
+    },
+    {
+      provide: GetSubmissionForGradingUseCase,
+      useFactory: (...args: ConstructorParameters<typeof GetSubmissionForGradingUseCase>) =>
+        new GetSubmissionForGradingUseCase(...args),
+      inject: [ASSESSMENT_REPOSITORY, SUBMISSION_REPOSITORY, CLASSROOM_DIRECTORY],
+    },
+    {
+      provide: GradingController,
+      useFactory: (...args: ConstructorParameters<typeof GradingController>) =>
+        new GradingController(...args),
+      inject: [ListPendingSubmissionsUseCase, GetSubmissionForGradingUseCase],
     },
     {
       provide: AttemptsController,

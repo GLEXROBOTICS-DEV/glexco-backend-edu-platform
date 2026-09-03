@@ -20,6 +20,7 @@ import type {
   ClassroomSummary,
   InstitutionRepository,
   SelectableClassroom,
+  StudentDirectory,
   TeacherDirectory,
 } from '../domain/repositories';
 
@@ -373,5 +374,123 @@ export class ListSelectableClassroomsUseCase
       grade: input.grade,
       academicYear: input.academicYear ?? this.clock.now().getUTCFullYear(),
     });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// La clase: quien esta matriculado, con nombre
+// ---------------------------------------------------------------------------
+
+export interface RosterEntry {
+  studentId: string;
+  fullName: string | null;
+  status: string;
+  kitId: string | null;
+  enrolledAt: string;
+}
+
+/**
+ * Lista la clase de un salon.
+ *
+ * Es la consulta que hace posible cualquier pantalla del docente que hable de
+ * alumnos concretos -la bandeja de correccion, el dashboard por alumno-, porque
+ * es la unica que sabe poner un nombre donde hasta ahora habia un
+ * identificador.
+ *
+ * El ambito se comprueba con `assertOperableBy` sobre el salon cargado, no con
+ * el permiso a secas: `CLASSROOM_READ` dice que este actor puede leer salones,
+ * no que pueda leer ESTE. Sin la segunda comprobacion, un docente del colegio A
+ * que teclee el identificador de un salon del colegio B veria a sus alumnos.
+ */
+export class ListClassroomRosterUseCase
+  implements UseCase<{ classroomId: string }, { items: RosterEntry[] }>
+{
+  constructor(
+    private readonly classrooms: ClassroomRepository,
+    private readonly students: StudentDirectory,
+  ) {}
+
+  async execute(
+    input: { classroomId: string },
+    context: ExecutionContext,
+  ): Promise<{ items: RosterEntry[] }> {
+    const actor = actorProfile(context);
+
+    if (!actor.permissions.includes(PERMISSIONS.CLASSROOM_READ)) {
+      throw new ForbiddenError('INSUFFICIENT_PERMISSIONS', 'No tienes permiso para ver salones.');
+    }
+
+    const classroom = await this.classrooms.findById(ClassroomId.create(input.classroomId));
+    if (!classroom) {
+      throw new NotFoundError('CLASSROOM_NOT_FOUND', 'El salon indicado no existe.');
+    }
+
+    classroom.assertOperableBy(actor);
+
+    const rows = await this.students.listRoster(input.classroomId);
+
+    return {
+      items: rows.map((row) => ({
+        studentId: row.studentId,
+        fullName: row.fullName,
+        status: row.status,
+        kitId: row.kitId,
+        enrolledAt: row.enrolledAt.toISOString(),
+      })),
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// El salon del propio alumno
+// ---------------------------------------------------------------------------
+
+export interface MyClassroom {
+  classroomId: string;
+  institutionId: string;
+  name: string;
+  grade: string;
+  teacherName: string | null;
+  academicYear: number;
+}
+
+/**
+ * En que salon esta el alumno que pregunta.
+ *
+ * El portal lo necesita para una cosa concreta: al abrir un intento de
+ * evaluacion hay que decir de que salon es, y sin eso la entrega queda sin
+ * salon y no aparece en la bandeja de correccion de ningun docente. El dato
+ * vive en las matriculas de este servicio, no en el token: identidad recibe el
+ * salon al registrar pero no lo guarda, y meterlo en el JWT lo dejaria
+ * congelado hasta el siguiente inicio de sesion -justo lo que no sirve cuando a
+ * un alumno lo cambian de salon a mitad de curso-.
+ *
+ * **No exige ningun permiso ademas de estar autenticado, y devuelve unicamente
+ * lo del propio actor.** Es el mismo criterio que `MEDIA_READ`: el guard dice
+ * "es un usuario"; el caso de uso decide que recurso. Un alumno no tiene
+ * `CLASSROOM_READ` -no debe poder listar salones- pero si tiene que poder saber
+ * en cual esta el.
+ *
+ * Lo que devuelve es deliberadamente escueto: nombre del salon, grado y
+ * docente. Ni aforo ni matriculados: el numero de compañeros de clase no es
+ * asunto suyo, y publicarlo permitiria medir la matricula de un colegio.
+ */
+export class ListMyClassroomsUseCase implements UseCase<void, { items: MyClassroom[] }> {
+  constructor(private readonly classrooms: ClassroomRepository) {}
+
+  async execute(_input: void, context: ExecutionContext): Promise<{ items: MyClassroom[] }> {
+    const actor = actorProfile(context);
+    const rows = await this.classrooms.listByStudent(actor.userId);
+
+    return {
+      items: rows.map((row) => ({
+        classroomId: row.id,
+        institutionId: row.institutionId,
+        name: row.name,
+        grade: row.grade,
+        teacherName: row.teacherName,
+        academicYear: row.academicYear,
+      })),
+    };
   }
 }

@@ -23,4 +23,5 @@ export const CLOCK = Symbol('CLOCK');
 export const INSTITUTION_REPOSITORY = Symbol('INSTITUTION_REPOSITORY');
 export const CLASSROOM_REPOSITORY = Symbol('CLASSROOM_REPOSITORY');
 export const TEACHER_DIRECTORY = Symbol('TEACHER_DIRECTORY');
+export const STUDENT_DIRECTORY = Symbol('STUDENT_DIRECTORY');
 export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');

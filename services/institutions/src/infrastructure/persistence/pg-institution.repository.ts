@@ -22,6 +22,7 @@ import {
 import type {
   InstitutionRepository,
   InstitutionSummary,
+  StudentDirectory,
   TeacherDirectory,
 } from '../../domain/repositories';
 
@@ -438,5 +439,84 @@ export class PgTeacherDirectory implements TeacherDirectory {
       [institutionId],
     );
     return rows.map((row) => ({ userId: row.user_id, fullName: row.full_name }));
+  }
+}
+
+/**
+ * Directorio de alumnos.
+ *
+ * Escribe por el pool de escritura y lee por el de lectura, como el de
+ * docentes: la escritura es una sola fila por evento y las lecturas son
+ * listados de clase, que es de lo que mas se pide en el portal del docente.
+ */
+export class PgStudentDirectory implements StudentDirectory {
+  constructor(
+    private readonly writePool: Pool,
+    private readonly readPool: Pool,
+  ) {}
+
+  async upsert(input: {
+    userId: string;
+    institutionId: string;
+    fullName: string;
+    email: string;
+  }): Promise<void> {
+    await this.writePool.query(
+      `INSERT INTO institutions.student_directory (user_id, institution_id, full_name, email)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (user_id) DO UPDATE
+          SET institution_id = EXCLUDED.institution_id,
+              full_name = EXCLUDED.full_name,
+              email = EXCLUDED.email,
+              updated_at = now()`,
+      [input.userId, input.institutionId, input.fullName, input.email],
+    );
+  }
+
+  async rename(userId: string, fullName: string): Promise<void> {
+    await this.writePool.query(
+      `UPDATE institutions.student_directory
+          SET full_name = $2, updated_at = now()
+        WHERE user_id = $1`,
+      [userId, fullName],
+    );
+  }
+
+  async listRoster(classroomId: string): Promise<
+    Array<{
+      studentId: string;
+      fullName: string | null;
+      status: string;
+      kitId: string | null;
+      enrolledAt: Date;
+    }>
+  > {
+    // LEFT JOIN y no JOIN: la matricula se crea al consumir el evento de
+    // registro y el nombre entra por el mismo evento, pero si algun dia el
+    // directorio se queda corto -un alumno migrado, un evento perdido- la clase
+    // tiene que seguir listandose. Un nombre vacio es un problema cosmetico;
+    // una clase que no carga, no.
+    const { rows } = await this.readPool.query<{
+      student_id: string;
+      full_name: string | null;
+      status: string;
+      kit_id: string | null;
+      enrolled_at: Date;
+    }>(
+      `SELECT e.student_id, d.full_name, e.status, e.kit_id, e.enrolled_at
+         FROM institutions.enrollments e
+         LEFT JOIN institutions.student_directory d ON d.user_id = e.student_id
+        WHERE e.classroom_id = $1
+        ORDER BY d.full_name NULLS LAST, e.student_id`,
+      [classroomId],
+    );
+
+    return rows.map((row) => ({
+      studentId: row.student_id,
+      fullName: row.full_name,
+      status: row.status,
+      kitId: row.kit_id,
+      enrolledAt: row.enrolled_at,
+    }));
   }
 }

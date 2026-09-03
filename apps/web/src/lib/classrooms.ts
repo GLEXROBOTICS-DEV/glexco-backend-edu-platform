@@ -36,3 +36,37 @@ export async function fetchMyClassrooms(): Promise<{ items: ClassroomSummary[]; 
   const items = Array.isArray(data) ? data : (data?.items ?? []);
   return { items, failed: false };
 }
+
+/** El salón del propio alumno, tal y como lo devuelve `/classrooms/mine`. */
+export interface MyClassroom {
+  classroomId: string;
+  institutionId: string;
+  name: string;
+  grade: string;
+  teacherName: string | null;
+  academicYear: number;
+}
+
+/**
+ * El salón del alumno que está viendo la página.
+ *
+ * Hace falta al abrir un intento de evaluación: una entrega sin salón no
+ * aparece en la bandeja de corrección de ningún docente, así que el alumno
+ * respondería al vacío. Devuelve `null` sin error para un alumno
+ * independiente —que no tiene salón y es la mitad del modelo de negocio— y
+ * también si la llamada falla: un cuestionario que no se puede abrir es peor
+ * que uno que se entrega sin salón.
+ */
+export async function fetchMyClassroom(): Promise<string | null> {
+  const result = await api<{ items: MyClassroom[] }>('/classrooms/mine');
+
+  if (!result.ok) {
+    console.error('No se pudo leer el salón del alumno', {
+      code: result.error.code,
+      correlationId: result.error.correlationId,
+    });
+    return null;
+  }
+
+  return result.data.items?.[0]?.classroomId ?? null;
+}

@@ -46,6 +46,8 @@ import {
 } from '../../application/manage-institutions.usecase';
 import {
   CreateClassroomUseCase,
+  ListClassroomRosterUseCase,
+  ListMyClassroomsUseCase,
   ListClassroomsUseCase,
   ListSelectableClassroomsUseCase,
   UpdateClassroomUseCase,
@@ -146,6 +148,8 @@ export class ClassroomsController {
     private readonly listClassrooms: ListClassroomsUseCase,
     private readonly listSelectable: ListSelectableClassroomsUseCase,
     private readonly enrollStudent: EnrollStudentUseCase,
+    private readonly listRoster: ListClassroomRosterUseCase,
+    private readonly listMine: ListMyClassroomsUseCase,
   ) {}
 
   /** Crear salon. Lo pueden hacer el docente y el administrador de institucion. */
@@ -204,6 +208,34 @@ export class ClassroomsController {
       },
       context,
     );
+  }
+
+  /**
+   * El salon del propio alumno.
+   *
+   * Sin `@RequirePermissions`: basta estar autenticado, porque solo devuelve lo
+   * del actor. Un alumno no tiene `CLASSROOM_READ` a proposito -no debe listar
+   * salones- pero necesita saber en cual esta para entregar una evaluacion.
+   *
+   * Se declara ANTES de `:classroomId/roster` para que `mine` no se interprete
+   * como un identificador.
+   */
+  @Get('mine')
+  async mine(@Req() request: Request) {
+    return this.listMine.execute(undefined, contextFrom(request));
+  }
+
+  /**
+   * La clase de un salon, con nombres.
+   *
+   * Va con `CLASSROOM_READ` y no con un permiso propio porque es exactamente la
+   * misma informacion que el listado de salones, con una fila por alumno en vez
+   * de un contador. El ambito sobre ESTE salon lo comprueba el caso de uso.
+   */
+  @Get(':classroomId/roster')
+  @RequirePermissions(PERMISSIONS.CLASSROOM_READ)
+  async roster(@Param('classroomId') classroomId: string, @Req() request: Request) {
+    return this.listRoster.execute({ classroomId }, contextFrom(request));
   }
 
   /**

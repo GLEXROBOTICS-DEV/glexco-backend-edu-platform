@@ -42,6 +42,7 @@ import {
   InstitutionsModule,
   LOGGER,
   LOGGER_PORT,
+  STUDENT_DIRECTORY,
   TEACHER_DIRECTORY,
   UNIT_OF_WORK,
 } from './institutions.module';
@@ -50,6 +51,7 @@ import { LicenseMaintenanceTask } from './application/license-maintenance.task';
 import type {
   ClassroomRepository,
   InstitutionRepository,
+  StudentDirectory,
   TeacherDirectory,
 } from './domain/repositories';
 /* eslint-enable import/first */
@@ -103,6 +105,7 @@ async function main(): Promise<void> {
           classrooms: instance.get<ClassroomRepository>(CLASSROOM_REPOSITORY),
           institutions: instance.get<InstitutionRepository>(INSTITUTION_REPOSITORY),
           teachers: instance.get<TeacherDirectory>(TEACHER_DIRECTORY),
+          students: instance.get<StudentDirectory>(STUDENT_DIRECTORY),
           clock: instance.get<Clock>(CLOCK),
           logger: instance.get<LoggerPort>(LOGGER_PORT),
           natsLogger: instance.get<Logger>(LOGGER),

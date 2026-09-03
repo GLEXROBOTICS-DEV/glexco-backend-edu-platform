@@ -88,6 +88,15 @@ export class StartAttemptUseCase implements UseCase<{ assessmentId: string; clas
       const open = await this.submissions.findInProgress(assessment.id.value, student.userId);
 
       if (open) {
+        // Rellena el salon si el intento se abrio sin el. El caso llega cuando
+        // el alumno abre la evaluacion antes de que su matricula este
+        // proyectada: sin esto, su entrega no aparece en ninguna bandeja y lo
+        // que escriba no lo corrige nadie.
+        if (input.classroomId) {
+          open.attachClassroom(input.classroomId);
+          await this.submissions.save(open, tx);
+        }
+
         return {
           submissionId: open.id.value,
           attemptNumber: open.attemptNumber,

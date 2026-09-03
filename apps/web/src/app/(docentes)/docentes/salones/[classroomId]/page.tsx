@@ -21,9 +21,22 @@ export default async function ClassroomDashboardPage({
         <a href="/docentes" className="text-sm font-medium text-brand-600 hover:underline">
           ← Mis salones
         </a>
-        <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="mt-1 font-semibold">
-          Cómo va el salón
-        </h1>
+        <div className="mt-1 flex flex-wrap items-baseline justify-between gap-3">
+          <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="font-semibold">
+            Cómo va el salón
+          </h1>
+          {/*
+            La bandeja se enlaza desde aquí y no desde el menú: se entra a
+            corregir DE un salón, y un enlace global obligaría a elegir el salón
+            otra vez en la pantalla siguiente.
+          */}
+          <a
+            href={`/docentes/salones/${classroomId}/correccion`}
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
+          >
+            Por corregir
+          </a>
+        </div>
       </section>
 
       <Suspense fallback={<CardSkeleton />}>

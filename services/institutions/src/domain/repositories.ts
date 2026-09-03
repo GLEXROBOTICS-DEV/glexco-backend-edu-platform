@@ -135,3 +135,41 @@ export interface TeacherDirectory {
   findName(userId: string): Promise<string | null>;
   listByInstitution(institutionId: string): Promise<Array<{ userId: string; fullName: string }>>;
 }
+
+/**
+ * Nombres de los alumnos, para pintar listados.
+ *
+ * Gemelo de `TeacherDirectory`. La razon de que esto sea un puerto aparte y no
+ * un metodo mas del repositorio de salones: el nombre NO es estado del agregado
+ * -no participa en ninguna regla del salon- y viene de otro servicio. Tenerlo
+ * separado deja claro que puede ir unos segundos desactualizado sin que eso
+ * afecte a ninguna invariante.
+ */
+export interface StudentDirectory {
+  upsert(input: {
+    userId: string;
+    institutionId: string;
+    fullName: string;
+    email: string;
+  }): Promise<void>;
+
+  /** Cambia SOLO el nombre; no crea la fila si no existe. */
+  rename(userId: string, fullName: string): Promise<void>;
+
+  /**
+   * La clase, con nombre y kit activado.
+   *
+   * Es la unica consulta que cruza la matricula con el directorio, y vive aqui
+   * -en el lado de lectura- para que el repositorio del agregado no tenga que
+   * conocer una tabla de proyeccion.
+   */
+  listRoster(classroomId: string): Promise<
+    Array<{
+      studentId: string;
+      fullName: string | null;
+      status: string;
+      kitId: string | null;
+      enrolledAt: Date;
+    }>
+  >;
+}

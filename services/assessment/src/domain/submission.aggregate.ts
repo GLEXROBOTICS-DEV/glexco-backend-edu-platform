@@ -258,6 +258,27 @@ export class Submission extends AggregateRoot<SubmissionId> {
   }
 
   /**
+   * Asigna el salon a un intento que se abrio sin el.
+   *
+   * Un intento sin salon no aparece en la bandeja de correccion de nadie, asi
+   * que lo que el alumno escriba se quedaria sin corregir para siempre. Eso
+   * puede pasar por dos vias reales: el intento se abrio antes de que la
+   * matricula estuviera proyectada -llega por evento, no en el mismo instante
+   * que el registro-, o el alumno se matriculo despues de abrirlo.
+   *
+   * Solo rellena el hueco: nunca CAMBIA un salon ya asignado. Permitirlo
+   * dejaria mover una entrega de un salon a otro, es decir, de un docente a
+   * otro, y sin dejar rastro.
+   */
+  attachClassroom(classroomId: string): void {
+    if (this.state.status !== SUBMISSION_STATUS.IN_PROGRESS) return;
+    if (this.state.classroomId !== null) return;
+
+    this.state.classroomId = classroomId;
+    this.touch();
+  }
+
+  /**
    * Entrega y corrige lo automatico.
    *
    * Recibe el agregado completo -con la clave- porque la correccion ocurre en el

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { requireSession } from '../../../../../lib/session';
 import { startAttempt } from '../../../../../lib/assessment.actions';
+import { fetchMyClassroom } from '../../../../../lib/classrooms';
 import { QuizForm } from '../../../../../components/quiz-form';
 import { EmptyState } from '../../../../../components/ui';
 
@@ -29,7 +30,11 @@ export default async function AcademyEvaluacion({
   await requireSession();
   const { assessmentId } = await params;
 
-  const state = await startAttempt(assessmentId, null);
+  // El salon se resuelve ANTES de abrir el intento y viaja con el: una entrega
+  // sin salon no aparece en la bandeja de correccion de ningun docente, asi que
+  // lo abierto a mano se quedaria sin corregir para siempre.
+  const classroomId = await fetchMyClassroom();
+  const state = await startAttempt(assessmentId, classroomId);
 
   if (state.error || !state.attempt) {
     return (

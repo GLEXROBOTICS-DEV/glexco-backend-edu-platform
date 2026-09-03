@@ -172,6 +172,20 @@ export class PgAssessmentRepository implements AssessmentRepository {
     return rows.map(toAssessment);
   }
 
+  async findManyByIds(ids: string[]): Promise<Assessment[]> {
+    if (ids.length === 0) return [];
+
+    // `= ANY($1::uuid[])` y no un `IN` construido a mano: la consulta queda
+    // siempre igual, asi que Postgres reutiliza su plan en vez de preparar uno
+    // distinto por cada tamano de listado.
+    const { rows } = await this.readPool.query<AssessmentRow>(
+      `SELECT ${A_COLUMNS} FROM assessment.assessments WHERE id = ANY($1::uuid[])`,
+      [ids],
+    );
+
+    return rows.map(toAssessment);
+  }
+
   async listForTeacher(input: {
     kitId?: string | undefined;
     institutionId: string;

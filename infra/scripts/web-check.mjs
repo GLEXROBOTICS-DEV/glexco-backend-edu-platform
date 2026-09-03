@@ -221,7 +221,9 @@ async function main() {
   // GLEXCO publicado, salon creado con su docente, y un alumno que responde.
   // Sembrarlo por SQL no serviria: la analitica aprende quien es el docente
   // del evento `institutions.classroom.created.v1`.
-  const dashKit = await seedCatalog({ codeCount: 1 });
+  // Dos codigos: uno lo canjea el alumno de la seccion 6 y otro el alumno
+  // institucional que se registra en la seccion 7.
+  const dashKit = await seedCatalog({ codeCount: 2 });
 
   const [contentManager] = await seedUsers(1, { roles: [ROLES.CONTENT_MANAGER] });
   const glexcoToken = mintAccessToken({ userId: contentManager.id, roles: contentManager.roles });
@@ -499,6 +501,215 @@ async function main() {
     `${firstId} vs ${secondId}`,
   );
 
+  // ------------------------------------------------------------------
+  section('7. Bandeja de correccion del docente');
+  // ------------------------------------------------------------------
+
+  // Una evaluacion con pregunta ABIERTA: es la unica que la maquina no puede
+  // corregir, y por tanto la unica que llega a la bandeja.
+  const tarea = await postJson(`${ASSESSMENT}/api/v1/assessments`, glexcoToken, {
+    kitId: dashKit.kitId,
+    kind: 'project',
+    title: 'Explica tu robot',
+    passingScore: 60,
+  });
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${tarea.body?.assessmentId}/questions`,
+    glexcoToken,
+    {
+      type: 'short_answer',
+      prompt: 'Explica con tus palabras que hace tu robot.',
+      points: 20,
+    },
+  );
+  const tareaPublish = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${tarea.body?.assessmentId}/publish`,
+    glexcoToken,
+    {},
+  );
+
+  report(
+    'Prepara una tarea con pregunta abierta y la publica',
+    tarea.status === 201 && tareaPublish.status < 300,
+    `crear=${tarea.status} publicar=${tareaPublish.status} ${JSON.stringify(tareaPublish.body).slice(0, 140)}`,
+  );
+
+  // Este alumno se registra por la via REAL, no por SQL. Es lo que hace que su
+  // nombre entre en el directorio: viaja en `identity.user.registered.v1`, y
+  // sembrar la fila a mano no emite ningun evento.
+  const inboxEmail = `correccion.${Date.now()}@colegio.pe`;
+  const inboxRegistration = await fetch(`${GATEWAY}/api/v1/auth/register/student`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      accountType: 'institutional',
+      email: inboxEmail,
+      password: 'robotica-glexco-2026',
+      firstName: 'Mateo',
+      lastName: 'Quispe',
+      birthDate: '2012-07-11',
+      grade: dashKit.grade,
+      activationCode: dashKit.codes[1],
+      institutionId: school.institutionId,
+      classroomId: classroom.body?.classroomId,
+      acceptedTerms: true,
+      locale: 'es',
+    }),
+  });
+  const inboxBody = await inboxRegistration.json().catch(() => null);
+
+  report(
+    'Registra a un alumno del salon por la via real',
+    inboxRegistration.status === 201,
+    `status=${inboxRegistration.status} ${JSON.stringify(inboxBody).slice(0, 140)}`,
+  );
+
+  const inboxToken = mintAccessToken({
+    userId: inboxBody?.userId ?? inboxBody?.user?.id,
+    roles: [ROLES.STUDENT],
+    institutionId: school.institutionId,
+  });
+  const inboxJar = `glexco_at=${inboxToken}`;
+
+  // Se espera a que la matricula este proyectada ANTES de abrir la tarea.
+  //
+  // No es una comodidad de la prueba: la matricula la crea instituciones al
+  // consumir `identity.user.registered.v1`, y el intento se abre con el salon
+  // que la pantalla conoce EN ESE MOMENTO. Abrirlo medio segundo antes lo crea
+  // sin salon, y como recargar devuelve el mismo intento, esa entrega ya no
+  // llega a la bandeja de nadie. En uso real median minutos o dias entre
+  // registrarse y abrir una evaluacion; aqui median milisegundos.
+  const enrolled = await waitFor(async () => {
+    const roster = await getJson(
+      `${INSTITUTIONS}/api/v1/classrooms/${classroom.body?.classroomId}/roster`,
+      teacherToken,
+    );
+    return roster.body?.items?.some((entry) => entry.fullName === 'Mateo Quispe') ?? false;
+  });
+
+  report(
+    'La matricula y el nombre del alumno llegan por evento',
+    enrolled,
+    enrolled ? '' : 'la proyeccion no llego en 40 s',
+  );
+
+  // El alumno responde DESDE EL PORTAL. Que la pantalla resuelva su salon es lo
+  // que hace que la entrega llegue a la bandeja: sin eso quedaria sin salon y
+  // ningun docente la veria nunca.
+  const tareaPage = await waitForHtml(
+    `${WEB}/discover/evaluaciones/${tarea.body?.assessmentId}`,
+    inboxJar,
+    (html) => html.includes('Explica con tus palabras'),
+  );
+
+  report(
+    'El alumno abre la tarea desde el portal',
+    Boolean(tareaPage),
+    tareaPage ? '' : 'no cargo en 40 s',
+  );
+  report(
+    'Una pregunta abierta se pinta como area de texto, no como opciones',
+    Boolean(tareaPage?.includes('<textarea')) && !tareaPage?.includes('type="radio"'),
+  );
+
+  const openSubmissionId = tareaPage
+    ? /name="submissionId" value="([^"]+)"/.exec(tareaPage)?.[1]
+    : undefined;
+  const openQuestionId = tareaPage
+    ? /name="questionId" value="([^"]+)"/.exec(tareaPage)?.[1]
+    : undefined;
+
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${openSubmissionId}/answers`,
+    inboxToken,
+    {
+      questionId: openQuestionId,
+      text: 'Mi robot sigue una linea negra con el sensor de abajo.',
+    },
+  );
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${openSubmissionId}/submit`,
+    inboxToken,
+    {},
+  );
+
+  const bandeja = await waitForHtml(
+    `${WEB}/docentes/salones/${classroom.body?.classroomId}/correccion`,
+    teacherJar,
+    (html) => html.includes('Explica tu robot'),
+  );
+
+  report(
+    'La entrega aparece en la bandeja del docente',
+    Boolean(bandeja),
+    bandeja ? '' : 'no aparecio en 40 s',
+  );
+  report(
+    'La bandeja pone el NOMBRE del alumno, no su identificador',
+    Boolean(bandeja?.includes('Mateo Quispe')),
+  );
+  report(
+    'Dice cuanto trabajo queda, no una nota que aun no significa nada',
+    Boolean(bandeja?.includes('data-pending="1"')),
+  );
+
+  const correccion = await fetchHtml(
+    `${WEB}/docentes/salones/${classroom.body?.classroomId}/correccion/${openSubmissionId}`,
+    teacherJar,
+  );
+
+  report(
+    'La pantalla de correccion muestra lo que respondio el alumno',
+    correccion.status === 200 && correccion.html.includes('sigue una linea negra'),
+    `status=${correccion.status}`,
+  );
+  report(
+    'Trae el campo de puntos con el maximo de la pregunta',
+    correccion.html.includes('name="points:') && correccion.html.includes('max="20"'),
+  );
+
+  // Aislamiento: la bandeja es del salon, y el salon tiene dueno.
+  const [intruso] = await seedUsers(1, {
+    roles: [ROLES.TEACHER],
+    institutionId: school.institutionId,
+  });
+  const intrusoJar = `glexco_at=${mintAccessToken({
+    userId: intruso.id,
+    roles: intruso.roles,
+    institutionId: school.institutionId,
+  })}`;
+  const ajena = await fetchHtml(
+    `${WEB}/docentes/salones/${classroom.body?.classroomId}/correccion`,
+    intrusoJar,
+  );
+
+  report(
+    'Otro docente del mismo colegio NO ve esa bandeja',
+    ajena.status === 200 && !ajena.html.includes('Mateo Quispe'),
+    `status=${ajena.status}`,
+  );
+
+  const ajenaEntrega = await fetchHtml(
+    `${WEB}/docentes/salones/${classroom.body?.classroomId}/correccion/${openSubmissionId}`,
+    intrusoJar,
+  );
+
+  report(
+    'Ni la entrega concreta, que si lleva la clave de correccion',
+    !ajenaEntrega.html.includes('sigue una linea negra'),
+  );
+
+  // Y el alumno, tecleando la URL del docente, tampoco.
+  const alumnoIntenta = await fetchHtml(
+    `${WEB}/docentes/salones/${classroom.body?.classroomId}/correccion/${openSubmissionId}`,
+    inboxJar,
+  );
+
+  report(
+    'Un alumno que teclea la URL de correccion no llega a la pantalla',
+    !alumnoIntenta.html.includes('Cerrar la nota'),
+  );
+
   console.log(
     `\n${colors.bold}Resultado:${colors.reset} ${colors.ok}${passed} pasan${colors.reset}` +
       (failed > 0 ? `, ${colors.fail}${failed} fallan${colors.reset}` : '') +
@@ -506,6 +717,31 @@ async function main() {
   );
 
   process.exit(failed > 0 ? 1 : 0);
+}
+
+/**
+ * Espera a que una condicion se cumpla.
+ *
+ * Existe porque media plataforma es asincrona por diseno: las proyecciones se
+ * alimentan de eventos y no estan listas en el mismo instante en que ocurre el
+ * hecho. Reintentar con un tope es la unica forma honesta de comprobarlas: un
+ * `sleep` fijo o pasa de largo o tarda de mas, y a veces las dos cosas en la
+ * misma ejecucion.
+ */
+async function waitFor(condition, timeoutMs = 40_000) {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    if (await condition().catch(() => false)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  return false;
+}
+
+async function getJson(url, token) {
+  const response = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+  return { status: response.status, body: await response.json().catch(() => null) };
 }
 
 async function postJson(url, token, payload) {

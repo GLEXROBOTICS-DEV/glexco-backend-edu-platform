@@ -21,6 +21,15 @@ export interface AssessmentRepository {
     classroomId: string | null;
   }): Promise<Assessment[]>;
 
+  /**
+   * Varias evaluaciones de una vez.
+   *
+   * Existe para los listados que necesitan el titulo de la evaluacion de cada
+   * fila -la bandeja de correccion, por ejemplo-: sin esto, una clase de
+   * treinta entregas del mismo examen haria treinta consultas identicas.
+   */
+  findManyByIds(ids: string[]): Promise<Assessment[]>;
+
   /** Banco del docente: las suyas mas las que vienen con el kit. */
   listForTeacher(input: {
     kitId?: string | undefined;

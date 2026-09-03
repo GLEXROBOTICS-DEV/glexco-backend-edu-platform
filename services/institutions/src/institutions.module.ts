@@ -13,6 +13,7 @@ import {
   INSTITUTION_REPOSITORY,
   CLASSROOM_REPOSITORY,
   TEACHER_DIRECTORY,
+  STUDENT_DIRECTORY,
   UNIT_OF_WORK,
 } from './tokens';
 import {
@@ -46,7 +47,9 @@ import {
 } from './application/manage-institutions.usecase';
 import {
   CreateClassroomUseCase,
+  ListClassroomRosterUseCase,
   ListClassroomsUseCase,
+  ListMyClassroomsUseCase,
   ListSelectableClassroomsUseCase,
   UpdateClassroomUseCase,
 } from './application/manage-classrooms.usecase';
@@ -56,6 +59,7 @@ import {
 } from './application/enroll-student.usecase';
 import {
   PgInstitutionRepository,
+  PgStudentDirectory,
   PgTeacherDirectory,
 } from './infrastructure/persistence/pg-institution.repository';
 import { PgClassroomRepository } from './infrastructure/persistence/pg-classroom.repository';
@@ -105,6 +109,7 @@ export {
   INSTITUTION_REPOSITORY,
   CLASSROOM_REPOSITORY,
   TEACHER_DIRECTORY,
+  STUDENT_DIRECTORY,
   UNIT_OF_WORK,
 } from './tokens';
 
@@ -199,6 +204,11 @@ export {
       useFactory: (write: Pool, read: Pool) => new PgTeacherDirectory(write, read),
       inject: [DB_WRITE_POOL, DB_READ_POOL],
     },
+    {
+      provide: STUDENT_DIRECTORY,
+      useFactory: (write: Pool, read: Pool) => new PgStudentDirectory(write, read),
+      inject: [DB_WRITE_POOL, DB_READ_POOL],
+    },
 
     // -----------------------------------------------------------------------
     // Casos de uso
@@ -259,6 +269,18 @@ export {
       inject: [CLASSROOM_REPOSITORY, INSTITUTION_REPOSITORY, UNIT_OF_WORK, CLOCK, LOGGER_PORT],
     },
     {
+      provide: ListClassroomRosterUseCase,
+      useFactory: (...args: ConstructorParameters<typeof ListClassroomRosterUseCase>) =>
+        new ListClassroomRosterUseCase(...args),
+      inject: [CLASSROOM_REPOSITORY, STUDENT_DIRECTORY],
+    },
+    {
+      provide: ListMyClassroomsUseCase,
+      useFactory: (...args: ConstructorParameters<typeof ListMyClassroomsUseCase>) =>
+        new ListMyClassroomsUseCase(...args),
+      inject: [CLASSROOM_REPOSITORY],
+    },
+    {
       provide: PrecheckClassroomUseCase,
       useFactory: (...args: ConstructorParameters<typeof PrecheckClassroomUseCase>) =>
         new PrecheckClassroomUseCase(...args),
@@ -284,6 +306,8 @@ export {
         ListClassroomsUseCase,
         ListSelectableClassroomsUseCase,
         EnrollStudentUseCase,
+        ListClassroomRosterUseCase,
+        ListMyClassroomsUseCase,
       ],
     },
     {

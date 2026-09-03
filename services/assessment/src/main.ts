@@ -32,12 +32,17 @@ import {
   ensureStream,
 } from '@glexco/nest-platform';
 import type { NatsConnection } from 'nats';
-import { AssessmentModule } from './assessment.module';
+import type { EventConsumer } from '@glexco/nest-platform';
+import { AssessmentModule, CLASSROOM_DIRECTORY, LOGGER } from './assessment.module';
+import { buildAssessmentConsumer } from './interface/events/assessment.consumer';
+import type { ClassroomDirectory } from './application/directory';
+import type { Logger } from '@glexco/observability';
 /* eslint-enable import/first */
 
 async function main(): Promise<void> {
   let nats: NatsConnection | null = null;
   let outboxRelay: OutboxRelay | null = null;
+  let consumer: EventConsumer | null = null;
 
   const app = await bootstrapService({
     module: AssessmentModule,
@@ -71,6 +76,19 @@ async function main(): Promise<void> {
           lock: new RedisDistributedLock(redis),
         });
         outboxRelay.start();
+
+        // Alimenta el directorio de salones. Sin el, la bandeja de correccion
+        // no puede comprobar de quien es el salon y responde 404 a todo: el
+        // ambito se resuelve con esta proyeccion, no llamando a instituciones.
+        consumer = buildAssessmentConsumer({
+          connection: nats,
+          pool: writePool,
+          streamName: config.NATS_STREAM,
+          serviceName: config.SERVICE_NAME,
+          directory: instance.get<ClassroomDirectory>(CLASSROOM_DIRECTORY),
+          natsLogger: instance.get<Logger>(LOGGER),
+        });
+        await consumer.start();
       } catch (error) {
         process.stderr.write(
           `Aviso: no se pudo conectar con NATS al arrancar. Los eventos se acumularan ` +
@@ -84,6 +102,7 @@ async function main(): Promise<void> {
     onShutdown: async () => {
       app.get(HealthController, { strict: false })?.markDraining();
 
+      await consumer?.stop().catch(() => undefined);
       await outboxRelay?.stop().catch(() => undefined);
       await nats?.drain().catch(() => undefined);
 
