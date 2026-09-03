@@ -95,7 +95,7 @@ CREATE INDEX IF NOT EXISTS users_locked_idx
 
 -- Busqueda por nombre en el panel, sin tildes y por similitud.
 CREATE INDEX IF NOT EXISTS users_name_trgm_idx
-  ON users USING gin ((unaccent(first_name || ' ' || last_name)) gin_trgm_ops);
+  ON users USING gin ((public.immutable_unaccent(first_name || ' ' || last_name)) gin_trgm_ops);
 
 -- Aviso de licencias y limpieza de cuentas nunca verificadas.
 CREATE INDEX IF NOT EXISTS users_pending_verification_idx

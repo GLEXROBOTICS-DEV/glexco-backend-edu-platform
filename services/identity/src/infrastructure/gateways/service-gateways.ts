@@ -44,7 +44,7 @@ export class HttpActivationCodeGateway implements ActivationCodeGateway {
   async precheck(code: string): Promise<ActivationCodePrecheck> {
     return this.breaker.execute(async () => {
       const response = await fetch(
-        `${this.baseUrl}/internal/v1/activation-codes/${encodeURIComponent(code)}/precheck`,
+        `${this.baseUrl}/api/internal/v1/activation-codes/${encodeURIComponent(code)}/precheck`,
         {
           method: 'GET',
           headers: {
@@ -89,7 +89,7 @@ export class HttpClassroomGateway implements ClassroomGateway {
 
   async precheck(input: { institutionId: string; classroomId: string }): Promise<ClassroomPrecheck> {
     return this.breaker.execute(async () => {
-      const url = new URL(`${this.baseUrl}/internal/v1/classrooms/precheck`);
+      const url = new URL(`${this.baseUrl}/api/internal/v1/classrooms/precheck`);
       url.searchParams.set('institutionId', input.institutionId);
       url.searchParams.set('classroomId', input.classroomId);
 
@@ -141,7 +141,7 @@ export class HttpInstitutionGateway implements InstitutionGateway {
   async summary(institutionId: string): Promise<InstitutionSummaryCheck> {
     return this.breaker.execute(async () => {
       const response = await fetch(
-        `${this.baseUrl}/internal/v1/institutions/${encodeURIComponent(institutionId)}/summary`,
+        `${this.baseUrl}/api/internal/v1/institutions/${encodeURIComponent(institutionId)}/summary`,
         {
           headers: {
             Authorization: `Bearer ${this.internalToken}`,

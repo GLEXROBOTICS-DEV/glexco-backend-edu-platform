@@ -53,7 +53,7 @@ CREATE INDEX IF NOT EXISTS institutions_status_idx ON institutions (status, crea
 
 -- Busqueda por nombre en el panel, sin tildes y por similitud.
 CREATE INDEX IF NOT EXISTS institutions_name_trgm_idx
-  ON institutions USING gin ((unaccent(name)) gin_trgm_ops);
+  ON institutions USING gin ((public.immutable_unaccent(name)) gin_trgm_ops);
 
 -- ---------------------------------------------------------------------------
 -- licenses

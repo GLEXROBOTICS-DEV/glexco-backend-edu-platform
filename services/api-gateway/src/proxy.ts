@@ -39,6 +39,35 @@ const HOP_BY_HOP = new Set([
   'x-internal-service',
 ]);
 
+/**
+ * Cabeceras del servicio de destino que NO se copian hacia el cliente.
+ *
+ * `fetch` descomprime el cuerpo por su cuenta, asi que lo que el gateway tiene
+ * en la mano es texto plano. Copiar el `content-encoding: gzip` del servicio de
+ * origen hace que el navegador intente inflar algo que ya viene inflado y falle
+ * con "incorrect header check"; el `content-length` original tampoco vale, y
+ * ademas Express recalcula ambos al reenviar. Solo se notaba en respuestas
+ * grandes -el login, por los permisos-, que son justo las que superan el umbral
+ * de compresion.
+ */
+const RECALCULATED_DOWNSTREAM = new Set(['content-encoding', 'content-length']);
+
+/**
+ * Cabeceras del cliente que NO se reenvian al servicio de destino.
+ *
+ * El gateway no retransmite el cuerpo tal cual: lo vuelve a serializar desde
+ * `request.body`. Copiar el `content-length` original hace que se anuncie una
+ * longitud y se envie otra, y el servidor de destino cierra el socket sin
+ * responder ("other side closed"). Se veia solo en `POST /auth/refresh`, que no
+ * lleva cuerpo: el cliente anuncia 0 bytes y el gateway envia `{}`. En login y
+ * registro coincidian por casualidad, porque reserializar el mismo JSON da la
+ * misma longitud.
+ *
+ * `host` sobra por el mismo motivo: apunta al gateway, no al destino, y el
+ * origen real ya viaja en `x-forwarded-host`.
+ */
+const REBUILT_UPSTREAM = new Set(['content-length', 'host']);
+
 export interface ProxyDeps {
   config: GatewayConfig;
   rateLimiter: RateLimiter;
@@ -134,6 +163,7 @@ export class ServiceProxy {
     const headers = new Headers();
     for (const [name, value] of Object.entries(request.headers)) {
       if (HOP_BY_HOP.has(name.toLowerCase())) continue;
+      if (REBUILT_UPSTREAM.has(name.toLowerCase())) continue;
       if (value === undefined) continue;
       headers.set(name, Array.isArray(value) ? value.join(', ') : value);
     }
@@ -164,6 +194,7 @@ export class ServiceProxy {
   private writeBack(upstream: UpstreamResponse, response: Response): void {
     upstream.headers.forEach((value, name) => {
       if (HOP_BY_HOP.has(name.toLowerCase())) return;
+      if (RECALCULATED_DOWNSTREAM.has(name.toLowerCase())) return;
       // `set-cookie` necesita trato aparte: puede venir repetida y `Headers` la
       // colapsa en una sola cadena separada por comas, lo que rompe las cookies
       // que contienen comas en su fecha de caducidad.

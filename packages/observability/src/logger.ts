@@ -88,13 +88,35 @@ export function createLogger(options: LoggerOptions): PinoLogger {
       const context = getRequestContext();
       return context ? { ...context } : {};
     },
-    transport: options.pretty
-      ? {
-          target: 'pino-pretty',
-          options: { colorize: true, translateTime: 'HH:MM:ss.l', ignore: 'pid,hostname,service' },
-        }
-      : undefined,
+    transport: options.pretty ? resolvePrettyTransport() : undefined,
   });
+}
+
+/**
+ * Transporte de desarrollo, solo si `pino-pretty` esta disponible.
+ *
+ * pino resuelve el destino del transporte al construir el logger y lanza si no
+ * lo encuentra. Como el logger se crea en el arranque, eso tumbaba el proceso
+ * entero: un despliegue con las dependencias de desarrollo podadas y
+ * `pretty` mal puesto no arrancaba, y el error hablaba de transportes, no de
+ * configuracion. Perder el coloreado es aceptable; no arrancar, no.
+ */
+function resolvePrettyTransport(): pino.TransportSingleOptions | undefined {
+  try {
+    // El paquete se compila a CommonJS, asi que require.resolve esta disponible
+    // y no carga el modulo: solo comprueba que se puede resolver.
+    require.resolve('pino-pretty');
+  } catch {
+    process.stderr.write(
+      'Aviso: pino-pretty no esta instalado; los logs saldran en JSON plano.' + '\n',
+    );
+    return undefined;
+  }
+
+  return {
+    target: 'pino-pretty',
+    options: { colorize: true, translateTime: 'HH:MM:ss.l', ignore: 'pid,hostname,service' },
+  };
 }
 
 export type Logger = PinoLogger;

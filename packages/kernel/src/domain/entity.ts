@@ -40,6 +40,21 @@ export abstract class AggregateRoot<Id extends Identifier> extends Entity<Id> {
     return this.domainEventBuffer;
   }
 
+  /**
+   * Avanza la version SIN emitir evento de dominio.
+   *
+   * Existe para los cambios de estado que deliberadamente no son un hecho que
+   * otro servicio deba conocer: un inicio de sesion correcto, un intento
+   * fallido, un rehasheo de contrasena. Sin esto, la version no avanza, el
+   * `UPDATE ... WHERE version < :nueva` no encuentra fila y la escritura muere
+   * con un conflicto de concurrencia inventado -aunque no haya concurrencia
+   * ninguna-. Es decir: emitir evento y avanzar version son dos cosas
+   * distintas, y confundirlas rompe justo las operaciones mas frecuentes.
+   */
+  protected touch(): void {
+    this.currentVersion += 1;
+  }
+
   /** Registra un hecho y avanza la version del agregado. */
   protected record(build: (nextVersion: number) => DomainEvent): void {
     this.currentVersion += 1;

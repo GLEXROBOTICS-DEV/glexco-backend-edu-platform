@@ -3,9 +3,11 @@ packages:
   - "services/*"
   - "packages/*"
 
+# pnpm 11.25 exige booleanos explicitos aqui; el placeholder que dejo pnpm al
+# escribir este bloque no era valido y hacia que se ignorasen los builds.
 allowBuilds:
-  esbuild: set this to true or false
-  protobufjs: set this to true or false
+  esbuild: true
+  protobufjs: true
 
 # Solo estas dependencias pueden ejecutar scripts de instalacion (postinstall).
 # Es una medida contra ataques de cadena de suministro: un paquete transitivo

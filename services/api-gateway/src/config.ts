@@ -14,6 +14,11 @@ const gatewayEnvSchema = baseEnvSchema.extend({
   SERVICE_NAME: z.string().default('api-gateway'),
   PORT: z.coerce.number().int().default(3000),
 
+  // El gateway no habla con ninguna base de datos: solo enruta y usa Redis para
+  // la limitacion de peticiones. Exigirle una DATABASE_URL obligaria a darle una
+  // credencial de Postgres al unico servicio expuesto a internet.
+  DATABASE_URL: z.string().url().optional(),
+
   IDENTITY_URL: z.string().url().default('http://localhost:3101'),
   INSTITUTIONS_URL: z.string().url().default('http://localhost:3102'),
   CATALOG_URL: z.string().url().default('http://localhost:3103'),

@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Post,
   Req,
   Res,
@@ -29,6 +30,7 @@ import {
   type RequestActor,
 } from '@glexco/nest-platform';
 import { UnauthorizedError, type ExecutionContext as UseCaseContext } from '@glexco/kernel';
+import { COOKIE_OPTIONS } from '../../tokens';
 import { RegisterStudentUseCase } from '../../application/register-student.usecase';
 import { LoginUseCase } from '../../application/login.usecase';
 import { RefreshSessionUseCase } from '../../application/refresh-session.usecase';
@@ -69,7 +71,10 @@ export class AuthController {
     private readonly verifyEmailUseCase: VerifyEmailUseCase,
     private readonly requestPasswordReset: RequestPasswordResetUseCase,
     private readonly confirmPasswordReset: ConfirmPasswordResetUseCase,
-    private readonly cookieOptions: CookieOptions,
+    // `CookieOptions` es una interfaz, asi que en tiempo de ejecucion su tipo es
+    // `Object` y Nest no tiene forma de resolverla. El token explicito es
+    // obligatorio, no una preferencia de estilo.
+    @Inject(COOKIE_OPTIONS) private readonly cookieOptions: CookieOptions,
   ) {}
 
   @Post('register/student')

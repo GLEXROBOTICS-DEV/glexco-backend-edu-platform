@@ -62,7 +62,19 @@ try {
   console.log(`Solicitando cerrojo de migracion para "${service}"...`);
   await client.query('SELECT pg_advisory_lock($1)', [LOCK_ID]);
 
-  await client.query(`CREATE SCHEMA IF NOT EXISTS ${service}`);
+  // PostgreSQL comprueba el permiso CREATE sobre la BASE antes de mirar si el
+  // schema ya existe, asi que "CREATE SCHEMA IF NOT EXISTS" falla con
+  // "permission denied for database" incluso cuando no hay nada que crear. El
+  // rol de cada servicio no tiene (ni debe tener) ese permiso: sus schemas los
+  // crea el init del contenedor con el superusuario. Por eso se consulta antes.
+  const { rows: schemaRows } = await client.query(
+    'SELECT 1 FROM pg_namespace WHERE nspname = $1',
+    [service],
+  );
+
+  if (schemaRows.length === 0) {
+    await client.query(`CREATE SCHEMA ${service}`);
+  }
   await client.query(`
     CREATE TABLE IF NOT EXISTS ${service}.schema_migrations (
       name        text PRIMARY KEY,

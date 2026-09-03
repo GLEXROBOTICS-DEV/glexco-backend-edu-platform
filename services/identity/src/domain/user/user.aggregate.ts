@@ -284,6 +284,7 @@ export class User extends AggregateRoot<UserId> {
    * corresponde.
    */
   recordFailedLogin(now: Date): void {
+    this.touch();
     this.state.failedLoginAttempts += 1;
     this.state.updatedAt = now;
 
@@ -298,6 +299,7 @@ export class User extends AggregateRoot<UserId> {
   }
 
   recordSuccessfulLogin(now: Date): void {
+    this.touch();
     this.state.failedLoginAttempts = 0;
     this.state.lockedUntil = null;
     this.state.lastLoginAt = now;
@@ -382,6 +384,7 @@ export class User extends AggregateRoot<UserId> {
   /** Marca que la contrasena debe rehashearse con parametros mas fuertes.
    *  No es un cambio de contrasena: no emite evento ni notifica al usuario. */
   upgradePasswordHash(newHash: PasswordHash, now: Date): void {
+    this.touch();
     this.state.passwordHash = newHash;
     this.state.updatedAt = now;
   }

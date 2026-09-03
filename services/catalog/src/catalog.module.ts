@@ -1,11 +1,24 @@
 import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { APP_GUARD, Reflector } from '@nestjs/core';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Pool } from 'pg';
 import type { Redis } from 'ioredis';
 import type { Clock, SecureRandom, UnitOfWork } from '@glexco/kernel';
-import { authEnvSchema, baseEnvSchema, loadEnv } from '@glexco/config';
+import { authEnvSchema, baseEnvSchema, loadEnv, withServiceDatabaseUrl } from '@glexco/config';
+import {
+  CONFIG,
+  LOGGER,
+  LOGGER_PORT,
+  CLOCK,
+  SECURE_RANDOM,
+  UNIT_OF_WORK,
+  ACTIVATION_CODE_REPOSITORY,
+  KIT_REPOSITORY,
+  ENTITLEMENT_REPOSITORY,
+  CONTENT_REPOSITORY,
+  CODE_PEPPER,
+} from './tokens';
 import {
   CorrelationMiddleware,
   DB_READ_POOL,
@@ -68,19 +81,25 @@ const catalogEnvSchema = baseEnvSchema
   });
 
 export type CatalogConfig = z.infer<typeof catalogEnvSchema>;
-export const loadCatalogConfig = (): CatalogConfig => loadEnv(catalogEnvSchema);
+export const loadCatalogConfig = (): CatalogConfig =>
+  loadEnv(catalogEnvSchema, withServiceDatabaseUrl('catalog'));
 
-export const CONFIG = Symbol('CATALOG_CONFIG');
-export const LOGGER = Symbol('LOGGER');
-export const LOGGER_PORT = Symbol('LOGGER_PORT');
-export const CLOCK = Symbol('CLOCK');
-export const SECURE_RANDOM = Symbol('SECURE_RANDOM');
-export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
-export const ACTIVATION_CODE_REPOSITORY = Symbol('ACTIVATION_CODE_REPOSITORY');
-export const KIT_REPOSITORY = Symbol('KIT_REPOSITORY');
-export const ENTITLEMENT_REPOSITORY = Symbol('ENTITLEMENT_REPOSITORY');
-export const CONTENT_REPOSITORY = Symbol('CONTENT_REPOSITORY');
-export const CODE_PEPPER = Symbol('CODE_PEPPER');
+// Los tokens viven en ./tokens para que los controladores puedan importarlos
+// sin crear un ciclo con este modulo. Se reexportan para no romper a quien ya
+// los importaba de aqui.
+export {
+  CONFIG,
+  LOGGER,
+  LOGGER_PORT,
+  CLOCK,
+  SECURE_RANDOM,
+  UNIT_OF_WORK,
+  ACTIVATION_CODE_REPOSITORY,
+  KIT_REPOSITORY,
+  ENTITLEMENT_REPOSITORY,
+  CONTENT_REPOSITORY,
+  CODE_PEPPER,
+} from './tokens';
 
 @Module({
   controllers: [CatalogController, InternalActivationCodesController, HealthController],
@@ -154,6 +173,7 @@ export const CODE_PEPPER = Symbol('CODE_PEPPER');
       provide: SECURE_RANDOM,
       useValue: {
         hex: (bytes: number) => randomBytes(bytes).toString('hex'),
+        uuid: () => randomUUID(),
         fromAlphabet: (alphabet: string, length: number) => {
           let out = '';
           for (let i = 0; i < length; i += 1) {

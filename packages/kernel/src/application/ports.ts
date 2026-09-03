@@ -29,6 +29,15 @@ export interface SecureRandom {
   hex(bytes: number): string;
   /** Cadena aleatoria sobre un alfabeto dado (usado en codigos de libro). */
   fromAlphabet(alphabet: string, length: number): string;
+  /**
+   * UUID v4 para identificar un agregado nuevo.
+   *
+   * Existe aparte de `hex` porque no son intercambiables: `hex(16)` da 32
+   * caracteres sin guiones, que `Identifier` rechaza y la columna `uuid` de
+   * PostgreSQL tampoco acepta. Tenerlo en el puerto evita que cada caso de uso
+   * improvise su propia conversion.
+   */
+  uuid(): string;
 }
 
 /** Publicador de eventos de integracion hacia el bus. */

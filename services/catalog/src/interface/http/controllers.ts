@@ -4,11 +4,13 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Post,
   Query,
   Req,
   UseGuards,
+  VERSION_NEUTRAL,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
@@ -29,6 +31,7 @@ import {
   RedeemActivationCodeUseCase,
 } from '../../application/redeem-activation-code.usecase';
 import type { EntitlementRepository, KitRepository } from '../../domain/repositories';
+import { CONTENT_REPOSITORY, ENTITLEMENT_REPOSITORY, KIT_REPOSITORY } from '../../tokens';
 
 function contextFrom(request: Request): UseCaseContext {
   const header = request.headers['accept-language'];
@@ -66,9 +69,11 @@ const libraryQuerySchema = z.object({
 export class CatalogController {
   constructor(
     private readonly redeem: RedeemActivationCodeUseCase,
-    private readonly entitlements: EntitlementRepository,
-    private readonly kits: KitRepository,
-    private readonly content: {
+    // Los tres siguientes son puertos del dominio, no clases: su tipo se borra
+    // al compilar y Nest solo puede resolverlos por token explicito.
+    @Inject(ENTITLEMENT_REPOSITORY) private readonly entitlements: EntitlementRepository,
+    @Inject(KIT_REPOSITORY) private readonly kits: KitRepository,
+    @Inject(CONTENT_REPOSITORY) private readonly content: {
       listLibrary: (
         kitId: string,
         filters: { type?: never; locale: 'es' | 'en'; search?: string },
@@ -179,7 +184,14 @@ export class CatalogController {
  * Bajo `/internal`, fuera de la tabla de rutas del gateway y con el token
  * interno: dos barreras, no una.
  */
-@Controller({ path: 'internal/v1/activation-codes' })
+/**
+ * `VERSION_NEUTRAL`: la API interna lleva su version en la propia ruta
+ * (`internal/v1/...`). Sin esto, el versionado por URI de Nest anade ademas su
+ * propio segmento y la ruta real pasa a ser `/api/v1/internal/v1/...`, que no
+ * es la que llaman los otros servicios: el resultado era un 404 que el
+ * consumidor interpretaba como "ese codigo no existe".
+ */
+@Controller({ path: 'internal/v1/activation-codes', version: VERSION_NEUTRAL })
 @UseGuards(InternalOnlyGuard)
 export class InternalActivationCodesController {
   constructor(private readonly precheck: PrecheckActivationCodeUseCase) {}

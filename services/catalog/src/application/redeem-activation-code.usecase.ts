@@ -125,7 +125,7 @@ export class RedeemActivationCodeUseCase
 
       // El derecho de acceso, en la MISMA transaccion que el canje.
       const entitlement = Entitlement.grant({
-        id: EntitlementId.create(this.ids.hex(16).slice(0, 32)),
+        id: EntitlementId.create(this.ids.uuid()),
         studentId: input.studentId,
         kitId: kit.id,
         grade: activationCode.grade,

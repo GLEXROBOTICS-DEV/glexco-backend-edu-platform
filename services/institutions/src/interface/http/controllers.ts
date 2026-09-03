@@ -4,12 +4,14 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Patch,
   Post,
   Query,
   Req,
   UseGuards,
+  VERSION_NEUTRAL,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
@@ -54,6 +56,7 @@ import {
 } from '../../application/enroll-student.usecase';
 import type { InstitutionRepository as InstitutionRepositoryPort } from '../../domain/repositories';
 import { InstitutionId } from '../../domain/institution/value-objects';
+import { INSTITUTION_REPOSITORY } from '../../tokens';
 
 /**
  * Construye el contexto de ejecucion desde la peticion HTTP.
@@ -229,7 +232,14 @@ export class ClassroomsController {
  * interno compartido. Dos barreras en vez de una: la tabla de rutas del gateway
  * no los expone, y aunque alguien alcanzase la red interna necesitaria el token.
  */
-@Controller({ path: 'internal/v1/classrooms' })
+/**
+ * `VERSION_NEUTRAL`: la API interna lleva su version en la propia ruta
+ * (`internal/v1/...`). Sin esto, el versionado por URI de Nest anade ademas su
+ * propio segmento y la ruta real pasa a ser `/api/v1/internal/v1/...`, que no
+ * es la que llaman los otros servicios: el resultado era un 404 que el
+ * consumidor interpretaba como "ese codigo no existe".
+ */
+@Controller({ path: 'internal/v1/classrooms', version: VERSION_NEUTRAL })
 @UseGuards(InternalOnlyGuard)
 export class InternalClassroomsController {
   constructor(private readonly precheck: PrecheckClassroomUseCase) {}
@@ -260,10 +270,21 @@ export class InternalClassroomsController {
  *
  * Devuelve el minimo necesario para decidir y para mostrar un mensaje util.
  */
-@Controller({ path: 'internal/v1/institutions' })
+/**
+ * `VERSION_NEUTRAL`: la API interna lleva su version en la propia ruta
+ * (`internal/v1/...`). Sin esto, el versionado por URI de Nest anade ademas su
+ * propio segmento y la ruta real pasa a ser `/api/v1/internal/v1/...`, que no
+ * es la que llaman los otros servicios: el resultado era un 404 que el
+ * consumidor interpretaba como "ese codigo no existe".
+ */
+@Controller({ path: 'internal/v1/institutions', version: VERSION_NEUTRAL })
 @UseGuards(InternalOnlyGuard)
 export class InternalInstitutionsController {
-  constructor(private readonly institutions: InstitutionRepositoryPort) {}
+  constructor(
+    // Puerto del dominio, no clase: su tipo se borra al compilar y Nest solo
+    // puede resolverlo por token explicito.
+    @Inject(INSTITUTION_REPOSITORY) private readonly institutions: InstitutionRepositoryPort,
+  ) {}
 
   @Get(':institutionId/summary')
   @Public()

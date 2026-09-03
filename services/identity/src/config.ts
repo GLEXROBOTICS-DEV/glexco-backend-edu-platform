@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { authEnvSchema, baseEnvSchema, loadEnv } from '@glexco/config';
+import { authEnvSchema, baseEnvSchema, loadEnv, withServiceDatabaseUrl } from '@glexco/config';
 
 /**
  * Configuracion del servicio de identidad.
@@ -42,7 +42,7 @@ const identityEnvSchema = baseEnvSchema.merge(authEnvSchema).extend({
 export type IdentityConfig = z.infer<typeof identityEnvSchema>;
 
 export function loadIdentityConfig(): IdentityConfig {
-  const config = loadEnv(identityEnvSchema);
+  const config = loadEnv(identityEnvSchema, withServiceDatabaseUrl('identity'));
 
   // En produccion no se admiten los adaptadores en memoria de catalogo e
   // instituciones. Sin esta comprobacion, un despliegue al que se le olvidara

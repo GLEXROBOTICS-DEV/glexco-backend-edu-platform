@@ -249,7 +249,7 @@ CREATE INDEX IF NOT EXISTS content_assets_lesson_idx
 
 -- Busqueda por titulo dentro de la biblioteca, sin tildes.
 CREATE INDEX IF NOT EXISTS content_assets_title_trgm_idx
-  ON content_assets USING gin ((unaccent(title)) gin_trgm_ops);
+  ON content_assets USING gin ((public.immutable_unaccent(title)) gin_trgm_ops);
 
 -- ---------------------------------------------------------------------------
 -- Mantenimiento de updated_at

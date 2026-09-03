@@ -24,6 +24,25 @@ import {
 import { createLogger, toLoggerPort, type Logger } from '@glexco/observability';
 
 import { loadIdentityConfig, type IdentityConfig } from './config';
+import {
+  CONFIG,
+  LOGGER,
+  LOGGER_PORT,
+  CLOCK,
+  USER_REPOSITORY,
+  SESSION_STORE,
+  ONE_TIME_TOKENS,
+  AUDIT_LOG,
+  PASSWORD_HASHER,
+  PASSWORD_POLICY,
+  TOKEN_ISSUER,
+  ACTIVATION_CODE_GATEWAY,
+  CLASSROOM_GATEWAY,
+  INSTITUTION_GATEWAY,
+  RATE_LIMITER,
+  UNIT_OF_WORK,
+  COOKIE_OPTIONS,
+} from './tokens';
 import { AuthController } from './interface/http/auth.controller';
 import { AccountController, UsersController } from './interface/http/account.controller';
 import { RegisterStudentUseCase } from './application/register-student.usecase';
@@ -57,32 +76,28 @@ import {
   InMemoryInstitutionGateway,
 } from './infrastructure/gateways/service-gateways';
 
-export const CONFIG = Symbol('IDENTITY_CONFIG');
-export const LOGGER = Symbol('LOGGER');
-/**
- * El mismo logger, adaptado al puerto que usan los casos de uso.
- *
- * Existe como token aparte porque las firmas de pino y de `LoggerPort` estan
- * invertidas: pino recibe `(contexto, mensaje)` y el puerto `(mensaje,
- * contexto)`. Inyectar el de pino donde se espera el puerto compila con un
- * casteo y luego pierde en silencio los campos por los que hay que filtrar en
- * produccion. Dos tokens distintos hacen que ese error no se pueda cometer.
- */
-export const LOGGER_PORT = Symbol('LOGGER_PORT');
-export const CLOCK = Symbol('CLOCK');
-export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
-export const SESSION_STORE = Symbol('SESSION_STORE');
-export const ONE_TIME_TOKENS = Symbol('ONE_TIME_TOKENS');
-export const AUDIT_LOG = Symbol('AUDIT_LOG');
-export const PASSWORD_HASHER = Symbol('PASSWORD_HASHER');
-export const PASSWORD_POLICY = Symbol('PASSWORD_POLICY');
-export const TOKEN_ISSUER = Symbol('TOKEN_ISSUER');
-export const ACTIVATION_CODE_GATEWAY = Symbol('ACTIVATION_CODE_GATEWAY');
-export const CLASSROOM_GATEWAY = Symbol('CLASSROOM_GATEWAY');
-export const INSTITUTION_GATEWAY = Symbol('INSTITUTION_GATEWAY');
-export const RATE_LIMITER = Symbol('RATE_LIMITER');
-export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
-export const COOKIE_OPTIONS = Symbol('COOKIE_OPTIONS');
+// Los tokens viven en ./tokens para que los controladores puedan importarlos
+// sin crear un ciclo con este modulo. Se reexportan para no romper a quien ya
+// los importaba de aqui.
+export {
+  CONFIG,
+  LOGGER,
+  LOGGER_PORT,
+  CLOCK,
+  USER_REPOSITORY,
+  SESSION_STORE,
+  ONE_TIME_TOKENS,
+  AUDIT_LOG,
+  PASSWORD_HASHER,
+  PASSWORD_POLICY,
+  TOKEN_ISSUER,
+  ACTIVATION_CODE_GATEWAY,
+  CLASSROOM_GATEWAY,
+  INSTITUTION_GATEWAY,
+  RATE_LIMITER,
+  UNIT_OF_WORK,
+  COOKIE_OPTIONS,
+} from './tokens';
 
 /**
  * Cableado del servicio de identidad.

@@ -14,6 +14,8 @@
  *
  * No necesita dependencias: usa fetch nativo de Node.
  */
+import { generateCode, seedCatalog } from './seed-dev.mjs';
+
 const DIRECT = process.argv.includes('--direct');
 const BASE = DIRECT ? 'http://localhost:3101' : 'http://localhost:3000';
 const API = `${BASE}/api/v1`;
@@ -41,6 +43,11 @@ function report(name, ok, detail = '') {
     if (detail) console.log(`        ${colors.dim}${detail}${colors.reset}`);
   }
 }
+
+/** Debe coincidir con `RedisSessionStore.ROTATION_GRACE_MS`. */
+const GRACE_WINDOW_MS = 10_000;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function section(title) {
   console.log(`\n${colors.bold}${title}${colors.reset}`);
@@ -107,6 +114,29 @@ async function main() {
   section('2. Registro de alumno');
   // --------------------------------------------------------------------
   const stamp = Date.now();
+
+  // Codigos reales, sembrados en el catalogo. Antes se usaban literales
+  // `GLXTEST...` que solo aceptaba el doble en memoria: con CATALOG_URL
+  // apuntando al servicio real, un codigo inexistente se rechaza -que es
+  // justo lo que debe pasar- y la prueba de humo no podia pasar de aqui.
+  let seeded;
+  try {
+    seeded = await seedCatalog({ codeCount: 3 });
+  } catch (error) {
+    report('Siembra codigos de activacion en el catalogo', false, error.message);
+    console.log(
+      `
+${colors.fail}Sin codigos sembrados no se puede registrar a nadie.${colors.reset}
+` +
+        `Comprueba que catalog este migrado y que .env tenga DATABASE_URL_CATALOG
+` +
+        `y ACTIVATION_CODE_PEPPER.
+`,
+    );
+    process.exit(1);
+  }
+  report('Siembra codigos de activacion en el catalogo', seeded.codes.length === 3);
+
   const student = {
     accountType: 'independent',
     email: `alumno.prueba.${stamp}@colegio.pe`,
@@ -115,8 +145,7 @@ async function main() {
     lastName: 'Salazar',
     birthDate: '2010-05-14',
     grade: 'primary_6',
-    // El adaptador en memoria de catalogo acepta cualquier codigo GLX-TEST...
-    activationCode: `GLXTEST${String(stamp).slice(-5)}`,
+    activationCode: seeded.codes[0],
     acceptedTerms: true,
     locale: 'es',
   };
@@ -146,7 +175,10 @@ async function main() {
     body: JSON.stringify({
       ...student,
       email: `otro.${stamp}@colegio.pe`,
-      activationCode: 'GLXZZZZZZZZZZ',
+      // Bien formado pero inexistente: el literal anterior tenia 13 caracteres
+      // en vez de 15, asi que fallaba en la validacion del formato y nunca
+      // llegaba a comprobar contra el catalogo, que es lo que aqui interesa.
+      activationCode: generateCode(),
     }),
   });
   report(
@@ -161,7 +193,7 @@ async function main() {
       ...student,
       email: `menor.${stamp}@colegio.pe`,
       birthDate: '2018-05-14',
-      activationCode: `GLXTEST${String(stamp).slice(-4)}1`,
+      activationCode: seeded.codes[1],
     }),
   });
   report(
@@ -252,11 +284,24 @@ async function main() {
     cookieJar.get('glexco_rt') !== firstRefreshToken,
   );
 
-  // Se reenvia el token ANTIGUO: debe interpretarse como robo y revocar la familia.
+  // El token ANTIGUO, reenviado DENTRO de la ventana de gracia. Debe aceptarse:
+  // dos pestanas del mismo navegador refrescan a la vez continuamente, y tratar
+  // eso como robo cerraria la sesion a un usuario al que nadie ha atacado.
+  cookieJar.set('glexco_rt', firstRefreshToken);
+  const graceReuse = await call('/auth/refresh', { method: 'POST' });
+  report(
+    'Acepta el token anterior dentro de la ventana de gracia',
+    graceReuse.status === 200,
+    `status=${graceReuse.status} code=${graceReuse.body?.code}`,
+  );
+
+  // El mismo token, ya FUERA de la ventana. Ahi si es reutilizacion real: un
+  // token robado nunca llega en los primeros diez segundos.
+  await sleep(GRACE_WINDOW_MS + 1_000);
   cookieJar.set('glexco_rt', firstRefreshToken);
   const reuse = await call('/auth/refresh', { method: 'POST' });
   report(
-    'Detecta la reutilizacion del token antiguo y revoca la sesion',
+    'Detecta la reutilizacion fuera de la gracia y revoca la sesion',
     reuse.status === 401 && reuse.body?.code === 'SESSION_COMPROMISED',
     `status=${reuse.status} code=${reuse.body?.code}`,
   );

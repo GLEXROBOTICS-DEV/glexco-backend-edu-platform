@@ -4,7 +4,17 @@ import { z } from 'zod';
 import type { Pool } from 'pg';
 import type { Redis } from 'ioredis';
 import type { Clock, UnitOfWork } from '@glexco/kernel';
-import { authEnvSchema, baseEnvSchema, loadEnv } from '@glexco/config';
+import { authEnvSchema, baseEnvSchema, loadEnv, withServiceDatabaseUrl } from '@glexco/config';
+import {
+  CONFIG,
+  LOGGER,
+  LOGGER_PORT,
+  CLOCK,
+  INSTITUTION_REPOSITORY,
+  CLASSROOM_REPOSITORY,
+  TEACHER_DIRECTORY,
+  UNIT_OF_WORK,
+} from './tokens';
 import {
   CorrelationMiddleware,
   DB_READ_POOL,
@@ -81,25 +91,22 @@ const institutionsEnvSchema = baseEnvSchema
   });
 
 export type InstitutionsConfig = z.infer<typeof institutionsEnvSchema>;
-export const loadInstitutionsConfig = (): InstitutionsConfig => loadEnv(institutionsEnvSchema);
+export const loadInstitutionsConfig = (): InstitutionsConfig =>
+  loadEnv(institutionsEnvSchema, withServiceDatabaseUrl('institutions'));
 
-export const CONFIG = Symbol('INSTITUTIONS_CONFIG');
-export const LOGGER = Symbol('LOGGER');
-/**
- * El mismo logger, adaptado al puerto que usan los casos de uso.
- *
- * Existe como token aparte porque las firmas de pino y de `LoggerPort` estan
- * invertidas: pino recibe `(contexto, mensaje)` y el puerto `(mensaje,
- * contexto)`. Inyectar el de pino donde se espera el puerto compila con un
- * casteo y luego pierde en silencio los campos por los que hay que filtrar en
- * produccion. Dos tokens distintos hacen que ese error no se pueda cometer.
- */
-export const LOGGER_PORT = Symbol('LOGGER_PORT');
-export const CLOCK = Symbol('CLOCK');
-export const INSTITUTION_REPOSITORY = Symbol('INSTITUTION_REPOSITORY');
-export const CLASSROOM_REPOSITORY = Symbol('CLASSROOM_REPOSITORY');
-export const TEACHER_DIRECTORY = Symbol('TEACHER_DIRECTORY');
-export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
+// Los tokens viven en ./tokens para que los controladores puedan importarlos
+// sin crear un ciclo con este modulo. Se reexportan para no romper a quien ya
+// los importaba de aqui.
+export {
+  CONFIG,
+  LOGGER,
+  LOGGER_PORT,
+  CLOCK,
+  INSTITUTION_REPOSITORY,
+  CLASSROOM_REPOSITORY,
+  TEACHER_DIRECTORY,
+  UNIT_OF_WORK,
+} from './tokens';
 
 @Module({
   controllers: [

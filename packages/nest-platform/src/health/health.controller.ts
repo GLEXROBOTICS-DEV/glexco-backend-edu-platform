@@ -1,10 +1,19 @@
-import { Controller, Get, HttpCode, HttpStatus, Inject, Optional } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Optional,
+  VERSION_NEUTRAL,
+} from '@nestjs/common';
 import type { Pool } from 'pg';
 import type { Redis } from 'ioredis';
 import type { NatsConnection } from 'nats';
 import { DB_READ_POOL, DB_WRITE_POOL, poolStats } from '../database/database.provider';
 import { REDIS_CLIENT } from '../redis/redis.provider';
 import { NATS_CONNECTION } from '../messaging/nats.client';
+import { Public } from '../auth/guards';
 
 /**
  * Sondas de salud para el balanceador y el orquestador.
@@ -27,7 +36,18 @@ import { NATS_CONNECTION } from '../messaging/nats.client';
  *                                 primeras conexiones sin que liveness mate al
  *                                 proceso por tardar.
  */
-@Controller('health')
+/**
+ * `VERSION_NEUTRAL` y `@Public()` no son detalles: sin ellos las sondas no
+ * sirven para lo que existen.
+ *
+ * El `exclude` del prefijo global en `bootstrapService` quita el `/api`, pero NO
+ * el segmento de version, asi que la ruta quedaba en `/v1/health/live`, que no
+ * es la que se configura en el balanceador. Y con los guards globales activos
+ * respondia 401: un orquestador no lleva token, de modo que interpretaria cada
+ * sonda como replica muerta y reiniciaria el servicio en bucle.
+ */
+@Controller({ path: 'health', version: VERSION_NEUTRAL })
+@Public()
 export class HealthController {
   private readonly startedAt = Date.now();
   private ready = false;

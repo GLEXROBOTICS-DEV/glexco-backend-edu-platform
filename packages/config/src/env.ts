@@ -112,6 +112,28 @@ export type StorageEnv = z.infer<typeof storageEnvSchema>;
 export type MailEnv = z.infer<typeof mailEnvSchema>;
 
 /**
+ * Rellena `DATABASE_URL` a partir de `DATABASE_URL_<SERVICIO>` cuando no viene
+ * definida.
+ *
+ * En produccion cada servicio recibe SOLO su propia `DATABASE_URL` y esta
+ * funcion no hace nada. En local, en cambio, los ocho servicios comparten un
+ * unico `.env` (uno por servicio obligaria a mantener ocho copias de los mismos
+ * secretos), y ahi cada uno toma la suya por nombre. Nunca sobreescribe una
+ * `DATABASE_URL` explicita: si esta puesta, manda.
+ */
+export function withServiceDatabaseUrl(
+  serviceName: string,
+  source: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  if (source.DATABASE_URL) return source;
+
+  const scoped = source[`DATABASE_URL_${serviceName.toUpperCase().replace(/-/g, '_')}`];
+  if (!scoped) return source;
+
+  return { ...source, DATABASE_URL: scoped };
+}
+
+/**
  * Valida `process.env` contra el esquema del servicio y aborta con un informe
  * legible si algo falta. Se ejecuta ANTES de construir el contenedor de Nest.
  */
