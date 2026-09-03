@@ -232,6 +232,7 @@ interface SubmissionRow {
   id: string;
   assessment_id: string;
   student_id: string;
+  institution_id: string | null;
   classroom_id: string | null;
   attempt_number: number;
   answers: Answer[];
@@ -248,7 +249,7 @@ interface SubmissionRow {
 }
 
 const S_COLUMNS = `
-  id, assessment_id, student_id, classroom_id, attempt_number, answers, status,
+  id, assessment_id, student_id, institution_id, classroom_id, attempt_number, answers, status,
   score, max_score, passed, graded_by, feedback, started_at, submitted_at,
   graded_at, version
 `;
@@ -283,10 +284,10 @@ export class PgSubmissionRepository implements SubmissionRepository {
 
     const result = await client.query(
       `INSERT INTO assessment.submissions
-         (id, assessment_id, student_id, classroom_id, attempt_number, answers,
-          status, score, max_score, passed, graded_by, feedback, started_at,
-          submitted_at, graded_at, version)
-       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         (id, assessment_id, student_id, institution_id, classroom_id,
+          attempt_number, answers, status, score, max_score, passed, graded_by,
+          feedback, started_at, submitted_at, graded_at, version)
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
        ON CONFLICT (id) DO UPDATE
           SET answers      = EXCLUDED.answers,
               status       = EXCLUDED.status,
@@ -303,6 +304,7 @@ export class PgSubmissionRepository implements SubmissionRepository {
         submission.id.value,
         state.assessmentId,
         state.studentId,
+        state.institutionId,
         state.classroomId,
         state.attemptNumber,
         JSON.stringify(state.answers),
@@ -442,6 +444,7 @@ function toSubmission(row: SubmissionRow): Submission {
     {
       assessmentId: row.assessment_id,
       studentId: row.student_id,
+      institutionId: row.institution_id,
       classroomId: row.classroom_id,
       attemptNumber: row.attempt_number,
       answers: row.answers ?? [],

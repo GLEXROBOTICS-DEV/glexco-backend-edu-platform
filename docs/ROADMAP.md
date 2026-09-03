@@ -258,14 +258,36 @@ frontend o clientes reales:
 - [ ] Certificados con plantilla, firma digital, QR y verificación pública.
 - [ ] Emisión individual y masiva.
 
-## ⬜ Fase 7 — Comunicación, soporte, analítica y admin
+## 🔄 Fase 7 — Comunicación, soporte, analítica y admin
 
+**Hecho:**
+
+- [x] `analytics-service` como **proyección de lectura** alimentada por eventos.
+      No consulta los otros schemas: ver la sección 11 de
+      [ARQUITECTURA.md](ARQUITECTURA.md).
+- [x] Los **cinco dashboards** con su ámbito comprobado dos veces —permiso y
+      recurso—: alumno, salón, alumno visto por su docente, institución y una
+      vista por institución para GLEXCO.
+- [x] **Eficacia docente** medida por PROGRESO y no por nota, con el tamaño de la
+      muestra en cada fila y el aviso viajando junto a los datos. Las razones
+      están en la sección 6.bis de [DOMINIO.md](DOMINIO.md).
+- [x] Preguntas más falladas por salón: el dato más accionable para un docente.
+- [x] Kits con peor resultado en todos los colegios: si un kit va mal en todas
+      partes, el problema es del contenido.
+- [x] Activación de códigos por institución, que es la métrica comercial.
+
+**Pendiente:**
+
+- [ ] Las pantallas de los dashboards en el portal. El backend está listo y
+      probado; no hay interfaz.
+- [ ] Exportación a PDF, Excel y CSV.
 - [ ] `engagement-service`: anuncios de salón, notificaciones, correo,
       mesa de ayuda, base de conocimiento.
-- [ ] `analytics-service`: dashboards por alumno, salón, institución y
-      plataforma; exportación a PDF, Excel y CSV.
 - [ ] Portal Admin completo: panel ejecutivo, instituciones, usuarios, gestión
       académica y de contenidos, certificaciones, comercial, configuración.
+- [ ] Progreso por consumo de contenido (`learning-service`, Fase 6). Hoy el
+      progreso se mide **solo** con evaluaciones, que es la fuente que cuenta;
+      el consumo de contenido añadiría la señal de "quién se descolgó".
 
 ## ⬜ Fase 8 — Endurecimiento y despliegue
 

@@ -51,16 +51,40 @@ export interface Answer {
   feedback: string | null;
 }
 
+/**
+ * Lo que viaja cuando una entrega queda corregida.
+ *
+ * Lleva mas de lo estrictamente necesario para identificar la entrega, y es
+ * deliberado: la analitica construye sus proyecciones **solo con este evento**.
+ * Si no trajera `kitId`, `origin` e `institutionId`, tendria que llamar de
+ * vuelta al servicio de evaluacion por cada entrega, y eso convierte una
+ * proyeccion asincrona en una dependencia sincrona entre servicios: justo lo
+ * que el bus existe para evitar.
+ *
+ * `origin` es el campo que decide si un dato es COMPARABLE entre colegios. Sin
+ * el, los dashboards mezclarian las evaluaciones de GLEXCO -iguales para
+ * todos- con las que escribe cada docente, y una institucion podria subir su
+ * media poniendo examenes faciles.
+ *
+ * `questionOutcomes` alimenta el dato mas accionable que tiene un docente: que
+ * preguntas falla su salon. Solo lleva el id y si se fallo, nunca la respuesta
+ * concreta: eso es del alumno y su dueno es este servicio, no la analitica.
+ */
 export interface SubmissionGradedPayload {
   submissionId: string;
   assessmentId: string;
   studentId: string;
   classroomId: string | null;
+  institutionId: string | null;
+  kitId: string;
+  origin: 'glexco' | 'institution';
+  kind: string;
   score: number;
   maxScore: number;
   passed: boolean;
   attemptNumber: number;
   gradedAt: string;
+  questionOutcomes: { questionId: string; missed: boolean }[];
 }
 
 export class SubmissionGraded extends DomainEvent<SubmissionGradedPayload> {
@@ -72,6 +96,17 @@ export class SubmissionGraded extends DomainEvent<SubmissionGradedPayload> {
 interface SubmissionState {
   assessmentId: string;
   studentId: string;
+  /**
+   * Institucion del ALUMNO, no de la evaluacion.
+   *
+   * La distincion es la que hace que los dashboards existan. Una evaluacion de
+   * GLEXCO no pertenece a ninguna institucion -es comun a todas-, pero la
+   * entrega de un alumno del colegio San Juan si es del San Juan, y es ahi donde
+   * tiene que contar. Tomarla de la evaluacion dejaba sin institucion todos los
+   * resultados del banco comun, que son precisamente los unicos comparables
+   * entre colegios: el dashboard del director salia vacio.
+   */
+  institutionId: string | null;
   classroomId: string | null;
   attemptNumber: number;
   answers: Answer[];
@@ -114,6 +149,8 @@ export class Submission extends AggregateRoot<SubmissionId> {
     id: SubmissionId;
     assessment: Assessment;
     studentId: string;
+    /** La del alumno. Ver la nota en `SubmissionState`. */
+    institutionId: string | null;
     classroomId: string | null;
     attemptNumber: number;
     now: Date;
@@ -147,6 +184,7 @@ export class Submission extends AggregateRoot<SubmissionId> {
     const submission = new Submission(input.id, {
       assessmentId: input.assessment.id.value,
       studentId: input.studentId,
+      institutionId: input.institutionId,
       classroomId: input.classroomId,
       attemptNumber: input.attemptNumber,
       answers: [],
@@ -367,6 +405,19 @@ export class Submission extends AggregateRoot<SubmissionId> {
     this.state.gradedBy = gradedBy;
     this.state.gradedAt = now;
 
+    // Se calcula aqui, con el agregado de la evaluacion delante, porque es el
+    // unico punto donde se conocen a la vez los puntos otorgados y los que
+    // valia cada pregunta. La analitica no puede deducirlo despues.
+    const questionOutcomes = assessment.forAuthor().map((question) => {
+      const answer = this.state.answers.find((a) => a.questionId === question.id);
+      return {
+        questionId: question.id,
+        missed: (answer?.awardedPoints ?? 0) < question.points,
+      };
+    });
+
+    const assessmentState = assessment.snapshot();
+
     this.record(
       (version) =>
         new SubmissionGraded(
@@ -375,15 +426,24 @@ export class Submission extends AggregateRoot<SubmissionId> {
             assessmentId: this.state.assessmentId,
             studentId: this.state.studentId,
             classroomId: this.state.classroomId,
+            // La del alumno, no la de la evaluacion.
+            institutionId: this.state.institutionId,
+            kitId: assessmentState.kitId,
+            origin: assessmentState.origin,
+            kind: assessmentState.kind,
             score,
             maxScore,
             // Ya lo fijo `finalise`; el evento nunca lleva un `passed` nulo.
             passed: this.state.passed ?? false,
             attemptNumber: this.state.attemptNumber,
             gradedAt: now.toISOString(),
+            questionOutcomes,
           },
           version,
-          { actorId: gradedBy ?? this.state.studentId },
+          {
+            actorId: gradedBy ?? this.state.studentId,
+            tenantId: this.state.institutionId ?? undefined,
+          },
         ),
     );
   }

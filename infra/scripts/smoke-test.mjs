@@ -30,6 +30,8 @@ const { ROLES } = contracts;
 const CATALOG = 'http://localhost:3103';
 const MEDIA = 'http://localhost:3108';
 const ASSESSMENT = 'http://localhost:3105';
+const ANALYTICS = 'http://localhost:3107';
+const INSTITUTIONS = 'http://localhost:3102';
 
 const DIRECT = process.argv.includes('--direct');
 const BASE = DIRECT ? 'http://localhost:3101' : 'http://localhost:3000';
@@ -89,6 +91,17 @@ async function putToPresignedPost(presigned, body, contentType) {
 
   const response = await fetch(presigned.url, { method: 'POST', body: form });
   return response.status;
+}
+
+/** Reintenta hasta que `probe` devuelve algo distinto de null, o vence el plazo. */
+async function waitFor(probe, timeoutMs, intervalMs = 1_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const result = await probe().catch(() => null);
+    if (result) return result;
+    await sleep(intervalMs);
+  }
+  return null;
 }
 
 async function getJson(url, token) {
@@ -1057,6 +1070,285 @@ ${colors.fail}Sin codigos sembrados no se puede registrar a nadie.${colors.reset
   );
 
   // --------------------------------------------------------------------
+  section('14. Dashboards: los cuatro niveles y su aislamiento');
+  // --------------------------------------------------------------------
+  // La analitica es una PROYECCION alimentada por eventos, asi que la nota que
+  // el alumno acaba de sacar tarda un instante en aparecer. Sondear comprueba
+  // que ACABA apareciendo, que es lo unico que se le puede exigir.
+  const myDashboard = await waitFor(async () => {
+    const response = await getJson(`${ANALYTICS}/api/v1/analytics/me`, examineeToken);
+    return response.status === 200 && response.body?.assessmentsTaken > 0 ? response.body : null;
+  }, 30_000);
+
+  report(
+    'El alumno ve su propio dashboard, alimentado por el evento de correccion',
+    Boolean(myDashboard),
+    myDashboard ? '' : 'la proyeccion no llego en 30 s',
+  );
+  report(
+    'Separa la media de GLEXCO de la del docente',
+    myDashboard?.averageGlexco === 100 && myDashboard?.averageInstitution === null,
+    `glexco=${myDashboard?.averageGlexco} institucion=${myDashboard?.averageInstitution}`,
+  );
+  report(
+    'Trae la evolucion en el tiempo, no solo el numero final',
+    Array.isArray(myDashboard?.timeline) && myDashboard.timeline.length >= 1,
+    `puntos=${myDashboard?.timeline?.length}`,
+  );
+
+  // El identificador sale del token: no hay forma de pedir el de otro.
+  const otherStudentDashboard = await getJson(
+    `${ANALYTICS}/api/v1/analytics/me`,
+    mintAccessToken({ userId: outsider.id, roles: outsider.roles }),
+  );
+  report(
+    'El dashboard propio sale del token: otro alumno ve el suyo, vacio',
+    otherStudentDashboard.status === 200 && otherStudentDashboard.body?.assessmentsTaken === 0,
+    `entregas=${otherStudentDashboard.body?.assessmentsTaken}`,
+  );
+
+  // --- Salon: lo ve su docente ---
+  // El salon se crea por la API REAL, no sembrado por SQL, y eso es
+  // deliberado: la analitica aprende quien es el docente de cada salon del
+  // evento `institutions.classroom.created.v1`, y un salon insertado a mano no
+  // emite ningun evento. Sin pasar por la API no se estaria probando el camino
+  // que existe en produccion.
+  const [ownerTeacher] = await seedUsers(1, {
+    roles: [ROLES.TEACHER],
+    institutionId: institutionForExams.institutionId,
+  });
+  const ownerTeacherToken = mintAccessToken({
+    userId: ownerTeacher.id,
+    roles: ownerTeacher.roles,
+    institutionId: institutionForExams.institutionId,
+  });
+
+  const createdClassroom = await postJson(
+    `${INSTITUTIONS}/api/v1/classrooms`,
+    ownerTeacherToken,
+    {
+      name: `Salon Analitica ${stamp}`,
+      grade: evalKit.grade,
+      capacity: 30,
+      academicYear: new Date().getFullYear(),
+      teacherId: ownerTeacher.id,
+    },
+  );
+
+  report(
+    'Crea un salon por la API, que es lo que emite el evento',
+    createdClassroom.status === 201 && Boolean(createdClassroom.body?.classroomId),
+    `status=${createdClassroom.status} ${JSON.stringify(createdClassroom.body).slice(0, 160)}`,
+  );
+
+  const analyticsClassroomId = createdClassroom.body?.classroomId;
+
+  // Un alumno de ese salon responde el cuestionario de GLEXCO.
+  const [pupilInClassroom] = await seedUsers(1, {
+    institutionId: institutionForExams.institutionId,
+  });
+  const pupilInClassroomToken = mintAccessToken({
+    userId: pupilInClassroom.id,
+    roles: pupilInClassroom.roles,
+    institutionId: institutionForExams.institutionId,
+  });
+
+  const classroomAttempt = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${glexcoQuiz.body?.assessmentId}/attempts`,
+    pupilInClassroomToken,
+    { classroomId: analyticsClassroomId },
+  );
+
+  const classroomQuestion = classroomAttempt.body?.questions?.[0];
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${classroomAttempt.body?.submissionId}/answers`,
+    pupilInClassroomToken,
+    {
+      questionId: classroomQuestion?.id,
+      // Se responde MAL a proposito: asi el dashboard tiene algo que senalar en
+      // "preguntas que mas falla el salon", que es su dato mas accionable.
+      selectedOptionIds: [classroomQuestion?.options?.find((o) => o.text !== 'El servo')?.id],
+    },
+  );
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${classroomAttempt.body?.submissionId}/submit`,
+    pupilInClassroomToken,
+    {},
+  );
+
+  const classroomDash = await waitFor(async () => {
+    const response = await getJson(
+      `${ANALYTICS}/api/v1/analytics/classrooms/${analyticsClassroomId}`,
+      ownerTeacherToken,
+    );
+    return response.status === 200 && response.body?.studentsMeasured > 0 ? response.body : null;
+  }, 40_000);
+
+  report(
+    'El docente ve el dashboard de SU salon',
+    Boolean(classroomDash),
+    classroomDash ? '' : 'la proyeccion del salon no llego en 40 s',
+  );
+  report(
+    'Trae la dispersion, no solo la media',
+    classroomDash !== null &&
+      classroomDash.stddevPercentage !== undefined &&
+      classroomDash.averagePercentage !== null,
+    `media=${classroomDash?.averagePercentage} desviacion=${classroomDash?.stddevPercentage}`,
+  );
+  report(
+    'Senala las preguntas que mas falla el salon',
+    Array.isArray(classroomDash?.hardestQuestions),
+    `preguntas=${classroomDash?.hardestQuestions?.length}`,
+  );
+
+  // Otro docente de la MISMA institucion no ve este salon: el permiso es de
+  // salon, no de institucion, y sin la comprobacion de recurso se comportaria
+  // como si lo fuera.
+  const otherTeacherView = await getJson(
+    `${ANALYTICS}/api/v1/analytics/classrooms/${analyticsClassroomId}`,
+    teacherToken,
+  );
+  report(
+    'Otro docente del mismo colegio no ve ese salon',
+    otherTeacherView.status === 403,
+    `status=${otherTeacherView.status} code=${otherTeacherView.body?.code}`,
+  );
+
+  const studentInClassroomView = await getJson(
+    `${ANALYTICS}/api/v1/analytics/classrooms/${analyticsClassroomId}/students/${pupilInClassroom.id}`,
+    ownerTeacherToken,
+  );
+  report(
+    'El docente ve el dashboard de un alumno de su salon',
+    studentInClassroomView.status === 200 &&
+      studentInClassroomView.body?.assessmentsTaken >= 1,
+    `status=${studentInClassroomView.status}`,
+  );
+
+  const foreignStudentView = await getJson(
+    `${ANALYTICS}/api/v1/analytics/classrooms/${analyticsClassroomId}/students/${outsider.id}`,
+    ownerTeacherToken,
+  );
+  report(
+    'No ve a un alumno que no esta en ese salon',
+    foreignStudentView.status === 404,
+    `status=${foreignStudentView.status} code=${foreignStudentView.body?.code}`,
+  );
+
+  // --- Aislamiento: el salon de otro colegio no existe para este docente ---
+  const otherInstitution = await seedInstitution({ capacity: 10, grade: evalKit.grade });
+  const foreignClassroom = await getJson(
+    `${ANALYTICS}/api/v1/analytics/classrooms/${otherInstitution.classroomId}`,
+    teacherToken,
+  );
+  report(
+    'Un docente no ve el salon de otra institucion',
+    foreignClassroom.status === 404 || foreignClassroom.status === 403,
+    `status=${foreignClassroom.status} code=${foreignClassroom.body?.code}`,
+  );
+
+  const foreignInstitution = await getJson(
+    `${ANALYTICS}/api/v1/analytics/institutions/${otherInstitution.institutionId}`,
+    mintAccessToken({
+      userId: (await seedUsers(1, { roles: [ROLES.INSTITUTION_ADMIN], institutionId: institutionForExams.institutionId }))[0].id,
+      roles: [ROLES.INSTITUTION_ADMIN],
+      institutionId: institutionForExams.institutionId,
+    }),
+  );
+  report(
+    'Un admin no ve la institucion de otro, ni agregada',
+    foreignInstitution.status === 404,
+    `status=${foreignInstitution.status} code=${foreignInstitution.body?.code}`,
+  );
+
+  // --- Institucion: lo ve su administrador ---
+  const [schoolAdmin] = await seedUsers(1, {
+    roles: [ROLES.INSTITUTION_ADMIN],
+    institutionId: institutionForExams.institutionId,
+  });
+  const adminAnalyticsToken = mintAccessToken({
+    userId: schoolAdmin.id,
+    roles: schoolAdmin.roles,
+    institutionId: institutionForExams.institutionId,
+  });
+
+  const institutionDash = await getJson(
+    `${ANALYTICS}/api/v1/analytics/institutions/${institutionForExams.institutionId}`,
+    adminAnalyticsToken,
+  );
+  report(
+    'El admin de institucion ve el dashboard de su colegio',
+    institutionDash.status === 200 && institutionDash.body?.studentsMeasured >= 1,
+    `status=${institutionDash.status} alumnos=${institutionDash.body?.studentsMeasured}`,
+  );
+  report(
+    'Desglosa por grado, no solo el total',
+    Array.isArray(institutionDash.body?.byGrade),
+    `grados=${institutionDash.body?.byGrade?.length}`,
+  );
+
+  // --- Eficacia docente ---
+  const teaching = await getJson(
+    `${ANALYTICS}/api/v1/analytics/institutions/${institutionForExams.institutionId}/teaching`,
+    adminAnalyticsToken,
+  );
+  report(
+    'El admin ve la eficacia docente de su colegio',
+    teaching.status === 200 && Array.isArray(teaching.body?.rows),
+    `status=${teaching.status}`,
+  );
+  report(
+    'La metrica es PROGRESO, y el aviso viaja con los datos',
+    typeof teaching.body?.metric === 'string' &&
+      teaching.body.metric.includes('progreso') &&
+      typeof teaching.body?.caveat === 'string' &&
+      teaching.body.caveat.includes('refuerzo'),
+  );
+  report(
+    'Cada fila lleva el tamano de la muestra y si es concluyente',
+    teaching.body?.rows?.length === 0 ||
+      (teaching.body.rows[0].sampleSize !== undefined &&
+        teaching.body.rows[0].statisticallyMeaningful === false),
+    `filas=${teaching.body?.rows?.length} muestra=${teaching.body?.rows?.[0]?.sampleSize}`,
+  );
+
+  const teacherTryingTeaching = await getJson(
+    `${ANALYTICS}/api/v1/analytics/institutions/${institutionForExams.institutionId}/teaching`,
+    teacherToken,
+  );
+  report(
+    'Un docente NO ve la eficacia de sus companeros',
+    teacherTryingTeaching.status === 403,
+    `status=${teacherTryingTeaching.status}`,
+  );
+
+  // --- GLEXCO ---
+  const platformView = await getJson(`${ANALYTICS}/api/v1/analytics/institutions`, glexcoToken);
+  report(
+    'GLEXCO ve una vista por institucion',
+    platformView.status === 200 && Array.isArray(platformView.body?.institutions),
+    `status=${platformView.status} instituciones=${platformView.body?.institutions?.length}`,
+  );
+
+  const adminTryingPlatform = await getJson(
+    `${ANALYTICS}/api/v1/analytics/institutions`,
+    adminAnalyticsToken,
+  );
+  report(
+    'Un admin de colegio no ve la vista de plataforma',
+    adminTryingPlatform.status === 403,
+    `status=${adminTryingPlatform.status}`,
+  );
+
+  const weakest = await getJson(`${ANALYTICS}/api/v1/analytics/kits/weakest`, glexcoToken);
+  report(
+    'GLEXCO ve los kits con peor resultado en todas partes',
+    weakest.status === 200 && Array.isArray(weakest.body?.kits),
+    `status=${weakest.status}`,
+  );
+
+  // --------------------------------------------------------------------
   console.log(
     `\n${colors.bold}Resultado:${colors.reset} ` +
       `${colors.ok}${passed} pasan${colors.reset}` +
@@ -1065,6 +1357,25 @@ ${colors.fail}Sin codigos sembrados no se puede registrar a nadie.${colors.reset
   );
   process.exit(failed > 0 ? 1 : 0);
 }
+
+/**
+ * Envoltura de fetch que dice QUE objetivo fallo.
+ *
+ * Sin esto, un ECONNRESET sale como `fetch failed` a secas y con ocho procesos
+ * en marcha hay que adivinar cual se estaba reiniciando. Adivinar cuesta mas
+ * que el propio fallo.
+ */
+const nativeFetch = globalThis.fetch;
+globalThis.fetch = async (input, init) => {
+  const url = typeof input === 'string' ? input : (input?.url ?? String(input));
+  try {
+    return await nativeFetch(input, init);
+  } catch (error) {
+    throw new Error(`no se pudo contactar con ${url}: ${error?.cause?.code ?? error.message}`, {
+      cause: error,
+    });
+  }
+};
 
 main().catch((error) => {
   console.error(`\n${colors.fail}La prueba de humo se interrumpio:${colors.reset}`, error);

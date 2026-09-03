@@ -107,6 +107,7 @@ export class StartAttemptUseCase implements UseCase<{ assessmentId: string; clas
         id: SubmissionId.create(this.ids.uuid()),
         assessment,
         studentId: student.userId,
+        institutionId: student.institutionId,
         classroomId: input.classroomId ?? null,
         attemptNumber: used + 1,
         now,

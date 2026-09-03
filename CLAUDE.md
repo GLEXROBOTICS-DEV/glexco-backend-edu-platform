@@ -46,7 +46,7 @@ defecto**, pero el registro independiente debe funcionar igual de bien.
 
 ## 2. Estado actual
 
-**Fases 0 a 3 completas; Fases 4 y 5 arrancadas.** El backend **ya se ejecuta
+**Fases 0 a 3 completas; Fases 4, 5 y 7 arrancadas.** El backend **ya se ejecuta
 contra Postgres, Redis y NATS reales**. Ver [docs/BITACORA.md](docs/BITACORA.md)
 para el detalle y el pendiente exacto, y [docs/ROADMAP.md](docs/ROADMAP.md) para
 lo que falta de cada fase.
@@ -57,7 +57,7 @@ Verificado:
 |---|---|
 | `pnpm build` | 9/9 paquetes y servicios |
 | `pnpm test` | **118 pruebas** en memoria |
-| `pnpm smoke` | **73 comprobaciones** de punta a punta |
+| `pnpm smoke` | **95 comprobaciones** de punta a punta |
 | `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
 | `pnpm smoke:web` | **17 comprobaciones** del portal contra el backend |
 
@@ -83,8 +83,9 @@ Plataforma-Glexco/
 │   ├── catalog/         ✅ kits, códigos, lotes de imprenta, derechos, canje asíncrono
 │   ├── media/           ✅ subidas prefirmadas, tipo real, miniaturas, enlaces externos
 │   ├── assessment/      🔄 cuestionarios, banco GLEXCO vs docente, corrección automática
+│   ├── analytics/       🔄 los cinco dashboards, como proyección de eventos
 │   ├── learning/        ⬜ vacío
-│   └── engagement/      ⬜ vacío        analytics/    ⬜ vacío
+│   └── engagement/      ⬜ vacío
 ├── apps/web/            🔄 Next.js 15, ingreso y portadas de Discover y Academy
 ├── design/canvas/       ✅ dirección visual aprobada (10 artboards)
 ├── infra/
@@ -120,6 +121,7 @@ pnpm --filter @glexco/identity dev         # arrancar identidad (3101)
 pnpm --filter @glexco/api-gateway dev      # arrancar gateway (3000)
 pnpm --filter @glexco/media dev            # arrancar medios (3108)
 pnpm --filter @glexco/assessment dev       # arrancar evaluacion (3105)
+pnpm --filter @glexco/analytics dev        # arrancar analitica (3107)
 pnpm seed                                  # kit, lote de codigos, institucion y salon
 pnpm smoke                                 # 32 comprobaciones de punta a punta
 pnpm concurrency                           # las 4 comprobaciones de concurrencia real
@@ -232,7 +234,18 @@ alguna, para y pregunta antes de continuar.
 8. **Un docente no modifica una evaluación de GLEXCO.** Es la misma para todos
    los colegios; editarla cambiaría el examen de todo el país. Puede duplicarla.
 
-9. **Toda lectura pesada va al pool de réplicas** (`DB_READ_POOL`); las
+9. **Un dashboard nunca consulta el schema de otro servicio.** La analítica es
+   una proyección alimentada por eventos. Un `JOIN` cruzado ataría los servicios
+   entre sí y no aguantaría la escala; y el rol de base de datos de cada servicio
+   no tiene permiso sobre los demás, así que hacerlo exigiría debilitar el
+   aislamiento.
+
+10. **Solo las evaluaciones de GLEXCO son comparables entre colegios.** Las que
+    escribe un docente miden a su salón. Mezclarlas permitiría a una institución
+    subir su media poniendo exámenes fáciles, y a un profesor mejorar su métrica
+    de eficacia bajando la dificultad.
+
+11. **Toda lectura pesada va al pool de réplicas** (`DB_READ_POOL`); las
    escrituras y las lecturas que deben ver su propia escritura, al de escritura
    (`DB_WRITE_POOL`). Ver [docs/ESCALABILIDAD.md](docs/ESCALABILIDAD.md).
 

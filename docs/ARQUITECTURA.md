@@ -316,3 +316,79 @@ conflicto de concurrencia inventado: la versión no avanzaba, el UPDATE no
 encontraba ninguna fila y el repositorio lo interpretaba como escritura
 concurrente. Ninguna prueba en memoria lo veía, porque el doble del repositorio
 no comprueba versiones.
+
+---
+
+## 11. La analítica es una proyección, no una consulta
+
+`analytics-service` **no es fuente de verdad de nada**. Todo lo que guarda se
+puede reconstruir reproduciendo el stream de eventos, y esa propiedad es lo que
+lo hace seguro de tocar: un error de cálculo aquí es un reproceso, no una pérdida
+de datos.
+
+### Por qué no consulta en vivo los otros schemas
+
+La alternativa evidente sería que cada dashboard consultara evaluación, catálogo
+e instituciones al abrirse. Se descartó por tres razones, en orden de gravedad:
+
+1. **Rompería el aislamiento entre bounded contexts.** Un `JOIN` que cruza tres
+   schemas ata los tres servicios: ninguno podría cambiar su esquema sin romper
+   los informes, y el aislamiento por rol de base de datos —un rol por servicio,
+   sin permiso sobre los demás— hace que ese `JOIN` ni siquiera sea posible sin
+   debilitarlo.
+
+2. **No aguanta la escala objetivo.** Con ~8M de registrados, una agregación en
+   vivo sobre millones de entregas no responde en el tiempo de una petición web.
+   El panel del director tiene que abrir en menos de un segundo o no se usa, y un
+   panel que no se usa no renueva ningún contrato.
+
+3. **Los números pueden ir por detrás sin consecuencia.** Ninguna decisión de
+   negocio los consulta: se **miran**. Eso es exactamente lo que autoriza una
+   proyección asíncrona, y lo que no autorizaría cachear un derecho de acceso.
+
+### Qué se precalcula y qué no
+
+- **Se precalcula** todo lo que agrega más de un salón: los resúmenes por salón e
+  institución se recalculan al llegar cada entrega corregida. El panel del
+  director agrega todos sus salones; sin materializar, abrirlo dispararía una
+  agregación sobre las entregas del colegio entero.
+- **Se calcula al vuelo** el dashboard del alumno y las preguntas más falladas de
+  un salón: son decenas de filas por una clave indexada.
+- **Se recalcula entero, nunca por incrementos.** Un contador incremental se
+  desvía con el primer evento perdido o repetido, y nadie lo nota hasta que
+  alguien cuestiona una cifra. Recalcular desde los hechos garantiza que el
+  resumen sea siempre coherente con ellos.
+
+### El evento lleva lo que el consumidor necesita
+
+`assessment.submission.graded.v1` viaja con más de lo necesario para identificar
+la entrega: lleva `kitId`, `origin`, `institutionId` y los fallos por pregunta.
+
+Es deliberado. Si no los llevara, la analítica tendría que llamar de vuelta al
+servicio de evaluación por cada entrega, y eso convierte una proyección
+asíncrona en una **dependencia sincrónica** entre servicios: justo lo que el bus
+existe para evitar.
+
+`origin` merece mención propia: es el campo que decide si un dato es **comparable
+entre colegios**. Solo lo son las evaluaciones de GLEXCO. Sin ese campo, los
+dashboards mezclarían el banco común con lo que escribe cada docente, y una
+institución podría subir su media poniendo exámenes fáciles.
+
+### La institución es la del ALUMNO, no la de la evaluación
+
+Una evaluación de GLEXCO no pertenece a ninguna institución —es común a todas—,
+pero la entrega de un alumno del San Juan sí es del San Juan, y es ahí donde tiene
+que contar.
+
+Tomarla de la evaluación dejaba sin institución todos los resultados del banco
+común, que son precisamente los únicos comparables: el panel del director salía
+con cero alumnos medidos aunque su clase entera hubiera respondido. La institución
+se fija al abrir el intento, desde el token del alumno.
+
+### El ámbito se comprueba dos veces
+
+El guard de permisos sabe si alguien puede "leer analítica de salón". Solo el
+controlador, con el salón concreto delante, sabe si **ese** salón es suyo. Las
+dos comprobaciones hacen falta y ninguna sustituye a la otra: aquí hay datos de
+menores, y un permiso sin comprobación de recurso significa que conocer un
+identificador basta para ver el progreso de otro colegio.

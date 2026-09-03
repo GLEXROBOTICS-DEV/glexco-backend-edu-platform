@@ -167,6 +167,140 @@ por etiqueta (`course:<id>`, `kit:<id>`, `content:<id>`).
 
 ---
 
+## 6.bis Medición del progreso y dashboards
+
+Esto es lo que la plataforma le vende al colegio: **poder demostrar que el
+alumno aprendió.** No es un módulo de informes añadido al final; es la razón por
+la que un director firma la renovación.
+
+### De dónde sale el progreso
+
+El progreso **no se declara, se mide**, y tiene una sola fuente primaria:
+
+1. **Las evaluaciones** son la medida que cuenta. Las de GLEXCO vienen con el kit
+   y son las mismas para todos los colegios, lo que las convierte en la única
+   referencia comparable entre instituciones. Las que añade un docente miden a su
+   salón, y por eso **nunca entran en una comparación entre colegios**: si
+   entraran, un profesor podría subir el resultado de su centro poniendo
+   exámenes fáciles.
+
+2. **El consumo de contenido** (lecciones abiertas, videos vistos) es señal de
+   actividad, no de aprendizaje. Sirve para detectar a quien se descolgó, no para
+   afirmar que alguien aprendió. Un alumno puede tener el 100 % del contenido
+   abierto y suspender.
+
+3. **Las entregas manuales** cuentan igual que las automáticas una vez
+   calificadas. Antes de eso no cuentan: una entrega sin corregir no dice nada.
+
+> **La distinción que hay que respetar en todos los dashboards:** *nota* es
+> dónde está el alumno; *progreso* es cuánto avanzó desde donde empezó. Son
+> cosas distintas y la segunda es la que mide el trabajo del docente.
+
+### Los cuatro dashboards
+
+Cada uno responde a **una** pregunta. Si un dashboard no tiene una pregunta clara
+detrás, es un adorno.
+
+#### 1 · Alumno — *"¿voy bien?"*
+
+Lo ve solo él (`progress:read_own`).
+
+- Progreso del kit: lecciones completadas sobre el total.
+- Nota media de sus evaluaciones **de GLEXCO**, y por separado las del docente.
+- Evaluaciones pendientes y con fecha límite próxima.
+- Evolución en el tiempo: su nota por evaluación, en orden.
+- Puntos fuertes y débiles **por tema**, no por pregunta suelta.
+- XP, nivel del Explorador e insignias (solo Discover).
+
+**No ve:** su posición relativa frente a sus compañeros. La propuesta ya lo dice
+para el ranking, y aquí vale igual: *el ranking celebra logros, no señala
+rezagos*. A un niño de ocho años, "eres el 24 de 30" no le enseña nada.
+
+#### 2 · Docente, vista de salón — *"¿quién necesita ayuda y en qué?"*
+
+`progress:read_classroom` + `analytics:read_classroom`.
+
+- Cuántos alumnos van al día, atrasados o sin empezar.
+- Nota media del salón por evaluación, y **la dispersión**: una media de 7 con
+  todos en 7 y una media de 7 con la mitad en 10 y la mitad en 4 son dos clases
+  distintas y piden dos cosas distintas.
+- **Preguntas que más falla el salón.** Es el dato más accionable que existe
+  para un docente: señala qué volver a explicar.
+- Entregas pendientes de corregir.
+- Alumnos sin actividad en los últimos N días.
+
+#### 3 · Docente, vista de alumno — *"¿qué le pasa a este?"*
+
+Lo anterior acotado a una persona, más el historial de intentos y las respuestas
+concretas. **Solo de los alumnos de sus salones**, nunca del colegio entero.
+
+#### 4 · Admin de institución — *"¿cómo va mi colegio?"*
+
+`progress:read_institution` + `analytics:read_institution`. Ve los tres
+anteriores de todos sus salones, más:
+
+- Códigos de activación canjeados sobre los comprados. Es la métrica comercial:
+  libros vendidos que nadie activó son dinero que el colegio pagó y no usa.
+- Progreso agregado por grado y por kit.
+- Comparación entre salones **del mismo grado** (comparar 1.º con 5.º no dice
+  nada).
+- Plazas de licencia usadas frente a contratadas.
+
+#### 5 · GLEXCO — *"¿cómo va cada institución?"*
+
+`progress:read_platform` + `analytics:read_platform`. Un dashboard **por
+institución**, más la vista agregada de plataforma:
+
+- Activación, progreso y notas por colegio, comparables entre sí **solo con las
+  evaluaciones de GLEXCO**.
+- Kits con peor resultado en todos los colegios: si un kit va mal en todas
+  partes, el problema es del contenido, no de los alumnos. Es la señal más
+  valiosa para el equipo académico.
+- Instituciones en riesgo de no renovar: baja activación o progreso estancado.
+
+### El dashboard de eficacia docente
+
+El cliente lo pidió así: *"qué profesores tienen alumnos que aprenden más"*. Se
+construye, pero con una advertencia que tiene que quedar escrita, porque
+condiciona el diseño:
+
+> **Ordenar profesores por resultados de sus alumnos mide, sobre todo, con qué
+> alumnado empieza cada uno.** Dos profesores igual de buenos dan números muy
+> distintos si uno tiene el salón de refuerzo y el otro el grupo avanzado. Es un
+> sesgo conocido y no se corrige con más datos: se corrige eligiendo bien la
+> métrica.
+
+De ahí las cinco reglas de este dashboard:
+
+1. **Se mide progreso, no nota.** Cuánto avanzó cada alumno desde su punto de
+   partida, promediado por salón. Un salón que sube de 4 a 6 aprendió más que
+   uno que se queda en 8.
+2. **Solo con evaluaciones de GLEXCO.** Con las del propio docente, la métrica se
+   puede subir bajando la dificultad.
+3. **Se presenta como "dónde hace falta apoyo", nunca como ranking.** El objetivo
+   operativo es decidir a qué docente acompañar, no ordenarlos.
+4. **Siempre con el tamaño de la muestra a la vista.** Con seis alumnos, la
+   diferencia entre dos salones es ruido estadístico, y presentarla como un dato
+   es engañar a quien decide.
+5. **Lo ven el admin de institución y GLEXCO. El docente ve su propio dato**, no
+   el de sus compañeros. Que un profesor descubra su posición en una lista por un
+   dashboard, y no por una conversación, es la peor forma posible de gestionar a
+   un equipo.
+
+Es una decisión del cliente y se implementa. Lo que no se hace es esconder sus
+límites en una consulta SQL: quien lo mire tiene que ver qué mide y qué no.
+
+### Aislamiento, que aquí es lo más delicado
+
+- Un colegio **no ve datos de otro**, ni siquiera agregados o anonimizados. Con
+  pocos colegios por grado, un agregado es reidentificable.
+- Un docente solo ve **sus** salones.
+- Los datos son de menores de edad: todo dashboard que baje al alumno individual
+  exige el ámbito correcto, y el ámbito se comprueba en el caso de uso, no solo
+  en el guard de permisos.
+
+---
+
 ## 7. Gamificación (sobre todo en Discover)
 
 - **XP y niveles del Explorador:**
