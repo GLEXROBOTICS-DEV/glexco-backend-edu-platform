@@ -1,13 +1,13 @@
 # Puesta en marcha con Docker
 
-**Este documento es para una sesión de Claude en una máquina con Docker
-funcionando.** El proyecto se desarrolló en un equipo donde Docker nunca llegó a
-arrancar, así que todo el backend está escrito, compilado y probado en memoria,
-pero **jamás se ha ejecutado contra Postgres, Redis o NATS reales**.
+**Cómo levantar la plataforma en local y qué comprobar.**
 
-Tu trabajo es ponerlo en marcha, verificar que funciona de verdad, y arreglar lo
-que salga. Es normal que salga algo: es la primera vez que este código toca
-infraestructura.
+> **Actualizado en la sesión 5.** La primera ejecución real ya ocurrió: las
+> migraciones se aplican, los cuatro servicios arrancan, `pnpm smoke` pasa 32
+> comprobaciones y `pnpm concurrency` pasa 14. Los nueve fallos que aparecieron
+> en esa primera ejecución están corregidos y explicados en
+> [BITACORA.md](BITACORA.md). Lo que sigue es el procedimiento, no una
+> expedición.
 
 ---
 
@@ -56,6 +56,10 @@ pnpm --filter @glexco/institutions db:migrate
 pnpm --filter @glexco/catalog      db:migrate
 ```
 
+Si el puerto 5432 ya lo ocupa otro proyecto, ajusta `GLEXCO_POSTGRES_PORT` en
+`infra/docker/.env` y las `DATABASE_URL_*` de tu `.env`. En la máquina actual
+está en **5433** por esa razón.
+
 Cada servicio en su terminal:
 
 ```bash
@@ -68,15 +72,47 @@ pnpm --filter @glexco/api-gateway  dev   # 3000
 Y la verificación:
 
 ```bash
-pnpm smoke          # 22 comprobaciones a través del gateway
+pnpm seed           # kit, lote de codigos, institucion y salon
+pnpm smoke          # 32 comprobaciones a través del gateway
 pnpm smoke:direct   # las mismas contra identity, saltándose el gateway
+pnpm concurrency    # las cuatro comprobaciones de la seccion 3
+```
+
+`pnpm seed` hace falta porque identidad habla con el catálogo **real**: un código
+que no existe en la base se rechaza, que es exactamente lo que debe pasar. Los
+antiguos literales `GLX-TEST...` solo los aceptaba el doble en memoria.
+
+Si `pnpm smoke` empieza a devolver `TOO_MANY_ACTIVATION_ATTEMPTS`, no hay ningún
+fallo: son los límites de fuerza bruta haciendo su trabajo (cinco códigos por IP
+y hora). Para limpiar los contadores en local:
+
+```bash
+docker exec glexco-redis sh -c "redis-cli -a glexco_local_dev --no-auth-warning \
+  --scan --pattern 'glexco:rl:*' | xargs -r redis-cli -a glexco_local_dev \
+  --no-auth-warning DEL"
 ```
 
 ---
 
-## 2. Qué esperar que falle
+## 2. Lo que falló la primera vez (ya corregido)
 
-Nada de esto se ha ejecutado nunca. Los puntos más probables de fallo, en orden:
+Se deja anotado porque explica por qué varias cosas están como están. El detalle
+completo, en la entrada de la sesión 5 de [BITACORA.md](BITACORA.md).
+
+- **`tsx` rompía la inyección de dependencias en silencio** (esbuild no implementa
+  `emitDecoratorMetadata`). El script `dev` compila con `tsc`. No lo cambies.
+- **Las sondas de salud estaban en `/v1/health/live` y pedían token.** Ahora son
+  `VERSION_NEUTRAL` y `@Public()`.
+- **La API interna tenía la versión duplicada** (`/api/v1/internal/v1/...`) y las
+  llamadas entre servicios daban 404.
+- **El gateway reenviaba `content-length` y `content-encoding` obsoletos**, lo
+  que rompía `POST /auth/refresh` y las respuestas grandes.
+- **La versión optimista no avanzaba al iniciar sesión**, porque solo lo hacía al
+  emitir un evento de dominio. Ahora existe `AggregateRoot.touch()`.
+- **`citext`, `btree_gist` y `public.immutable_unaccent`** los crea el init del
+  contenedor con el superusuario.
+
+Puntos que siguen siendo frágiles y conviene vigilar:
 
 **Las migraciones.** El SQL está escrito a mano y usa `citext`, `pg_trgm`,
 `unaccent`, `btree_gist` y `EXCLUDE USING gist`. Si alguna extensión no está en
@@ -103,8 +139,11 @@ no hay para su arquitectura, el arranque de identity falla al cargar el módulo.
 ## 3. Lo que hay que verificar de verdad
 
 La prueba de humo cubre el camino feliz. Estas cuatro cosas son las que
-justifican la arquitectura y **ninguna se ha comprobado con concurrencia real**.
-Son la prioridad.
+justifican la arquitectura, y **están verificadas con concurrencia real desde la
+sesión 5**: `pnpm concurrency` las ejecuta las cuatro y pasa 14 comprobaciones.
+
+Lo que sigue explica qué mide cada una y por qué. Si tocas el canje, el tope de
+plazas, la outbox o el consumidor, vuelve a ejecutarlo.
 
 ### 3.1 El código de activación es de un solo uso
 
@@ -160,12 +199,14 @@ Ver [ROADMAP.md](ROADMAP.md) para el detalle. Resumen del estado:
 
 **Pendiente inmediato de la Fase 3:**
 
-- Generación de lotes de códigos y exportación para imprenta (el dominio ya lo
-  soporta: `generateBatch` e `insertBatch`).
-- Consumidor en catalog de `identity.user.registered.v1` que canjee el código de
-  forma asíncrona (hoy el canje solo ocurre por HTTP).
 - `media-service`: subidas con URL prefirmada y validación de tipo real.
 - Invalidación de caché por etiqueta al publicar contenido.
+- Revocación de códigos y de derechos (`ACTIVATION_CODE_REVOKE` existe como
+  permiso pero todavía no hay caso de uso que lo ejerza).
+
+Ya cerrados: la generación de lotes con exportación CSV para imprenta
+(`POST /catalog/batches`) y el consumidor de `identity.user.registered.v1` que
+canjea el código de forma asíncrona.
 
 **La Fase 4 (frontend) tiene su dirección visual ya aprobada** — el canvas está
 en `design/canvas/` y publicado como artifact. La paleta sale del logo real:
@@ -200,6 +241,15 @@ todos los códigos ya emitidos**. Se fija una vez y no se rota.
 y compañía) aceptan cualquier código que empiece por `GLX-TEST`. Solo se activan
 si falta la URL del servicio real, y `loadIdentityConfig` aborta el arranque en
 producción si eso pasa. No relajes esa comprobación.
+
+**El evento de registro lleva el `activationCodeId`, nunca el código.** Es lo que
+permite a catálogo canjear al consumir el alta sin que un secreto con valor
+económico viva días en la outbox y en el stream. Si algún día hace falta más
+información en ese evento, la regla no cambia: el código no viaja.
+
+**No existe endpoint para volver a descargar el CSV de un lote,** y no es un
+olvido: en la base solo queda el hash de cada código. Si alguien lo pide, la
+respuesta es repetir la tirada, no relajar el hasheo.
 
 **Escribir archivos:** los heredocs de Bash con TypeScript grande se corrompen en
 Windows. Usa la herramienta de escritura o Python con

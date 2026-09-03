@@ -49,11 +49,32 @@ export interface ActivationCodeRepository {
    */
   findByHashForUpdate(codeHash: string, tx: TransactionContext): Promise<ActivationCode | null>;
 
+  /**
+   * Carga el codigo por su ID bloqueando la fila.
+   *
+   * La usa el canje que llega por evento: `identity.user.registered.v1` lleva el
+   * id de la fila y no el codigo -que es un secreto y no debe vivir dias en el
+   * stream-, asi que ahi no hay hash con el que buscar. Bloquea igual que
+   * `findByHashForUpdate`, porque compite exactamente por lo mismo: el canje
+   * por HTTP del mismo codigo puede estar ocurriendo en ese instante.
+   */
+  findByIdForUpdate(id: string, tx: TransactionContext): Promise<ActivationCode | null>;
+
   /** Lectura sin bloqueo, para la comprobacion previa del formulario. */
   findByHash(codeHash: string): Promise<ActivationCode | null>;
 
   findById(id: string): Promise<ActivationCode | null>;
   save(code: ActivationCode, tx: TransactionContext): Promise<void>;
+
+  /**
+   * Crea la fila del lote.
+   *
+   * Va antes que `insertBatch` y en la MISMA transaccion: los codigos referencian
+   * al lote por clave foranea, y un lote sin codigos -o codigos sin lote- rompe
+   * la trazabilidad entre lo que se imprimio y lo que se activo, que es
+   * justamente para lo que existe la tabla.
+   */
+  createBatch(batch: NewCodeBatch, tx: TransactionContext): Promise<void>;
 
   /**
    * Inserta un lote completo.
@@ -82,6 +103,18 @@ export interface ActivationCodeRepository {
 
   /** Marca como caducados los codigos que pasaron su fecha limite. Tarea periodica. */
   expireOverdue(now: Date): Promise<number>;
+}
+
+export interface NewCodeBatch {
+  id: string;
+  kitId: string;
+  grade: string;
+  total: number;
+  /** Institucion destinataria si la tirada es un pedido nominal. */
+  distributedTo: string | null;
+  /** Orden de compra o numero de pedido, para rastrear la tirada. */
+  reference: string | null;
+  createdBy: string;
 }
 
 export interface CodeBatchSummary {

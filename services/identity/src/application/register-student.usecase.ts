@@ -143,6 +143,7 @@ export class RegisterStudentUseCase
       institutionId: input.accountType === 'institutional' ? input.institutionId : undefined,
       classroomId: input.accountType === 'institutional' ? input.classroomId : undefined,
       grade: input.grade,
+      activationCodeId: precheck.activationCodeId,
       guardianEmail,
       now,
     });

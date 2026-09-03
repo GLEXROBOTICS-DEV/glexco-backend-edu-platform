@@ -39,12 +39,19 @@ import { createLogger, toLoggerPort, type Logger } from '@glexco/observability';
 
 import {
   CatalogController,
+  CodeBatchesController,
   InternalActivationCodesController,
 } from './interface/http/controllers';
 import {
   PrecheckActivationCodeUseCase,
   RedeemActivationCodeUseCase,
 } from './application/redeem-activation-code.usecase';
+import {
+  GenerateCodeBatchUseCase,
+  GetCodeBatchUseCase,
+  ListCodeBatchesUseCase,
+} from './application/generate-code-batch.usecase';
+import type { ActivationCodeRepository } from './domain/repositories';
 import { PgActivationCodeRepository } from './infrastructure/persistence/pg-activation-code.repository';
 import {
   PgContentRepository,
@@ -102,7 +109,12 @@ export {
 } from './tokens';
 
 @Module({
-  controllers: [CatalogController, InternalActivationCodesController, HealthController],
+  controllers: [
+    CatalogController,
+    CodeBatchesController,
+    InternalActivationCodesController,
+    HealthController,
+  ],
   providers: [
     Reflector,
     InternalOnlyGuard,
@@ -224,6 +236,30 @@ export {
         CODE_PEPPER,
         SECURE_RANDOM,
       ],
+    },
+    {
+      provide: GenerateCodeBatchUseCase,
+      useFactory: (...args: ConstructorParameters<typeof GenerateCodeBatchUseCase>) =>
+        new GenerateCodeBatchUseCase(...args),
+      inject: [
+        ACTIVATION_CODE_REPOSITORY,
+        KIT_REPOSITORY,
+        UNIT_OF_WORK,
+        CLOCK,
+        LOGGER_PORT,
+        CODE_PEPPER,
+        SECURE_RANDOM,
+      ],
+    },
+    {
+      provide: GetCodeBatchUseCase,
+      useFactory: (codes: ActivationCodeRepository) => new GetCodeBatchUseCase(codes),
+      inject: [ACTIVATION_CODE_REPOSITORY],
+    },
+    {
+      provide: ListCodeBatchesUseCase,
+      useFactory: (codes: ActivationCodeRepository) => new ListCodeBatchesUseCase(codes),
+      inject: [ACTIVATION_CODE_REPOSITORY],
     },
     {
       provide: PrecheckActivationCodeUseCase,

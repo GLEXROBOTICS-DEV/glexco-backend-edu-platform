@@ -45,13 +45,24 @@ defecto**, pero el registro independiente debe funcionar igual de bien.
 
 ## 2. Estado actual
 
-**Fases 0, 1 y 2 completas; Fase 3 avanzada.** Nada se ha ejecutado todavía
-contra infraestructura real: ver [docs/PUESTA-EN-MARCHA.md](docs/PUESTA-EN-MARCHA.md). Ver
-[docs/BITACORA.md](docs/BITACORA.md) para el detalle y el pendiente exacto, y
-[docs/ROADMAP.md](docs/ROADMAP.md) para lo que falta de cada fase.
+**Fases 0, 1 y 2 completas; Fase 3 casi cerrada.** El backend **ya se ejecuta
+contra Postgres, Redis y NATS reales**. Ver [docs/BITACORA.md](docs/BITACORA.md)
+para el detalle y el pendiente exacto, y [docs/ROADMAP.md](docs/ROADMAP.md) para
+lo que falta de cada fase.
 
-Verificado: `pnpm build` compila los 9 paquetes y servicios y `pnpm test` pasa
-**118 pruebas** en memoria, sin Docker.
+Verificado:
+
+| Comprobación | Resultado |
+|---|---|
+| `pnpm build` | 9/9 paquetes y servicios |
+| `pnpm test` | **118 pruebas** en memoria |
+| `pnpm smoke` | **32 comprobaciones** de punta a punta por el gateway |
+| `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
+
+Las de concurrencia son las que justifican la arquitectura: un solo canje de
+veinte simultáneos, cinco plazas de veinte solicitudes, la outbox reteniendo el
+evento con NATS parado y publicándolo al volver, y el mismo evento entregado dos
+veces aplicándose una.
 
 ```
 Plataforma-Glexco/
@@ -66,7 +77,7 @@ Plataforma-Glexco/
 │   ├── identity/        ✅ dominio, 11 casos de uso, infraestructura, HTTP, SQL, 65 tests
 │   ├── api-gateway/     ✅ enrutado, rate limiting, circuit breakers, apagado ordenado
 │   ├── institutions/    ✅ instituciones, salones con tope, licencias, matrículas
-│   ├── catalog/         🔄 kits, códigos de activación, derechos de acceso, contenido
+│   ├── catalog/         ✅ kits, códigos, lotes de imprenta, derechos, canje asíncrono
 │   ├── learning/        ⬜ vacío        assessment/   ⬜ vacío
 │   └── engagement/      ⬜ vacío        analytics/    ⬜ vacío     media/ ⬜ vacío
 ├── apps/web/            ⬜ vacío (Next.js, Fase 4)
@@ -77,12 +88,9 @@ Plataforma-Glexco/
 └── docs/                ✅ documentación
 ```
 
-**Bloqueo abierto:** en la máquina de desarrollo original Docker nunca llegó a
-arrancar (corrupción del almacén de componentes de Windows, error 0x80188306,
-que resiste a `StartComponentCleanup`, `ResetBase`, `RestoreHealth` y `sfc`).
-Todo el backend está compilado y probado en memoria, pero **jamás se ha
-ejecutado contra Postgres, Redis o NATS reales**. Ese es el siguiente paso y
-está documentado en [docs/PUESTA-EN-MARCHA.md](docs/PUESTA-EN-MARCHA.md).
+**Sin bloqueos abiertos.** El bloqueo histórico de Docker se resolvió al mover
+el proyecto a otra máquina; el procedimiento de arranque está en
+[docs/PUESTA-EN-MARCHA.md](docs/PUESTA-EN-MARCHA.md).
 
 ---
 
@@ -105,7 +113,9 @@ pnpm --filter @glexco/kernel build     # compilar un paquete concreto
 pnpm --filter @glexco/identity db:migrate  # aplicar migraciones
 pnpm --filter @glexco/identity dev         # arrancar identidad (3101)
 pnpm --filter @glexco/api-gateway dev      # arrancar gateway (3000)
-pnpm smoke                                 # prueba de humo de punta a punta
+pnpm seed                                  # kit, lote de codigos, institucion y salon
+pnpm smoke                                 # 32 comprobaciones de punta a punta
+pnpm concurrency                           # las 4 comprobaciones de concurrencia real
 ```
 
 ### Requisitos de entorno
@@ -209,7 +219,25 @@ alguna, para y pregunta antes de continuar.
 - **`declare private` en una clase que se devuelve desde una función** produce
   TS4094. La marca de tipo de `Identifier` es `declare readonly`, sin `private`.
 - **pnpm 11 ignora el campo `pnpm` de `package.json`**: `onlyBuiltDependencies`
-  va en `pnpm-workspace.yaml`.
+  va en `pnpm-workspace.yaml`, y `allowBuilds` exige booleanos explícitos.
+- **No ejecutes los servicios con `tsx`.** esbuild no implementa
+  `emitDecoratorMetadata`, así que NestJS inyecta `undefined` en todos los
+  constructores: el servicio arranca, mapea rutas, pasa el health check y
+  revienta en la primera petición. El script `dev` usa `tsc`
+  (`infra/scripts/dev-service.mjs`) por esto exactamente.
+- **Un parámetro de constructor que sea una interfaz o un puerto necesita
+  `@Inject(TOKEN)`.** Su tipo se borra al compilar y Nest no puede resolverlo.
+  Los tokens viven en `services/<servicio>/src/tokens.ts`, y no en el módulo,
+  para que los controladores puedan importarlos sin ciclo.
+- **`unaccent()` es `STABLE`**, y PostgreSQL la rechaza dentro de la expresión de
+  un índice. Usa `public.immutable_unaccent`, definida en el init del contenedor.
+- **`CREATE SCHEMA IF NOT EXISTS` falla con `permission denied for database`**
+  aunque el schema ya exista: el motor comprueba el permiso antes que la
+  existencia. Consulta `pg_namespace` primero.
+- **Los límites de fuerza bruta son reales en local**: cinco códigos de
+  activación por IP y hora, diez registros por IP y hora. Dos o tres ejecuciones
+  seguidas de `pnpm smoke` los agotan. Para limpiarlos, ver el final de la
+  entrada de la sesión 5 en [docs/BITACORA.md](docs/BITACORA.md).
 
 ---
 

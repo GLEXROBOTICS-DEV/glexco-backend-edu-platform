@@ -17,11 +17,22 @@ import type {
 } from '../domain/repositories';
 import { Entitlement, EntitlementId } from '../domain/entitlement/entitlement.aggregate';
 
-export interface RedeemActivationCodeInput {
-  code: string;
+/**
+ * El canje se pide de dos formas, y solo una de ellas trae el codigo.
+ *
+ * - Por HTTP, cuando el alumno lo teclea: llega `code`.
+ * - Al consumir `identity.user.registered.v1`, donde el codigo NO viaja porque
+ *   es un secreto con valor economico y el evento vive dias en la outbox y en
+ *   el stream: llega `activationCodeId`, el id de la fila.
+ *
+ * Ambas terminan en el mismo camino a proposito. La garantia de un solo uso es
+ * la invariante mas delicada de la plataforma, y tenerla escrita dos veces es
+ * la forma segura de que una de las dos copias se quede atras.
+ */
+export type RedeemActivationCodeInput = {
   studentId: string;
   institutionId?: string;
-}
+} & ({ code: string; activationCodeId?: undefined } | { activationCodeId: string; code?: undefined });
 
 export interface RedeemActivationCodeOutput {
   kitId: string;
@@ -82,11 +93,17 @@ export class RedeemActivationCodeUseCase
 
     // La normalizacion y el formato se validan antes de tocar la base: un codigo
     // mal transcrito no debe consumir una conexion ni un bloqueo.
-    const code = ActivationCodeValue.create(input.code);
-    const codeHash = hashActivationCode(code, this.pepper);
+    const codeHash = input.code
+      ? hashActivationCode(ActivationCodeValue.create(input.code), this.pepper)
+      : null;
 
     return this.unitOfWork.run(async (tx) => {
-      const activationCode = await this.codes.findByHashForUpdate(codeHash, tx);
+      // Las dos vias bloquean la fila. Sin el bloqueo, el canje por HTTP y el
+      // que llega por evento podrian solaparse y otorgar dos accesos con un
+      // solo codigo.
+      const activationCode = codeHash
+        ? await this.codes.findByHashForUpdate(codeHash, tx)
+        : await this.codes.findByIdForUpdate(input.activationCodeId!, tx);
 
       if (!activationCode) {
         // Mismo error que para un codigo revocado o caducado: distinguirlos
@@ -168,6 +185,16 @@ export class RedeemActivationCodeUseCase
 export interface PrecheckActivationCodeOutput {
   valid: boolean;
   reason?: 'not_found' | 'already_redeemed' | 'revoked' | 'expired';
+  /**
+   * Id de la FILA del codigo, no el codigo.
+   *
+   * Lo necesita identidad para meterlo en `identity.user.registered.v1`, de
+   * modo que catalogo pueda canjear al consumir el evento sin que el codigo en
+   * claro viaje por la outbox y el stream. Un UUID de fila no permite deducir
+   * el codigo ni sirve para canjear por HTTP: el endpoint publico solo acepta
+   * el codigo.
+   */
+  activationCodeId?: string;
   kitId?: string;
   kitName?: string;
   grade?: string;
@@ -215,6 +242,7 @@ export class PrecheckActivationCodeUseCase
 
     return {
       valid: true,
+      activationCodeId: activationCode.id.value,
       kitId: kit.id,
       kitName: kit.name,
       grade: activationCode.grade,

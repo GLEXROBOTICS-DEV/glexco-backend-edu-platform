@@ -194,6 +194,7 @@ export class InMemoryActivationCodeGateway implements ActivationCodeGateway {
 
     return {
       valid: true,
+      activationCodeId: '00000000-0000-4000-8000-0000000000c0',
       kitId: '00000000-0000-4000-8000-000000000001',
       kitName: 'uKit AI - Zoologico Fantastico (kit de prueba)',
       grade: 'primary_3',

@@ -9,13 +9,22 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
   VERSION_NEUTRAL,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { PERMISSIONS, activationCodeSchema, uuidSchema } from '@glexco/contracts';
+import {
+  PERMISSIONS,
+  activationCodeSchema,
+  generateCodeBatchSchema,
+  listCodeBatchesSchema,
+  uuidSchema,
+  type GenerateCodeBatchRequest,
+  type ListCodeBatchesQuery,
+} from '@glexco/contracts';
 import {
   CurrentActor,
   InternalOnlyGuard,
@@ -30,6 +39,11 @@ import {
   PrecheckActivationCodeUseCase,
   RedeemActivationCodeUseCase,
 } from '../../application/redeem-activation-code.usecase';
+import {
+  GenerateCodeBatchUseCase,
+  GetCodeBatchUseCase,
+  ListCodeBatchesUseCase,
+} from '../../application/generate-code-batch.usecase';
 import type { EntitlementRepository, KitRepository } from '../../domain/repositories';
 import { CONTENT_REPOSITORY, ENTITLEMENT_REPOSITORY, KIT_REPOSITORY } from '../../tokens';
 
@@ -201,4 +215,113 @@ export class InternalActivationCodesController {
   async check(@Param('code') code: string) {
     return this.precheck.execute({ code });
   }
+}
+
+
+// ---------------------------------------------------------------------------
+// Lotes de codigos para imprenta
+// ---------------------------------------------------------------------------
+
+/**
+ * Fabricacion y seguimiento de tiradas de codigos.
+ *
+ * Es personal de GLEXCO, no del colegio: `ACTIVATION_CODE_GENERATE` solo la
+ * tienen `platform_admin` y `platform_owner`. Un administrador de institucion
+ * puede consultar cuantos codigos de su pedido se han activado, pero no
+ * fabricar mas.
+ */
+@Controller({ path: 'catalog/batches', version: '1' })
+export class CodeBatchesController {
+  constructor(
+    private readonly generate: GenerateCodeBatchUseCase,
+    private readonly getBatch: GetCodeBatchUseCase,
+    private readonly listBatches: ListCodeBatchesUseCase,
+  ) {}
+
+  /**
+   * Genera una tirada y devuelve los codigos EN CLARO, una sola vez.
+   *
+   * Con `format=csv` la respuesta es el fichero que se envia a imprenta. No hay
+   * endpoint para volver a descargarlo: en la base solo queda el hash de cada
+   * codigo, asi que reconstruirlo es imposible por diseno. Es deliberado -un
+   * volcado de la tabla no debe convertirse en miles de accesos vendibles- y
+   * por eso la respuesta lo advierte de forma explicita.
+   */
+  @Post()
+  @RequirePermissions(PERMISSIONS.ACTIVATION_CODE_GENERATE)
+  @HttpCode(HttpStatus.CREATED)
+  async createBatch(
+    @Body(zodBody(generateCodeBatchSchema)) input: GenerateCodeBatchRequest,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.generate.execute(
+      {
+        kitId: input.kitId,
+        size: input.size,
+        distributedTo: input.distributedTo,
+        reference: input.reference,
+        expiresAt: input.expiresAt,
+      },
+      contextFrom(request),
+    );
+
+    if (input.format === 'csv') {
+      response.setHeader('content-type', 'text/csv; charset=utf-8');
+      response.setHeader(
+        'content-disposition',
+        `attachment; filename="glexco-lote-${result.batchId}.csv"`,
+      );
+      // Sin cache en ningun punto intermedio: el cuerpo son codigos en claro.
+      response.setHeader('cache-control', 'no-store');
+      return toCsv(result);
+    }
+
+    return {
+      ...result,
+      aviso:
+        'Estos codigos no volveran a mostrarse. Guardalos ahora: en la base solo queda su hash.',
+    };
+  }
+
+  @Get()
+  @RequirePermissions(PERMISSIONS.ACTIVATION_CODE_READ)
+  async list(@Query(zodQuery(listCodeBatchesSchema)) query: ListCodeBatchesQuery) {
+    return this.listBatches.execute({ limit: query.limit, cursor: query.cursor });
+  }
+
+  /** Cuantos codigos del lote se han activado. La pregunta comercial real. */
+  @Get(':batchId')
+  @RequirePermissions(PERMISSIONS.ACTIVATION_CODE_READ)
+  async summary(@Param('batchId') batchId: string) {
+    return this.getBatch.execute({ batchId });
+  }
+}
+
+/**
+ * CSV para la imprenta.
+ *
+ * Se antepone un BOM porque Excel en Windows -que es donde se abre este fichero-
+ * interpreta un CSV sin BOM como Latin-1 y destroza cualquier tilde del nombre
+ * del kit. Y los campos se citan siempre: el nombre de un kit puede llevar una
+ * coma y partiria la fila en dos.
+ */
+function toCsv(result: {
+  batchId: string;
+  kitCode?: string;
+  kitName: string;
+  grade: string;
+  codes: string[];
+}): string {
+  const quote = (value: string) => `"${value.replace(/"/g, '""')}"`;
+
+  const lines = [['codigo', 'lote', 'kit', 'grado'].join(',')];
+
+  for (const code of result.codes) {
+    lines.push(
+      [quote(code), quote(result.batchId), quote(result.kitName), quote(result.grade)].join(','),
+    );
+  }
+
+  return `\ufeff${lines.join('\r\n')}\r\n`;
 }

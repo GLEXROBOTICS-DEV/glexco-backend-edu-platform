@@ -95,6 +95,9 @@ export interface ActivationCodeGateway {
 export interface ActivationCodePrecheck {
   valid: boolean;
   reason?: 'not_found' | 'already_redeemed' | 'revoked' | 'expired';
+  /** Id de la fila del codigo. Viaja en el evento de registro para que catalogo
+   *  canjee sin que el codigo en claro salga de la peticion. */
+  activationCodeId?: string;
   kitId?: string;
   kitName?: string;
   grade?: string;

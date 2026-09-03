@@ -252,3 +252,67 @@ porque su fallo solo retira la réplica del balanceador sin matarla.
   Lucide para el cromo de interfaz.
 - **Accesibilidad WCAG 2.1 AA.** No es un extra: es una plataforma escolar y
   habrá alumnos con discapacidad visual o motora usándola.
+
+---
+
+## 9. El canje del código: dos entradas, un solo camino
+
+El código de activación es lo único de la plataforma que vale dinero por sí
+mismo, y su canje se puede pedir de dos formas:
+
+- **Por HTTP**, cuando un alumno ya registrado activa un segundo libro. Llega el
+  código; se busca por su hash.
+- **Al consumir `identity.user.registered.v1`**, que es lo que cierra el flujo
+  del registro. Llega el **id de la fila**, no el código.
+
+Las dos terminan en el mismo caso de uso a propósito. La garantía de un solo uso
+es la invariante más delicada del sistema y se apoya en tres piezas —una
+transacción, `SELECT … FOR UPDATE` sobre la fila y el rechazo del agregado—;
+tenerla escrita dos veces es la forma segura de que una de las dos copias se
+quede atrás en el próximo cambio.
+
+### Por qué el evento no lleva el código
+
+Identidad **no puede** canjear durante el registro: exigiría una transacción
+distribuida con catálogo que no existe. Lo que hace es una comprobación previa de
+lectura, para que un código mal tecleado falle de inmediato en el formulario.
+
+Para que catálogo pueda completar el canje después necesita saber qué fila tocar.
+La opción evidente —meter el código en el evento— es la mala: los eventos viven
+días en la outbox y en el stream de JetStream, y ahí un secreto con valor
+económico multiplica su superficie de exposición sin que ningún consumidor lo
+necesite. El evento lleva el `activationCodeId`: un UUID de fila no permite
+deducir el código, y el endpoint público solo acepta el código, así que conocerlo
+tampoco sirve para canjear nada.
+
+### Qué pasa si alguien gana la carrera
+
+Entre la comprobación del formulario y el consumo del evento, otro alumno puede
+canjear ese mismo código. El consumidor lo detecta, lo registra y **da el evento
+por procesado**: reintentar no puede arreglarlo, y hacerlo en bucle solo llenaría
+el log y acabaría en la cola de mensajes muertos. El alumno queda registrado sin
+acceso al kit, que es un estado que soporte puede resolver; el camino contrario
+—reventar y reprocesar el alta— no le devolvería el código.
+
+---
+
+## 10. La versión optimista no es el contador de eventos
+
+`AggregateRoot` tiene dos operaciones que avanzan la versión, y la distinción
+importa:
+
+- `record(...)` — registra un hecho que otros servicios deben conocer **y**
+  avanza la versión.
+- `touch()` — solo avanza la versión.
+
+Existen las dos porque hay cambios de estado que deliberadamente no son un hecho
+publicable. Un inicio de sesión correcto es el ejemplo: si emitiera evento, un
+ataque de fuerza bruta generaría millones de eventos inundando la outbox y el
+bus. Pero **sí modifica la fila** (`last_login_at`, contador de intentos), y
+todos los UPDATE llevan `WHERE version < :nueva`.
+
+Con solo `record`, la consecuencia era que iniciar sesión fallaba con un
+conflicto de concurrencia inventado: la versión no avanzaba, el UPDATE no
+encontraba ninguna fila y el repositorio lo interpretaba como escritura
+concurrente. Ninguna prueba en memoria lo veía, porque el doble del repositorio
+no comprueba versiones.

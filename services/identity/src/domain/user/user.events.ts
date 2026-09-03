@@ -24,6 +24,15 @@ export interface UserRegisteredPayload {
   classroomId?: string;
   /** Grado declarado en el registro; catalogo lo usa para resolver el kit. */
   grade?: string;
+  /**
+   * Id de la FILA del codigo de activacion que el alumno introdujo.
+   *
+   * Nunca el codigo. El codigo es un secreto con valor economico y este evento
+   * vive dias en la outbox y en el stream; el identificador de su fila, en
+   * cambio, no permite deducirlo ni canjear nada por HTTP. Con el, catalogo
+   * puede completar el canje de forma asincrona al consumir este evento.
+   */
+  activationCodeId?: string;
   locale: 'es' | 'en';
   /** Cuenta de un menor de 14: engagement debe avisar tambien al apoderado. */
   requiresGuardianConsent: boolean;

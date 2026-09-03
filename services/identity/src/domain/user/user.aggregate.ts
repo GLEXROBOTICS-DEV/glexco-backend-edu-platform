@@ -83,6 +83,9 @@ export class User extends AggregateRoot<UserId> {
     institutionId?: string;
     classroomId?: string;
     grade?: string;
+    /** Fila del codigo canjeado, para que catalogo complete el canje al
+     *  consumir el evento. Nunca el codigo. */
+    activationCodeId?: string;
     guardianEmail?: Email;
     now: Date;
   }): User {
@@ -137,6 +140,7 @@ export class User extends AggregateRoot<UserId> {
             institutionId: input.institutionId,
             classroomId: input.classroomId,
             grade: input.grade,
+            activationCodeId: input.activationCodeId,
             locale: input.locale.value,
             requiresGuardianConsent: requiresGuardian,
             guardianEmail: input.guardianEmail?.value,

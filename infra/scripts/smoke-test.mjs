@@ -14,7 +14,20 @@
  *
  * No necesita dependencias: usa fetch nativo de Node.
  */
-import { generateCode, seedCatalog } from './seed-dev.mjs';
+import {
+  generateCode,
+  mintAccessToken,
+  seedCatalog,
+  seedInstitution,
+  seedUsers,
+} from './seed-dev.mjs';
+import contracts from '@glexco/contracts';
+
+const { ROLES } = contracts;
+
+/** El catalogo se prueba directo: no tiene rutas de autenticacion, asi que el
+ *  gateway no anade nada a lo que aqui se verifica. */
+const CATALOG = 'http://localhost:3103';
 
 const DIRECT = process.argv.includes('--direct');
 const BASE = DIRECT ? 'http://localhost:3101' : 'http://localhost:3000';
@@ -48,6 +61,35 @@ function report(name, ok, detail = '') {
 const GRACE_WINDOW_MS = 10_000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Espera a que el canje asincrono se refleje en los kits del alumno.
+ *
+ * El canje ocurre cuando catalogo consume el evento de alta, de modo que NO
+ * esta hecho cuando la peticion de registro responde. Sondear es lo correcto
+ * aqui: lo que se comprueba es que acaba ocurriendo, no cuando.
+ */
+async function waitForKits(studentId, timeoutMs = 30_000) {
+  if (!studentId) return [];
+
+  const token = mintAccessToken({ userId: studentId, roles: [ROLES.STUDENT] });
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const response = await fetch(`${CATALOG}/api/v1/catalog/my-kits`, {
+      headers: { authorization: `Bearer ${token}` },
+    }).catch(() => null);
+
+    if (response?.ok) {
+      const body = await response.json().catch(() => null);
+      if (body?.kits?.length > 0) return body.kits;
+    }
+
+    await sleep(1_000);
+  }
+
+  return [];
+}
 
 function section(title) {
   console.log(`\n${colors.bold}${title}${colors.reset}`);
@@ -338,6 +380,117 @@ ${colors.fail}Sin codigos sembrados no se puede registrar a nadie.${colors.reset
   report(
     'Propaga el x-correlation-id que envia el cliente',
     echoed.headers.get('x-correlation-id') === '00000000-0000-4000-8000-000000000abc',
+  );
+
+  // --------------------------------------------------------------------
+  section('8. Catalogo: lote de imprenta y canje asincrono');
+  // --------------------------------------------------------------------
+  const kit = await seedCatalog({ codeCount: 1 });
+  const [operator] = await seedUsers(1, { roles: [ROLES.PLATFORM_ADMIN] });
+  const operatorToken = mintAccessToken({ userId: operator.id, roles: operator.roles });
+
+  const batch = await fetch(`${CATALOG}/api/v1/catalog/batches`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${operatorToken}` },
+    body: JSON.stringify({ kitId: kit.kitId, size: 5, reference: 'OC-HUMO' }),
+  });
+  const batchBody = await batch.json().catch(() => null);
+
+  report(
+    'Genera un lote de codigos',
+    batch.status === 201 && batchBody?.codes?.length === 5,
+    `status=${batch.status} ${JSON.stringify(batchBody).slice(0, 200)}`,
+  );
+  report(
+    'Los codigos llegan en claro UNA vez, con aviso explicito',
+    typeof batchBody?.aviso === 'string' && batchBody.aviso.includes('no volveran a mostrarse'),
+  );
+
+  const summary = await fetch(`${CATALOG}/api/v1/catalog/batches/${batchBody?.batchId}`, {
+    headers: { authorization: `Bearer ${operatorToken}` },
+  });
+  const summaryBody = await summary.json().catch(() => null);
+  report(
+    'El resumen del lote cuenta 5 emitidos y 0 canjeados',
+    summary.status === 200 &&
+      summaryBody?.total === 5 &&
+      summaryBody?.issued === 5 &&
+      summaryBody?.redeemed === 0,
+    JSON.stringify(summaryBody),
+  );
+
+  const csv = await fetch(`${CATALOG}/api/v1/catalog/batches`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${operatorToken}` },
+    body: JSON.stringify({ kitId: kit.kitId, size: 3, format: 'csv' }),
+  });
+  // Se leen los BYTES, no el texto: al decodificar, fetch descarta un BOM
+  // inicial, asi que comprobarlo sobre .text() nunca daria positivo aunque
+  // el fichero lo lleve.
+  const csvBytes = new Uint8Array(await csv.arrayBuffer());
+  const csvBody = new TextDecoder('utf-8').decode(csvBytes);
+  const hasBom = csvBytes[0] === 0xef && csvBytes[1] === 0xbb && csvBytes[2] === 0xbf;
+  report(
+    'La exportacion CSV llega como adjunto y sin cachear',
+    csv.status === 201 &&
+      (csv.headers.get('content-type') ?? '').startsWith('text/csv') &&
+      (csv.headers.get('content-disposition') ?? '').includes('attachment') &&
+      csv.headers.get('cache-control') === 'no-store',
+    `type=${csv.headers.get('content-type')} disp=${csv.headers.get('content-disposition')}`,
+  );
+  report(
+    'El CSV trae BOM, cabecera y una fila por codigo',
+    hasBom && csvBody.trim().split('\r\n').length === 4,
+    `lineas=${csvBody.trim().split('\r\n').length}`,
+  );
+
+  // Un alumno no puede fabricar codigos. Es la separacion entre el personal de
+  // GLEXCO y quien usa la plataforma, y vale dinero: quien pueda generar lotes
+  // puede regalarse acceso indefinido.
+  const [pupil] = await seedUsers(1);
+  const forbidden = await fetch(`${CATALOG}/api/v1/catalog/batches`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${mintAccessToken({ userId: pupil.id, roles: pupil.roles })}`,
+    },
+    body: JSON.stringify({ kitId: kit.kitId, size: 1 }),
+  });
+  report('Un alumno no puede generar lotes', forbidden.status === 403, `status=${forbidden.status}`);
+
+  // El canje asincrono cierra el flujo del registro: identidad solo COMPRUEBA
+  // el codigo -canjearlo alli exigiria una transaccion distribuida- y catalogo
+  // lo canjea al consumir el alta.
+  const institution = await seedInstitution({ capacity: 30, grade: kit.grade });
+  const asyncRegistration = await call('/auth/register/student', {
+    method: 'POST',
+    body: JSON.stringify({
+      accountType: 'institutional',
+      email: `canje.async.${stamp}@colegio.pe`,
+      password: 'robotica-glexco-2026',
+      firstName: 'Renata',
+      lastName: 'Ccahuana',
+      birthDate: '2008-03-15',
+      grade: kit.grade,
+      activationCode: batchBody?.codes?.[0],
+      institutionId: institution.institutionId,
+      classroomId: institution.classroomId,
+      acceptedTerms: true,
+      locale: 'es',
+    }),
+  });
+
+  report(
+    'Registra a un alumno con un codigo del lote recien generado',
+    asyncRegistration.status === 201,
+    JSON.stringify(asyncRegistration.body),
+  );
+
+  const grantedKits = await waitForKits(asyncRegistration.body?.userId);
+  report(
+    'Catalogo canjea al consumir el alta y concede el derecho al kit',
+    grantedKits.length === 1 && grantedKits[0]?.kitId === kit.kitId,
+    `kits=${JSON.stringify(grantedKits)}`,
   );
 
   // --------------------------------------------------------------------

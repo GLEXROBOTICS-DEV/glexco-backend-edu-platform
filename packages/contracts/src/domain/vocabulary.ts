@@ -287,6 +287,16 @@ export const ACTIVATION_CODE_LENGTH = 12;
 /** Formato mostrado al usuario: GLX-XXXX-XXXX-XXXX */
 export const ACTIVATION_CODE_PREFIX = 'GLX';
 
+/**
+ * Tope de codigos por lote.
+ *
+ * No es un limite tecnico sino de operacion: cien mil codigos son una tirada de
+ * imprenta grande y ya pesan unos dos megabytes de CSV. Un lote mayor casi
+ * siempre significa un cero de mas al teclear, y como los codigos en claro solo
+ * existen una vez, retirarlo despues no es trivial.
+ */
+export const MAX_CODE_BATCH_SIZE = 100_000;
+
 // ---------------------------------------------------------------------------
 // Salones
 // ---------------------------------------------------------------------------

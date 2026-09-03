@@ -7,6 +7,178 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 5 — 2026-09-02 — Primera ejecución real, y cierre del canje asíncrono
+
+Primera sesión en una máquina con Docker. Todo el backend estaba escrito,
+compilado y probado en memoria, pero **nunca se había ejecutado**. Al hacerlo
+aparecieron nueve fallos que ninguna prueba unitaria podía ver, y las cuatro
+comprobaciones de concurrencia de [PUESTA-EN-MARCHA.md](PUESTA-EN-MARCHA.md)
+pasaron a estar verificadas de verdad.
+
+### Qué se hizo
+
+**La infraestructura arrancó y las migraciones se aplicaron.** Los seis
+contenedores en `healthy` y los tres schemas creados (`identity` 7 tablas,
+`institutions` 8, `catalog` 11).
+
+**`pnpm smoke` en verde: 32 comprobaciones**, ocho de ellas nuevas.
+**`pnpm concurrency` en verde: 14 comprobaciones** que solo tienen sentido
+contra infraestructura real.
+
+**Fase 3, dos puntos cerrados:**
+
+- **Generación de lotes y exportación para imprenta.** `POST /catalog/batches`,
+  con `format=csv` para el fichero que va a la imprenta, más el resumen del lote
+  (`GET /catalog/batches/:id`) que responde a la pregunta comercial de verdad:
+  de los mil libros del colegio, cuántos niños entraron.
+- **Consumidor en catálogo de `identity.user.registered.v1`.** El canje deja de
+  ocurrir solo por HTTP: ahora se completa al consumir el alta, que es lo que
+  cierra el flujo del registro sin transacción distribuida.
+
+### Los nueve fallos que solo aparecen al ejecutar
+
+Ordenados por lo que costaba encontrarlos, no por gravedad.
+
+1. **`tsx` rompía la inyección de dependencias en silencio.** El script `dev`
+   usaba tsx, que compila con esbuild, y esbuild **no implementa
+   `emitDecoratorMetadata`**. Sin esa metadata NestJS no conoce el tipo de los
+   parámetros del constructor y le inyecta `undefined` a todos. El servicio
+   arrancaba, mapeaba sus rutas, pasaba el health check y reventaba en la
+   **primera petición** con `Cannot read properties of undefined`. Es el peor
+   modo de fallo posible: silencioso al arrancar y distinto entre desarrollo y
+   producción, que sí compila con `tsc`.
+   **Solución:** `infra/scripts/dev-service.mjs` compila con `tsc` y vigila, el
+   mismo compilador en los dos entornos.
+
+2. **Con la metadata correcta, Nest falló al arrancar** — que es lo que debía
+   pasar desde el principio. Tres controladores recibían interfaces
+   (`CookieOptions`) o puertos del dominio (`EntitlementRepository`,
+   `InstitutionRepositoryPort`), que no existen en tiempo de ejecución. Ahora
+   llevan `@Inject(TOKEN)` explícito, y los tokens salieron de los módulos a un
+   `tokens.ts` propio para que los controladores puedan importarlos sin ciclo.
+
+3. **Las sondas de salud eran inalcanzables.** El `exclude` del prefijo global
+   quitaba el `/api` pero no el segmento de versión, así que `/health/live`
+   estaba realmente en `/v1/health/live`; y con los guards globales respondía
+   **401**. Un orquestador no lleva token: habría leído cada sonda como réplica
+   muerta y habría reiniciado los servicios en bucle. Ahora son
+   `VERSION_NEUTRAL` y `@Public()`.
+
+4. **La API interna tenía la versión duplicada.** `internal/v1/...` más el
+   versionado por URI daba `/api/v1/internal/v1/...`. Identidad llamaba a la ruta
+   sin ese segundo `/v1`, recibía 404 y —porque un 404 significa "ese código no
+   existe"— lo traducía a *código de libro inválido*. Un fallo de enrutado
+   disfrazado de error de negocio.
+
+5. **El gateway rompía las respuestas grandes.** Copiaba el `content-encoding`
+   del servicio de destino hacia el cliente, pero `fetch` ya había descomprimido
+   el cuerpo. Solo se notaba por encima del umbral de compresión: el login, por
+   el tamaño de la lista de permisos.
+
+6. **El gateway rompía las peticiones sin cuerpo.** Reenviaba el
+   `content-length` del cliente y a la vez reserializaba el cuerpo: anunciaba
+   cero bytes y enviaba `{}`. El destino cerraba el socket sin responder. En
+   login y registro coincidían por casualidad; en `POST /auth/refresh`, no.
+
+7. **Iniciar sesión fallaba con un conflicto de concurrencia inventado.** La
+   versión optimista solo avanzaba al emitir un evento de dominio, y un inicio de
+   sesión correcto no emite ninguno a propósito (en un ataque serían millones de
+   eventos inundando la outbox). Pero sí cambia la fila, así que el
+   `UPDATE ... WHERE version < :nueva` no encontraba nada. Se añadió
+   `AggregateRoot.touch()`: **emitir un evento y avanzar la versión son dos cosas
+   distintas**, y confundirlas rompe justo las operaciones más frecuentes.
+
+8. **El canje siempre daba error 500.** El id del `Entitlement` se construía con
+   `hex(16).slice(0,32)`: 32 caracteres sin guiones, que no son un UUID. Se
+   añadió `uuid()` al puerto `SecureRandom` para que el error no se repita.
+
+9. **Las migraciones no podían ejecutarse.** Tres cosas: `citext` y `btree_gist`
+   las tiene que crear el superusuario del contenedor (el rol de cada servicio no
+   tiene `CREATE` sobre la base, y no debe tenerlo); `unaccent()` es `STABLE` y
+   PostgreSQL lo rechaza dentro de la expresión de un índice, así que ahora hay
+   un `public.immutable_unaccent` que fija el diccionario; y
+   `CREATE SCHEMA IF NOT EXISTS` falla igualmente porque el motor comprueba el
+   permiso sobre la base **antes** que la existencia del schema.
+
+### Decisiones no obvias de esta sesión
+
+- **El evento de registro lleva el `activationCodeId`, no el código.** El canje
+  asíncrono necesita saber qué fila canjear, pero el código es un secreto con
+  valor económico y el evento vive días en la outbox y en el stream. El id de una
+  fila no permite deducir el código ni sirve para canjear por HTTP, donde el
+  endpoint solo acepta el código.
+
+- **Las dos vías de canje comparten el mismo caso de uso.** El canje por HTTP
+  busca por hash y el que viene del evento busca por id, pero desde el bloqueo de
+  fila en adelante el camino es idéntico. La garantía de un solo uso es la
+  invariante más delicada de la plataforma: tenerla escrita dos veces es la forma
+  segura de que una de las dos copias se quede atrás.
+
+- **Un código ya canjeado por otro alumno no se reintenta.** Si entre la
+  comprobación del formulario y el consumo del evento alguien gana la carrera,
+  reintentar no puede arreglarlo: se registra y se da el evento por procesado. El
+  alumno queda registrado sin acceso al kit, que es recuperable por soporte;
+  reventar y reprocesar el alta no le devolvería el código.
+
+- **No hay endpoint para volver a descargar el CSV de un lote,** y es
+  deliberado. En la base solo queda el hash de cada código, así que reconstruir
+  el fichero es imposible por diseño: un volcado de la tabla no debe convertirse
+  en miles de accesos vendibles. La respuesta de generación lo advierte de forma
+  explícita.
+
+- **Los códigos se generan FUERA de la transacción.** Cien mil códigos son
+  varios segundos de CPU; tener una transacción abierta mientras tanto retendría
+  una conexión y bloquearía el vacuum sin necesidad.
+
+- **`pnpm smoke` prueba la ventana de gracia por sus dos lados.** La prueba
+  anterior reutilizaba el refresh token antiguo cincuenta milisegundos después y
+  esperaba que se detectara como robo. Era la prueba la que estaba mal: esa
+  ventana de diez segundos existe justamente para que dos pestañas del mismo
+  navegador no se cierren la sesión entre ellas. Ahora se comprueba que dentro de
+  la ventana se acepta y fuera se revoca.
+
+- **Postgres se publica en el puerto 5433 en esta máquina.** El 5432 lo ocupa
+  otro proyecto del cliente; se parametrizó el puerto en el compose
+  (`GLEXCO_POSTGRES_PORT`, en `infra/docker/.env`) en vez de parar un contenedor
+  ajeno.
+
+### Herramientas nuevas
+
+| Comando | Qué hace |
+|---|---|
+| `pnpm seed` | Kit, lote de códigos, institución y salón. Necesario desde que identidad habla con el catálogo real en vez de con el doble en memoria. |
+| `pnpm concurrency` | Las cuatro comprobaciones de la sección 3 de PUESTA-EN-MARCHA, con `Promise.all`. |
+| `pnpm smoke` | Ahora 32 comprobaciones, con una sección de catálogo. |
+
+### Estado al cerrar
+
+- `pnpm build`: **9/9**. `pnpm test`: **118 en verde**.
+- `pnpm smoke`: **32/32** a través del gateway.
+- `pnpm concurrency`: **14/14** contra Postgres, Redis y NATS reales.
+- Un canje de veinte simultáneos, cinco plazas de veinte solicitudes, la outbox
+  reteniendo el evento con NATS parado y publicándolo al volver, y el mismo
+  evento entregado dos veces aplicándose una.
+
+### Qué falta
+
+**Fase 3:** `media-service` (subida con URL prefirmada, validación de tipo real,
+proveedor de video), caché de catálogo con invalidación por etiqueta al
+publicar, y revocación de códigos y derechos —el permiso
+`ACTIVATION_CODE_REVOKE` existe pero todavía no hay caso de uso que lo ejerza.
+
+**Aviso para la próxima sesión:** `ACTIVATION_REDEEM_BY_IP` son cinco intentos
+por IP y hora, y `REGISTRATION_BY_IP` diez. Son los valores correctos y no hay
+que relajarlos, pero agotan el presupuesto en dos o tres ejecuciones seguidas de
+`pnpm smoke` desde la misma máquina. Para limpiarlos:
+
+```bash
+docker exec glexco-redis sh -c "redis-cli -a glexco_local_dev --no-auth-warning \
+  --scan --pattern 'glexco:rl:*' | xargs -r redis-cli -a glexco_local_dev \
+  --no-auth-warning DEL"
+```
+
+---
+
 ## Sesión 4 — 2026-09-02 — Fases 2 y 3, y dirección visual
 
 ### Qué se construyó

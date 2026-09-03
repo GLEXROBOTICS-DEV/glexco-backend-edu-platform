@@ -159,14 +159,24 @@ El servicio del que dependen todos los demás.
       previa que consulta identidad.
 - [x] 25 pruebas del dominio.
 
+- [x] **Generación de lotes y exportación para imprenta.** `POST /catalog/batches`
+      con `format=csv`. Los códigos en claro se devuelven **una sola vez**: en la
+      base solo queda su hash, así que no existe -ni puede existir- un endpoint
+      para volver a descargar el fichero.
+- [x] **Consumidor de `identity.user.registered.v1` que canjea de forma
+      asíncrona.** Cierra el flujo del registro sin transacción distribuida. El
+      evento lleva el **id de la fila** del código, nunca el código.
+- [x] Verificado contra infraestructura real: canje de un solo uso con 20
+      peticiones simultáneas, tope de plazas, durabilidad de la outbox y
+      deduplicación de eventos (`pnpm concurrency`).
+
 **Pendiente:**
 
-- [ ] Generación de lotes y exportación para imprenta (el dominio ya lo soporta:
-      `generateBatch` e `insertBatch`).
-- [ ] Consumidor de `identity.user.registered.v1` que canjee de forma asíncrona.
 - [ ] `media-service`: subida con URL prefirmada, validación de tipo real,
       miniaturas, proveedor de video.
 - [ ] Caché de catálogo con invalidación por etiqueta al publicar.
+- [ ] Revocación de códigos y de derechos (`ACTIVATION_CODE_REVOKE` existe como
+      permiso pero todavía no hay caso de uso que lo ejerza).
 
 ## ⬜ Fase 4 — Portales de alumno (Discover y Academy)
 

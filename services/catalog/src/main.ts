@@ -32,12 +32,31 @@ import {
   ensureStream,
 } from '@glexco/nest-platform';
 import type { NatsConnection } from 'nats';
-import { CatalogModule } from './catalog.module';
+import type { Clock, LoggerPort, SecureRandom } from '@glexco/kernel';
+import type { Logger } from '@glexco/observability';
+import {
+  ACTIVATION_CODE_REPOSITORY,
+  CatalogModule,
+  CLOCK,
+  CODE_PEPPER,
+  ENTITLEMENT_REPOSITORY,
+  KIT_REPOSITORY,
+  LOGGER,
+  LOGGER_PORT,
+  SECURE_RANDOM,
+} from './catalog.module';
+import { buildCatalogIdentityConsumer } from './interface/events/identity.consumer';
+import type {
+  ActivationCodeRepository,
+  EntitlementRepository,
+  KitRepository,
+} from './domain/repositories';
 /* eslint-enable import/first */
 
 async function main(): Promise<void> {
   let nats: NatsConnection | null = null;
   let outboxRelay: OutboxRelay | null = null;
+  let identityConsumer: ReturnType<typeof buildCatalogIdentityConsumer> | null = null;
 
   const app = await bootstrapService({
     module: CatalogModule,
@@ -70,6 +89,25 @@ async function main(): Promise<void> {
           lock: new RedisDistributedLock(redis),
         });
         outboxRelay.start();
+
+        // Cierra el flujo del registro: identidad solo COMPRUEBA el codigo -no
+        // puede canjearlo sin una transaccion distribuida-, y el canje real
+        // ocurre aqui al consumir el alta del alumno.
+        identityConsumer = buildCatalogIdentityConsumer({
+          connection: nats,
+          pool: writePool,
+          streamName: config.NATS_STREAM,
+          serviceName: config.SERVICE_NAME,
+          codes: instance.get<ActivationCodeRepository>(ACTIVATION_CODE_REPOSITORY),
+          kits: instance.get<KitRepository>(KIT_REPOSITORY),
+          entitlements: instance.get<EntitlementRepository>(ENTITLEMENT_REPOSITORY),
+          clock: instance.get<Clock>(CLOCK),
+          logger: instance.get<LoggerPort>(LOGGER_PORT),
+          pepper: instance.get<string>(CODE_PEPPER),
+          ids: instance.get<SecureRandom>(SECURE_RANDOM),
+          natsLogger: instance.get<Logger>(LOGGER),
+        });
+        await identityConsumer.start();
       } catch (error) {
         process.stderr.write(
           `Aviso: no se pudo conectar con NATS al arrancar. Los eventos se acumularan ` +
@@ -84,6 +122,7 @@ async function main(): Promise<void> {
     onShutdown: async () => {
       app.get(HealthController, { strict: false })?.markDraining();
 
+      await identityConsumer?.stop().catch(() => undefined);
       await outboxRelay?.stop().catch(() => undefined);
       await nats?.drain().catch(() => undefined);
 

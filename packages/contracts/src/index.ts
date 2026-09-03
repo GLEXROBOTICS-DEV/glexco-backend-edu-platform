@@ -8,3 +8,4 @@ export * from './events/event-names';
 export * from './schemas/common';
 export * from './schemas/auth';
 export * from './schemas/institutions';
+export * from './schemas/catalog';

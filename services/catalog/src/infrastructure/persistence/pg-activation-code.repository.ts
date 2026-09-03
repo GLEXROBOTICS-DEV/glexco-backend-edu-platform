@@ -17,6 +17,7 @@ import {
 import type {
   ActivationCodeRepository,
   CodeBatchSummary,
+  NewCodeBatch,
 } from '../../domain/repositories';
 
 interface CodeRow {
@@ -79,6 +80,17 @@ export class PgActivationCodeRepository implements ActivationCodeRepository {
     return rows[0] ? toDomain(rows[0]) : null;
   }
 
+  /** Mismo bloqueo que `findByHashForUpdate`, pero por id: es la via del canje
+   *  que llega por evento, donde el codigo en claro ya no existe. */
+  async findByIdForUpdate(id: string, tx: TransactionContext): Promise<ActivationCode | null> {
+    const client = (tx as PgTransaction).client;
+    const { rows } = await client.query<CodeRow>(
+      `SELECT ${COLUMNS} FROM catalog.activation_codes WHERE id = $1 FOR UPDATE`,
+      [id],
+    );
+    return rows[0] ? toDomain(rows[0]) : null;
+  }
+
   /** Lectura sin bloqueo para la comprobacion previa del formulario. */
   async findByHash(codeHash: string): Promise<ActivationCode | null> {
     const { rows } = await this.readPool.query<CodeRow>(
@@ -123,6 +135,25 @@ export class PgActivationCodeRepository implements ActivationCodeRepository {
       );
       throw new ConcurrencyError('ActivationCode', code.id.value, code.version, rows[0]?.version ?? -1);
     }
+  }
+
+  async createBatch(batch: NewCodeBatch, tx: TransactionContext): Promise<void> {
+    const client = (tx as PgTransaction).client;
+
+    await client.query(
+      `INSERT INTO catalog.code_batches
+         (id, kit_id, grade, total, distributed_to, reference, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        batch.id,
+        batch.kitId,
+        batch.grade,
+        batch.total,
+        batch.distributedTo,
+        batch.reference,
+        batch.createdBy,
+      ],
+    );
   }
 
   /**

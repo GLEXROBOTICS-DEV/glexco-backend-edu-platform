@@ -30,10 +30,9 @@
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import jwt from 'jsonwebtoken';
 import pg from 'pg';
 import contracts from '@glexco/contracts';
-import { seedCatalog, seedInstitution } from './seed-dev.mjs';
+import { mintAccessToken, seedCatalog, seedInstitution, seedUsers } from './seed-dev.mjs';
 
 const run = promisify(execFile);
 
@@ -86,75 +85,6 @@ function requireEnv(name) {
 // ---------------------------------------------------------------------------
 // Utilidades
 // ---------------------------------------------------------------------------
-
-/** Firma un access token con la misma forma que `JwtTokenIssuer`. */
-function mintAccessToken({ userId, roles, institutionId }) {
-  const permissions = [...new Set(roles.flatMap((role) => ROLE_PERMISSIONS[role] ?? []))];
-
-  return jwt.sign(
-    {
-      sub: userId,
-      sid: randomUUID(),
-      roles,
-      perms: permissions,
-      loc: 'es',
-      jti: randomUUID(),
-      ...(institutionId ? { inst: institutionId } : {}),
-    },
-    requireEnv('JWT_ACCESS_SECRET'),
-    {
-      algorithm: 'HS256',
-      expiresIn: 900,
-      issuer: requireEnv('JWT_ISSUER'),
-      audience: requireEnv('JWT_AUDIENCE'),
-    },
-  );
-}
-
-/**
- * Crea usuarios directamente en identity.users.
- *
- * `password_hash` es un marcador: estos usuarios nunca inician sesion, se les
- * firma el token. Ponerlo en claro seria peor que inutil, asi que se guarda un
- * hash imposible de satisfacer.
- */
-async function seedUsers(count, { roles = [ROLES.STUDENT], institutionId = null } = {}) {
-  const client = new pg.Client({ connectionString: requireEnv('DATABASE_URL_IDENTITY') });
-  await client.connect();
-
-  try {
-    const users = [];
-    const stamp = Date.now().toString(36);
-
-    for (let i = 0; i < count; i += 1) {
-      const id = randomUUID();
-      users.push({ id, roles, institutionId });
-
-      await client.query(
-        `INSERT INTO identity.users
-           (id, email, first_name, last_name, birth_date, password_hash, roles,
-            institution_id, status, account_type, email_verified, locale,
-            accepted_terms_at, version)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'active',$9,true,'es', now(), 1)`,
-        [
-          id,
-          `carrera.${stamp}.${i}@colegio.pe`,
-          'Alumno',
-          `Numero ${i}`,
-          '2008-03-15',
-          '$argon2id$v=19$m=19456,t=2,p=1$c2VtaWxsYS1pbnZhbGlkYQ$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-          roles,
-          institutionId,
-          institutionId ? 'institutional' : 'independent',
-        ],
-      );
-    }
-
-    return users;
-  } finally {
-    await client.end().catch(() => {});
-  }
-}
 
 async function queryCatalog(sql, params = []) {
   const client = new pg.Client({ connectionString: requireEnv('DATABASE_URL_CATALOG') });

@@ -14,6 +14,9 @@
  * tiene que funcionar sobre una base recien migrada, cuando todavia no hay
  * ningun usuario que pueda emitir ese token.
  *
+ * Necesita el monorepo compilado (`pnpm build`), porque importa el vocabulario
+ * de `@glexco/contracts` en vez de repetirlo.
+ *
  * Uso:
  *   node --env-file-if-exists=.env infra/scripts/seed-dev.mjs
  *   node --env-file-if-exists=.env infra/scripts/seed-dev.mjs --codes 40
@@ -21,14 +24,20 @@
  * Tambien se importa como modulo desde smoke-test.mjs y concurrency-check.mjs.
  */
 import { createHash, randomInt, randomUUID } from 'node:crypto';
+import jwt from 'jsonwebtoken';
 import pg from 'pg';
+import contracts from '@glexco/contracts';
 
-// Mismos valores que `@glexco/contracts`. Se repiten aqui, y no se importan,
-// porque este script tiene que poder ejecutarse sin haber compilado el
-// monorepo: es lo primero que se lanza sobre una base vacia.
-const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-const CODE_LENGTH = 12;
-const CODE_PREFIX = 'GLX';
+// El alfabeto y el formato salen de los contratos, no de una copia local: si se
+// desviaran, los codigos sembrados no pasarian la validacion del dominio y el
+// fallo apareceria como "codigo invalido" sin pista de por que.
+const {
+  ACTIVATION_CODE_ALPHABET: ALPHABET,
+  ACTIVATION_CODE_LENGTH: CODE_LENGTH,
+  ACTIVATION_CODE_PREFIX: CODE_PREFIX,
+  ROLES,
+  ROLE_PERMISSIONS,
+} = contracts;
 
 /** Identificador del personal GLEXCO ficticio al que se atribuye el lote. */
 const SEED_OPERATOR_ID = '00000000-0000-4000-8000-000000000001';
@@ -187,6 +196,90 @@ export async function seedInstitution({
   } finally {
     await client.end().catch(() => {});
   }
+}
+
+
+// ---------------------------------------------------------------------------
+// Usuarios y tokens
+// ---------------------------------------------------------------------------
+
+/**
+ * Crea usuarios directamente en identity.users.
+ *
+ * No es un atajo por comodidad: darlos de alta por HTTP chocaria con los
+ * limites de fuerza bruta -cinco codigos por IP y hora, diez registros por IP y
+ * hora-, que son correctos y no se van a relajar para que las herramientas de
+ * desarrollo tengan la vida mas facil.
+ *
+ * `password_hash` es un marcador imposible de satisfacer: estos usuarios nunca
+ * inician sesion, se les firma el token con `mintAccessToken`.
+ */
+export async function seedUsers(count, { roles = [ROLES.STUDENT], institutionId = null } = {}) {
+  const client = new pg.Client({ connectionString: requireEnv('DATABASE_URL_IDENTITY') });
+  await client.connect();
+
+  try {
+    const users = [];
+    const stamp = `${Date.now().toString(36)}${randomUUID().slice(0, 4)}`;
+    const isStaff = !roles.includes(ROLES.STUDENT);
+
+    for (let i = 0; i < count; i += 1) {
+      const id = randomUUID();
+      users.push({ id, roles, institutionId });
+
+      await client.query(
+        `INSERT INTO identity.users
+           (id, email, first_name, last_name, birth_date, password_hash, roles,
+            institution_id, status, account_type, email_verified, locale,
+            accepted_terms_at, version)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'active',$9,true,'es', now(), 1)`,
+        [
+          id,
+          `sembrado.${stamp}.${i}@colegio.pe`,
+          'Usuario',
+          `Sembrado ${i}`,
+          isStaff ? null : '2008-03-15',
+          '$argon2id$v=19$m=19456,t=2,p=1$c2VtaWxsYS1pbnZhbGlkYQ$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+          roles,
+          institutionId,
+          isStaff ? 'staff' : institutionId ? 'institutional' : 'independent',
+        ],
+      );
+    }
+
+    return users;
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
+/**
+ * Firma un access token con la misma forma que `JwtTokenIssuer`.
+ *
+ * Los guards lo verifican exactamente igual que uno emitido por identidad: la
+ * verificacion es local, con el mismo secreto, emisor y audiencia.
+ */
+export function mintAccessToken({ userId, roles, institutionId = null }) {
+  const permissions = [...new Set(roles.flatMap((role) => ROLE_PERMISSIONS[role] ?? []))];
+
+  return jwt.sign(
+    {
+      sub: userId,
+      sid: randomUUID(),
+      roles,
+      perms: permissions,
+      loc: 'es',
+      jti: randomUUID(),
+      ...(institutionId ? { inst: institutionId } : {}),
+    },
+    requireEnv('JWT_ACCESS_SECRET'),
+    {
+      algorithm: 'HS256',
+      expiresIn: 900,
+      issuer: requireEnv('JWT_ISSUER'),
+      audience: requireEnv('JWT_AUDIENCE'),
+    },
+  );
 }
 
 // ---------------------------------------------------------------------------
