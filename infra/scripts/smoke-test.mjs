@@ -570,9 +570,15 @@ ${colors.fail}Sin codigos sembrados no se puede registrar a nadie.${colors.reset
     `${CATALOG}/api/v1/catalog/library?kitId=${kit.kitId}`,
     pupilToken,
   );
+  // Se afirma que el BORRADOR no esta, no un numero exacto de recursos: el
+  // sembrador crece cuando hace falta cubrir un camino nuevo -un video, un
+  // enlace externo- y una cifra fija convierte esa mejora en un fallo que no
+  // tiene nada que ver con lo que la comprobacion quiere decir.
   report(
-    'La biblioteca del kit trae solo el recurso publicado',
-    library.status === 200 && library.body?.items?.length === 1,
+    'La biblioteca del kit trae solo lo publicado, nunca un borrador',
+    library.status === 200 &&
+      library.body?.items?.length > 0 &&
+      !JSON.stringify(library.body).includes('Ficha en preparacion'),
     `status=${library.status} items=${library.body?.items?.length}`,
   );
 
@@ -624,8 +630,9 @@ ${colors.fail}Sin codigos sembrados no se puede registrar a nadie.${colors.reset
   );
   report(
     'Al publicar, la cache se invalida y el recurso nuevo aparece de inmediato',
-    libraryAfter.body?.items?.length === 2,
-    `items=${libraryAfter.body?.items?.length}`,
+    libraryAfter.body?.items?.length === library.body?.items?.length + 1 &&
+      JSON.stringify(libraryAfter.body).includes('Ficha en preparacion'),
+    `antes=${library.body?.items?.length} despues=${libraryAfter.body?.items?.length}`,
   );
 
   // Aislamiento: un alumno sin derecho a ese kit no ve su biblioteca, y el

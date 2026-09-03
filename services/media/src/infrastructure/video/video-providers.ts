@@ -1,8 +1,7 @@
-import { CircuitBreaker, defaultBreakerOptions } from '@glexco/nest-platform';
+import { CircuitBreaker, defaultBreakerOptions, type S3ObjectStorage } from '@glexco/nest-platform';
 import { ServiceUnavailableError } from '@glexco/kernel';
 import type { Logger } from '@glexco/observability';
 import type { VideoProvider } from '../../application/ports';
-import type { S3ObjectStorage } from '../storage/s3-object-storage';
 
 /**
  * Proveedor de video externo.

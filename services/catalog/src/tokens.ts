@@ -17,5 +17,13 @@ export const ACTIVATION_CODE_REPOSITORY = Symbol('ACTIVATION_CODE_REPOSITORY');
 export const KIT_REPOSITORY = Symbol('KIT_REPOSITORY');
 export const ENTITLEMENT_REPOSITORY = Symbol('ENTITLEMENT_REPOSITORY');
 export const CONTENT_REPOSITORY = Symbol('CONTENT_REPOSITORY');
+
+/** Almacen de objetos. Catalogo solo FIRMA descargas del material del kit; las
+ *  subidas siguen siendo cosa de media. */
+export const OBJECT_STORAGE = Symbol('OBJECT_STORAGE');
+/** Como se obtiene la URL de reproduccion de un video ya registrado. Es una
+ *  funcion y no el proveedor entero porque catalogo no registra videos: solo
+ *  necesita saber donde se ven. */
+export const VIDEO_PLAYBACK = Symbol('VIDEO_PLAYBACK');
 export const CODE_PEPPER = Symbol('CODE_PEPPER');
 export const CACHE_STORE = Symbol('CACHE_STORE');

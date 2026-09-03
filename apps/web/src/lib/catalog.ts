@@ -15,10 +15,24 @@ export interface MyKit {
 
 export interface LibraryItem {
   id: string;
+  lessonId: string | null;
   title: string;
+  description: string;
   type: string;
   locale: 'es' | 'en';
+  durationSeconds: number | null;
+  sizeBytes: number | null;
   downloadable: boolean;
+  /** Como se entrega. El backend lo decide; la pantalla solo elige el icono y,
+   *  al abrirlo, el reproductor. */
+  delivery: 'stream' | 'embed' | 'external' | 'download';
+}
+
+/** Un recurso ya abierto, con su URL firmada de vida corta. */
+export interface OpenedAsset extends LibraryItem {
+  assetId: string;
+  url: string;
+  expiresInSeconds: number;
 }
 
 /**
@@ -47,7 +61,7 @@ export async function fetchMyKits(): Promise<{ kits: MyKit[]; failed: boolean }>
 
 export async function fetchLibrary(kitId: string): Promise<LibraryItem[]> {
   const result = await api<{ items: LibraryItem[] }>(
-    `/catalog/library?kitId=${encodeURIComponent(kitId)}`,
+    `/catalog/library?kitId=${encodeURIComponent(kitId)}&limit=100`,
   );
 
   if (!result.ok) {
@@ -60,6 +74,79 @@ export async function fetchLibrary(kitId: string): Promise<LibraryItem[]> {
   }
 
   return result.data.items ?? [];
+}
+
+/**
+ * Abre un recurso y devuelve su URL firmada.
+ *
+ * **Se pide en cada visita y nunca se guarda.** La firma dura quince minutos: si
+ * la pagina la incrustara y el alumno la dejara abierta durante una clase, al
+ * pulsar descargar recibiria un error de firma caducada sin ninguna explicacion.
+ * Pedirla al renderizar cuesta una llamada y hace que el enlace siempre sirva.
+ *
+ * Devuelve `null` en cualquier fallo -no existe, no es de su kit, el servicio no
+ * responde-. La pantalla no distingue los casos hacia el alumno, igual que el
+ * backend: separarlos permitiria recorrer el catalogo probando identificadores.
+ */
+export async function openLibraryAsset(assetId: string): Promise<OpenedAsset | null> {
+  const result = await api<OpenedAsset>(
+    `/catalog/library/${encodeURIComponent(assetId)}/url`,
+  );
+
+  if (!result.ok) {
+    console.error('No se pudo abrir el recurso de la biblioteca', {
+      assetId,
+      status: result.status,
+      code: result.error.code,
+      correlationId: result.error.correlationId,
+    });
+    return null;
+  }
+
+  return result.data;
+}
+
+/** Nombre en pantalla de cada tipo de recurso. El backend guarda la clave. */
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  video: 'Vídeo',
+  document: 'Documento',
+  presentation: 'Presentación',
+  worksheet: 'Ficha',
+  guide: 'Guía',
+  manual: 'Manual',
+  tutorial: 'Tutorial',
+  webinar: 'Webinar',
+  masterclass: 'Clase magistral',
+  code_sample: 'Código de ejemplo',
+  build_instruction: 'Instrucciones de montaje',
+  external_link: 'Enlace',
+};
+
+export function contentTypeLabel(type: string): string {
+  return CONTENT_TYPE_LABELS[type] ?? type;
+}
+
+/** Duracion en minutos y segundos. `null` cuando el recurso no dura nada -un
+ *  PDF-, que no es lo mismo que durar cero. */
+export function durationLabel(seconds: number | null): string | null {
+  if (seconds === null || seconds <= 0) return null;
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `${minutes}:${String(rest).padStart(2, '0')}`;
+}
+
+/** Tamano legible. Se usa base 1024 porque es lo que informa el sistema
+ *  operativo al descargar, y una cifra distinta genera dudas. */
+export function sizeLabel(bytes: number | null): string | null {
+  if (bytes === null || bytes <= 0) return null;
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
 }
 
 /** Grados peruanos en texto legible. El backend guarda la clave estable. */

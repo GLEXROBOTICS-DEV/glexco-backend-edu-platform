@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 import type { Logger } from '@glexco/observability';
 import type { Thumbnailer } from '../../application/ports';
-import type { S3ObjectStorage } from '../storage/s3-object-storage';
+import type { S3ObjectStorage } from '@glexco/nest-platform';
 
 /**
  * Miniaturas de imagen con sharp.

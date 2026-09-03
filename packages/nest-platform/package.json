@@ -12,6 +12,9 @@
     "clean": "rimraf dist .turbo"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.716.0",
+    "@aws-sdk/s3-presigned-post": "^3.716.0",
+    "@aws-sdk/s3-request-presigner": "^3.716.0",
     "@glexco/config": "workspace:*",
     "@glexco/contracts": "workspace:*",
     "@glexco/kernel": "workspace:*",

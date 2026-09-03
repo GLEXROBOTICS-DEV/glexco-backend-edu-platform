@@ -23,6 +23,7 @@ import {
   PermissionsGuard,
   PgUnitOfWork,
   REDIS_CLIENT,
+  S3ObjectStorage,
   createReadPool,
   createRedisClient,
   createWritePool,
@@ -53,7 +54,7 @@ import {
   type BucketMap,
 } from './application/upload.usecases';
 import { PgMediaAssetRepository } from './infrastructure/persistence/pg-media-asset.repository';
-import { S3ObjectStorage } from './infrastructure/storage/s3-object-storage';
+
 import { MagicBytesSniffer } from './infrastructure/media/magic-bytes.sniffer';
 import { SharpThumbnailer } from './infrastructure/media/sharp.thumbnailer';
 import {

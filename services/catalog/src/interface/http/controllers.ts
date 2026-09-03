@@ -55,7 +55,12 @@ import {
   RevokeActivationCodeUseCase,
 } from '../../application/revoke-activation-code.usecase';
 import { PublishContentUseCase } from '../../application/publish-content.usecase';
-import type { EntitlementRepository, KitRepository } from '../../domain/repositories';
+import { OpenLibraryAssetUseCase } from '../../application/open-library-asset.usecase';
+import type { ContentAsset, EntitlementRepository, KitRepository } from '../../domain/repositories';
+
+/** Lo que devuelve el repositorio para cada fila de la biblioteca. Se escribe
+ *  aparte porque el controlador recorta esa forma antes de responder. */
+type LibraryRow = ContentAsset;
 import { CONTENT_REPOSITORY, ENTITLEMENT_REPOSITORY, KIT_REPOSITORY } from '../../tokens';
 
 function contextFrom(request: Request): UseCaseContext {
@@ -98,6 +103,7 @@ const libraryQuerySchema = z.object({
 export class CatalogController {
   constructor(
     private readonly redeem: RedeemActivationCodeUseCase,
+    private readonly openLibraryAsset: OpenLibraryAssetUseCase,
     // Los tres siguientes son puertos del dominio, no clases: su tipo se borra
     // al compilar y Nest solo puede resolverlos por token explicito.
     @Inject(ENTITLEMENT_REPOSITORY) private readonly entitlements: EntitlementRepository,
@@ -221,11 +227,52 @@ export class CatalogController {
       throw new ForbiddenError('KIT_NOT_ACCESSIBLE', 'Este contenido no está en tu kit.');
     }
 
-    return this.content.listLibrary(
+    const page = (await this.content.listLibrary(
       query.kitId,
       { locale: query.locale, search: query.search } as never,
       { limit: query.limit, cursor: query.cursor },
-    );
+    )) as { items: LibraryRow[]; nextCursor: string | null };
+
+    // La clave del almacen y el bucket NO salen hacia el alumno. No abren nada
+    // por si solos -los buckets son privados y todo se sirve firmado-, pero son
+    // la estructura interna del almacenamiento: publicarla invita a construir
+    // rutas a mano y ata el formato de las claves a lo que ya vio un cliente.
+    // Para abrir un recurso esta `/catalog/library/:assetId/url`, que ademas
+    // vuelve a comprobar el derecho sobre el kit de ESE recurso.
+    return {
+      items: page.items.map((item) => ({
+        id: item.id,
+        lessonId: item.lessonId,
+        title: item.title,
+        description: item.description,
+        type: item.type,
+        locale: item.locale,
+        durationSeconds: item.durationSeconds,
+        sizeBytes: item.sizeBytes,
+        downloadable: item.downloadable,
+        /** Como se va a entregar, sin decir de donde sale. */
+        delivery:
+          item.storageKind === 'external_link'
+            ? 'external'
+            : item.storageKind === 'video_provider'
+              ? 'stream'
+              : 'download',
+      })),
+      nextCursor: page.nextCursor,
+    };
+  }
+
+  /**
+   * Abre un recurso concreto de la biblioteca.
+   *
+   * Devuelve una URL firmada de vida corta y nunca una direccion permanente:
+   * los buckets son privados y siguen siendolo. El derecho se comprueba sobre
+   * el kit AL QUE PERTENECE el recurso, no sobre uno que venga en la peticion.
+   */
+  @Get('library/:assetId/url')
+  @RequirePermissions(PERMISSIONS.CONTENT_READ)
+  async openAsset(@Param('assetId') assetId: string, @CurrentActor() actor: RequestActor) {
+    return this.openLibraryAsset.execute({ assetId, studentId: actor.userId });
   }
 
   @Get('kits/:kitId/courses')

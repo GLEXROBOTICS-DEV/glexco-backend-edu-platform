@@ -126,6 +126,8 @@ export async function seedCatalog({ codeCount = 30, kitCode, grade = 'primary_6'
     const moduleId = randomUUID();
     const lessonId = randomUUID();
     const assetId = randomUUID();
+    const videoAssetId = randomUUID();
+    const linkAssetId = randomUUID();
     const draftAssetId = randomUUID();
 
     await client.query(
@@ -155,6 +157,26 @@ export async function seedCatalog({ codeCount = 30, kitCode, grade = 'primary_6'
       [assetId, kitId, lessonId, 'Guia del docente', `kits/${kitId}/guia.pdf`],
     );
 
+    // Un video y un enlace externo, porque los tres caminos de entrega se
+    // resuelven distinto -firmar contra el bucket, pedir la URL al proveedor, o
+    // devolver la direccion tal cual- y con un solo PDF sembrado dos de los tres
+    // no se ejercitan nunca.
+    await client.query(
+      `INSERT INTO catalog.content_assets
+         (id, kit_id, lesson_id, title, description, type, storage_kind, storage_ref,
+          bucket, locale, status, order_index, downloadable, duration_seconds)
+       VALUES ($1,$2,$3,$4,'','video','video_provider',$5,'glexco-media','es','published',2,false,612)`,
+      [videoAssetId, kitId, lessonId, 'Monta tu primer robot', `glexco-media:kits/${kitId}/montaje.mp4`],
+    );
+
+    await client.query(
+      `INSERT INTO catalog.content_assets
+         (id, kit_id, lesson_id, title, description, type, storage_kind, storage_ref,
+          bucket, locale, status, order_index, downloadable)
+       VALUES ($1,$2,$3,$4,'','external_link','external_link',$5,NULL,'es','published',3,false)`,
+      [linkAssetId, kitId, lessonId, 'Presentacion de la sesion', 'https://www.youtube.com/watch?v=dev'],
+    );
+
     // Uno en borrador a proposito: la biblioteca del alumno NO debe traerlo, y
     // sirve para probar la transicion a publicado.
     await client.query(
@@ -176,6 +198,8 @@ export async function seedCatalog({ codeCount = 30, kitCode, grade = 'primary_6'
       courseId,
       lessonId,
       assetId,
+      videoAssetId,
+      linkAssetId,
       draftAssetId,
     };
   } catch (error) {

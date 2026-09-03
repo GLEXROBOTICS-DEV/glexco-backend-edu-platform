@@ -13,8 +13,6 @@ import type {
   PresignUploadInput,
   PresignedUpload,
 } from '@glexco/kernel';
-import type { ObjectPrefixReader } from '../../application/ports';
-
 export interface S3Options {
   endpoint?: string | undefined;
   region: string;
@@ -32,7 +30,7 @@ export interface S3Options {
  * mismo protocolo. Esa compatibilidad es lo que permite que la decision de
  * proveedor no se tome ahora y no cueste nada cambiarla despues.
  */
-export class S3ObjectStorage implements ObjectStorage, ObjectPrefixReader {
+export class S3ObjectStorage implements ObjectStorage {
   private readonly client: S3Client;
 
   constructor(private readonly options: S3Options) {

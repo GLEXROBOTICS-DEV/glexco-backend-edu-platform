@@ -5,7 +5,14 @@ import { z } from 'zod';
 import type { Pool } from 'pg';
 import type { Redis } from 'ioredis';
 import type { CacheStore, Clock, SecureRandom, UnitOfWork } from '@glexco/kernel';
-import { authEnvSchema, baseEnvSchema, loadEnv, withServiceDatabaseUrl } from '@glexco/config';
+import {
+  authEnvSchema,
+  baseEnvSchema,
+  loadEnv,
+  optionalEnv,
+  storageEnvSchema,
+  withServiceDatabaseUrl,
+} from '@glexco/config';
 import {
   CONFIG,
   LOGGER,
@@ -19,6 +26,8 @@ import {
   CONTENT_REPOSITORY,
   CODE_PEPPER,
   CACHE_STORE,
+  OBJECT_STORAGE,
+  VIDEO_PLAYBACK,
 } from './tokens';
 import {
   CorrelationMiddleware,
@@ -33,6 +42,7 @@ import {
   PgUnitOfWork,
   REDIS_CLIENT,
   RedisCacheStore,
+  S3ObjectStorage,
   createReadPool,
   createRedisClient,
   createWritePool,
@@ -50,6 +60,7 @@ import {
   PrecheckActivationCodeUseCase,
   RedeemActivationCodeUseCase,
 } from './application/redeem-activation-code.usecase';
+import { OpenLibraryAssetUseCase } from './application/open-library-asset.usecase';
 import {
   GenerateCodeBatchUseCase,
   GetCodeBatchUseCase,
@@ -82,6 +93,9 @@ import {
  */
 const catalogEnvSchema = baseEnvSchema
   .merge(authEnvSchema.pick({ JWT_ACCESS_SECRET: true, JWT_ISSUER: true, JWT_AUDIENCE: true }))
+  // Catalogo firma la descarga del material del kit, asi que necesita las
+  // credenciales del almacen. Solo firma LECTURAS: no sube ni borra nada.
+  .merge(storageEnvSchema)
   .extend({
     SERVICE_NAME: z.string().default('catalog'),
     PORT: z.coerce.number().int().default(3103),
@@ -95,11 +109,35 @@ const catalogEnvSchema = baseEnvSchema
       .string()
       .min(32, 'La pimienta de los codigos debe tener al menos 32 caracteres'),
     INTERNAL_SERVICE_TOKEN: z.string().min(32).optional(),
+    /** Proveedor de video. Vacio en desarrollo: el video se sirve del bucket
+     *  propio, igual que en media y con el mismo aviso -no vale para
+     *  produccion, donde el ancho de banda lo paga la factura de salida-. */
+    VIDEO_PROVIDER_URL: optionalEnv(z.string().url()),
   });
 
 export type CatalogConfig = z.infer<typeof catalogEnvSchema>;
-export const loadCatalogConfig = (): CatalogConfig =>
-  loadEnv(catalogEnvSchema, withServiceDatabaseUrl('catalog'));
+
+export function loadCatalogConfig(): CatalogConfig {
+  const config = loadEnv(catalogEnvSchema, withServiceDatabaseUrl('catalog'));
+
+  // El mismo corte que hace media, y por la misma razon: sin proveedor de
+  // video, catalogo serviria los tutoriales del kit desde nuestro propio bucket.
+  // Un video de clase son cientos de megas y lo abren aulas enteras a la vez;
+  // el primer aviso de que se olvido configurarlo seria la factura de salida.
+  if (config.NODE_ENV === 'production' && !config.VIDEO_PROVIDER_URL) {
+    process.stderr.write(
+      [
+        '',
+        'Falta VIDEO_PROVIDER_URL en produccion: el video del kit no puede',
+        'salir de nuestro bucket.',
+        '',
+      ].join('\n'),
+    );
+    process.exit(1);
+  }
+
+  return config;
+}
 
 // Los tokens viven en ./tokens para que los controladores puedan importarlos
 // sin crear un ciclo con este modulo. Se reexportan para no romper a quien ya
@@ -331,6 +369,65 @@ export {
       useFactory: (...args: ConstructorParameters<typeof InternalActivationCodesController>) =>
         new InternalActivationCodesController(...args),
       inject: [PrecheckActivationCodeUseCase],
+    },
+
+    {
+      provide: OBJECT_STORAGE,
+      useFactory: (config: CatalogConfig) =>
+        new S3ObjectStorage({
+          endpoint: config.S3_ENDPOINT,
+          region: config.S3_REGION,
+          accessKey: config.S3_ACCESS_KEY,
+          secretKey: config.S3_SECRET_KEY,
+          forcePathStyle: config.S3_FORCE_PATH_STYLE,
+          defaultTtlSeconds: config.S3_PRESIGN_TTL_SECONDS,
+        }),
+      inject: [CONFIG],
+    },
+    {
+      provide: VIDEO_PLAYBACK,
+      // Sin proveedor contratado, la referencia guardada es "bucket:clave" y se
+      // firma contra el bucket propio. Es el mismo sustituto que usa media y
+      // vale exactamente para lo mismo: desarrollar. En produccion la URL la da
+      // el proveedor, que es quien aplica la restriccion de dominio.
+      useFactory: (config: CatalogConfig, storage: S3ObjectStorage) => {
+        const base = config.VIDEO_PROVIDER_URL;
+        if (base) {
+          return async (ref: string): Promise<string> =>
+            `${base}/play/${encodeURIComponent(ref)}`;
+        }
+        return async (ref: string): Promise<string> => {
+          const separator = ref.indexOf(':');
+          if (separator < 0) {
+            throw new Error(`Referencia de video sin bucket: ${ref}`);
+          }
+          return storage.presignDownload(
+            ref.slice(0, separator),
+            ref.slice(separator + 1),
+            config.S3_PRESIGN_TTL_SECONDS,
+          );
+        };
+      },
+      inject: [CONFIG, OBJECT_STORAGE],
+    },
+    {
+      provide: OpenLibraryAssetUseCase,
+      useFactory: (
+        content: ConstructorParameters<typeof OpenLibraryAssetUseCase>[0],
+        entitlements: ConstructorParameters<typeof OpenLibraryAssetUseCase>[1],
+        storage: ConstructorParameters<typeof OpenLibraryAssetUseCase>[2],
+        playback: ConstructorParameters<typeof OpenLibraryAssetUseCase>[3],
+        config: CatalogConfig,
+      ) =>
+        new OpenLibraryAssetUseCase(
+          content,
+          entitlements,
+          storage,
+          playback,
+          Boolean(config.VIDEO_PROVIDER_URL),
+          config.S3_PRESIGN_TTL_SECONDS,
+        ),
+      inject: [CONTENT_REPOSITORY, ENTITLEMENT_REPOSITORY, OBJECT_STORAGE, VIDEO_PLAYBACK, CONFIG],
     },
 
     {

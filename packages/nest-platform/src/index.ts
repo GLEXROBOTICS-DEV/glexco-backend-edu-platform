@@ -25,4 +25,10 @@ export * from './messaging/event-consumer';
 
 export * from './resilience/circuit-breaker';
 
+// El almacen de objetos vive aqui y no en media porque lo necesitan dos
+// servicios: media firma las subidas, y catalogo firma la descarga del material
+// del kit. Duplicar el adaptador habria significado dos sitios donde arreglar
+// una firma mal formada, y uno de los dos se queda atras.
+export * from './storage/s3-object-storage';
+
 export * from './health/health.controller';
