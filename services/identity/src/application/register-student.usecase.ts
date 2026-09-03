@@ -124,7 +124,11 @@ export class RegisterStudentUseCase
     // 5. Salon, solo en el alta institucional.
     let classroomInfo: { name?: string } = {};
     if (input.accountType === 'institutional') {
-      classroomInfo = await this.assertClassroomAccepts(input.institutionId, input.classroomId);
+      classroomInfo = await this.assertClassroomAccepts(
+        input.institutionId,
+        input.classroomId,
+        input.grade,
+      );
     }
 
     // 6. Hash de la contrasena. El paso caro, deliberadamente el ultimo.
@@ -282,6 +286,7 @@ export class RegisterStudentUseCase
   private async assertClassroomAccepts(
     institutionId: string,
     classroomId: string,
+    declaredGrade: string,
   ): Promise<{ name?: string }> {
     const check = await this.classrooms.precheck({ institutionId, classroomId });
 
@@ -292,6 +297,21 @@ export class RegisterStudentUseCase
       throw new BusinessRuleError(
         'CLASSROOM_NOT_FOUND',
         'El salon seleccionado no esta disponible.',
+        { field: 'classroomId' },
+      );
+    }
+
+    // El grado del salon tiene que coincidir con el que declara el formulario.
+    // El portal ya lista solo los salones del grado elegido, pero eso es
+    // comodidad del cliente y no una garantia: sin esta comprobacion, una
+    // peticion forjada matricularia a un alumno de sexto en el salon de primero
+    // del mismo colegio, y ni el docente ni el alumno tendrian forma de notarlo
+    // hasta ver la lista de clase. Se compara aqui y no en la matricula porque
+    // aqui el rechazo llega al formulario con el campo senalado.
+    if (check.grade && check.grade !== declaredGrade) {
+      throw new BusinessRuleError(
+        'CLASSROOM_GRADE_MISMATCH',
+        'El salon seleccionado no corresponde al grado que elegiste.',
         { field: 'classroomId' },
       );
     }

@@ -141,22 +141,33 @@ export class RedeemActivationCodeUseCase
       await this.codes.save(activationCode, tx);
 
       // El derecho de acceso, en la MISMA transaccion que el canje.
-      const entitlement = Entitlement.grant({
-        id: EntitlementId.create(this.ids.uuid()),
-        studentId: input.studentId,
-        kitId: kit.id,
-        grade: activationCode.grade,
-        institutionId: input.institutionId ?? null,
-        sourceActivationCodeId: activationCode.id.value,
-        now,
-      });
+      //
+      // Si el codigo ya lo habia canjeado ESTE alumno, el derecho existe desde
+      // aquella transaccion y aqui no se crea nada. Concederlo otra vez chocaba
+      // contra `entitlements_student_kit_uq` y devolvia un 500 en el caso que el
+      // agregado declara idempotente: un reintento de red, o simplemente el
+      // alumno que reenvia el formulario de activacion. El agregado ya sale sin
+      // cambios ni eventos en ese caso; lo que faltaba era que el derecho
+      // siguiera el mismo criterio. Volver a emitir `entitlement.granted` seria
+      // ademas una concesion duplicada para todo el que consuma el evento.
+      if (!alreadyMine) {
+        const entitlement = Entitlement.grant({
+          id: EntitlementId.create(this.ids.uuid()),
+          studentId: input.studentId,
+          kitId: kit.id,
+          grade: activationCode.grade,
+          institutionId: input.institutionId ?? null,
+          sourceActivationCodeId: activationCode.id.value,
+          now,
+        });
 
-      await this.entitlements.save(entitlement, tx);
+        await this.entitlements.save(entitlement, tx);
 
-      (tx as { enqueue(...events: unknown[]): void }).enqueue(
-        ...activationCode.pullDomainEvents(),
-        ...entitlement.pullDomainEvents(),
-      );
+        (tx as { enqueue(...events: unknown[]): void }).enqueue(
+          ...activationCode.pullDomainEvents(),
+          ...entitlement.pullDomainEvents(),
+        );
+      }
 
       this.logger.info('Codigo de activacion canjeado', {
         studentId: input.studentId,

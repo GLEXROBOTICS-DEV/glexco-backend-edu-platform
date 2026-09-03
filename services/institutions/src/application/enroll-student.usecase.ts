@@ -159,6 +159,10 @@ export interface PrecheckClassroomOutput {
   enrolled: number;
   classroomName?: string;
   teacherName?: string;
+  /** Grado del salon. Identidad lo compara con el que declara el formulario:
+   *  sin esa comparacion, una peticion forjada matricularia a un alumno de
+   *  sexto en el salon de primero del mismo colegio. */
+  grade?: string;
 }
 
 /**
@@ -225,6 +229,7 @@ export class PrecheckClassroomUseCase
       enrolled: classroom.enrolledCount,
       classroomName: classroom.name.value,
       teacherName: (await this.teachers.findName(classroom.teacherId)) ?? undefined,
+      grade: classroom.grade,
     };
   }
 }

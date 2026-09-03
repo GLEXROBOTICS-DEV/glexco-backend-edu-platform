@@ -122,6 +122,8 @@ export interface ClassroomPrecheck {
   enrolled: number;
   teacherName?: string;
   classroomName?: string;
+  /** Grado del salon, para contrastarlo con el que declara el formulario. */
+  grade?: string;
 }
 
 /**
