@@ -38,6 +38,8 @@ const GENERATED = {
   JWT_REFRESH_SECRET: secret(),
   SIGNING_SECRET: secret(),
   INTERNAL_SERVICE_TOKEN: secret(),
+  // Si esta cambia, todos los codigos ya emitidos dejan de validar.
+  ACTIVATION_CODE_PEPPER: secret(),
 };
 
 let content = await readFile(examplePath, 'utf8');

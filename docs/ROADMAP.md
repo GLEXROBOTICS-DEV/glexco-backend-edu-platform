@@ -138,13 +138,32 @@ El servicio del que dependen todos los demás.
       confusa. Una institución suspendida se rechaza para altas nuevas, pero sus
       usuarios actuales conservan el acceso.
 
-## ⬜ Fase 3 — Catálogo, kits y códigos de activación
+## 🔄 Fase 3 — Catálogo, kits y códigos de activación
 
-- [ ] `catalog-service`: `Kit`, `Book`, `ActivationCode`, `Course`, `Module`,
-      `Lesson`, `ContentAsset`, `LearningPath`, `Entitlement`.
-- [ ] Generación de lotes de códigos y exportación para imprenta.
-- [ ] Canje de un solo uso con bloqueo de fila.
-- [ ] Motor de derechos de acceso: el alumno ve solo el contenido de su kit.
+**Hecho:**
+
+- [x] `ActivationCode` con el código guardado **hasheado**, nunca en claro, y una
+      pimienta que vive en configuración: robar la base no basta para
+      reconstruir hashes.
+- [x] Alfabeto sin `0/O/1/I/L` (un niño copiando de papel no debe perder su
+      acceso por un carácter ambiguo) y espacio de 31¹² ≈ 7,9·10¹⁷.
+- [x] Generación con `randomInt` de `node:crypto`, no `Math.random`: este último
+      es predecible desde la semilla del proceso.
+- [x] Canje de un solo uso con `SELECT … FOR UPDATE`, idempotente para el mismo
+      alumno y conflicto para otro distinto.
+- [x] `Entitlement`: el alumno ve únicamente el contenido de su kit. Se crea en
+      la **misma transacción** que el canje.
+- [x] Esquema SQL con índices parciales y restricciones que impiden estados
+      imposibles (un código canjeado sin alumno, por ejemplo).
+- [x] Repositorios PostgreSQL, API HTTP y endpoint interno de comprobación
+      previa que consulta identidad.
+- [x] 25 pruebas del dominio.
+
+**Pendiente:**
+
+- [ ] Generación de lotes y exportación para imprenta (el dominio ya lo soporta:
+      `generateBatch` e `insertBatch`).
+- [ ] Consumidor de `identity.user.registered.v1` que canjee de forma asíncrona.
 - [ ] `media-service`: subida con URL prefirmada, validación de tipo real,
       miniaturas, proveedor de video.
 - [ ] Caché de catálogo con invalidación por etiqueta al publicar.

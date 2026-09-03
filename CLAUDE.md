@@ -12,6 +12,7 @@ agente) que retome el proyecto. Léelo entero antes de tocar código.
 | [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) | Decisiones de arquitectura y su justificación. |
 | [docs/ESCALABILIDAD.md](docs/ESCALABILIDAD.md) | Modelo de capacidad y estrategia de escalado. |
 | [docs/DOMINIO.md](docs/DOMINIO.md) | Reglas de negocio: roles, kits, códigos, salones. |
+| [docs/PUESTA-EN-MARCHA.md](docs/PUESTA-EN-MARCHA.md) | **Cómo levantarlo con Docker y qué verificar.** Léelo si tienes Docker funcionando. |
 
 ---
 
@@ -44,12 +45,13 @@ defecto**, pero el registro independiente debe funcionar igual de bien.
 
 ## 2. Estado actual
 
-**Fases 0 y 1 completas** (salvo pruebas de integración, bloqueadas por Docker). Ver
+**Fases 0, 1 y 2 completas; Fase 3 avanzada.** Nada se ha ejecutado todavía
+contra infraestructura real: ver [docs/PUESTA-EN-MARCHA.md](docs/PUESTA-EN-MARCHA.md). Ver
 [docs/BITACORA.md](docs/BITACORA.md) para el detalle y el pendiente exacto, y
 [docs/ROADMAP.md](docs/ROADMAP.md) para lo que falta de cada fase.
 
-Verificado: `pnpm build` compila los 7 paquetes/servicios y `pnpm test` pasa
-**65 pruebas**.
+Verificado: `pnpm build` compila los 9 paquetes y servicios y `pnpm test` pasa
+**118 pruebas** en memoria, sin Docker.
 
 ```
 Plataforma-Glexco/
@@ -63,19 +65,24 @@ Plataforma-Glexco/
 ├── services/
 │   ├── identity/        ✅ dominio, 11 casos de uso, infraestructura, HTTP, SQL, 65 tests
 │   ├── api-gateway/     ✅ enrutado, rate limiting, circuit breakers, apagado ordenado
-│   ├── institutions/    ⬜ vacío        catalog/      ⬜ vacío
+│   ├── institutions/    ✅ instituciones, salones con tope, licencias, matrículas
+│   ├── catalog/         🔄 kits, códigos de activación, derechos de acceso, contenido
 │   ├── learning/        ⬜ vacío        assessment/   ⬜ vacío
 │   └── engagement/      ⬜ vacío        analytics/    ⬜ vacío     media/ ⬜ vacío
-├── apps/web/            ⬜ vacío (Next.js, Fase 4 — canvas de diseño primero)
+├── apps/web/            ⬜ vacío (Next.js, Fase 4)
+├── design/canvas/       ✅ dirección visual aprobada (10 artboards)
 ├── infra/
 │   ├── docker/          ✅ docker-compose + init SQL (schemas, roles, outbox)
 │   └── scripts/         ✅ migrate.mjs (cerrojo de aviso, seguro con autoescalado)
 └── docs/                ✅ documentación
 ```
 
-**Bloqueo abierto:** Docker Desktop se está instalando. Hasta que esté, el
-servicio compila y pasa pruebas unitarias pero no puede ejecutarse ni hacer
-pruebas de integración.
+**Bloqueo abierto:** en la máquina de desarrollo original Docker nunca llegó a
+arrancar (corrupción del almacén de componentes de Windows, error 0x80188306,
+que resiste a `StartComponentCleanup`, `ResetBase`, `RestoreHealth` y `sfc`).
+Todo el backend está compilado y probado en memoria, pero **jamás se ha
+ejecutado contra Postgres, Redis o NATS reales**. Ese es el siguiente paso y
+está documentado en [docs/PUESTA-EN-MARCHA.md](docs/PUESTA-EN-MARCHA.md).
 
 ---
 

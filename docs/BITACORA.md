@@ -7,6 +7,97 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 4 — 2026-09-02 — Fases 2 y 3, y dirección visual
+
+### Qué se construyó
+
+**Fase 2 cerrada** — servicio `institutions`: instituciones, licencias, salones
+con tope de plazas, matrículas, consumidor de eventos de identidad y tarea de
+vencimiento de licencias. Detalle en la entrada de la sesión anterior y en el
+roadmap.
+
+**Fase 3 avanzada** — servicio `catalog`: el núcleo del modelo de negocio.
+`ActivationCode`, `Entitlement`, kits y contenido académico, con repositorios
+PostgreSQL, API HTTP y el endpoint interno que consulta identidad durante el
+registro.
+
+**Dirección visual aprobada** — canvas de 10 artboards en `design/canvas/`,
+publicado como artifact: ingreso, los cuatro portales, fundamentos, iconografía
+propia, dos vistas móviles y modo oscuro.
+
+### Decisiones no obvias
+
+- **El código de activación se guarda hasheado**, con una pimienta que vive en
+  configuración y no en la base. Un volcado de la tabla no debe convertirse en
+  miles de accesos vendibles. Se usa SHA-256 y no Argon2 porque el código tiene
+  ~60 bits de entropía genuina: no hay diccionario que atacar, y un hash lento
+  solo añadiría latencia al registro.
+
+- **`ACTIVATION_CODE_PEPPER` no tiene valor por defecto.** Si lo tuviera, un
+  despliegue descuidado usaría el de ejemplo y los hashes serían reproducibles
+  por cualquiera que lea el repositorio. Cambiarla invalida todos los códigos
+  emitidos: se fija una vez y no se rota.
+
+- **Generación con `randomInt` de `node:crypto`, no `Math.random`.** El segundo
+  es predecible desde la semilla del proceso: quien observara unos códigos de un
+  lote podría predecir el resto. `randomInt` evita además el sesgo módulo que
+  introduciría `bytes % alfabeto`.
+
+- **El `Entitlement` se crea en la misma transacción que el canje.** Hacerlo
+  después dejaría al alumno con el código quemado y sin acceso si algo fallara
+  entre medias, y ese código ya no volvería a servir.
+
+- **Los eventos no llevan el código.** Viven días en la outbox y en el stream, y
+  ningún consumidor lo necesita.
+
+- **`listLibrary` exige `kitId` obligatorio** y no existe un listado global de
+  contenido en la interfaz del repositorio: sería el atajo por el que se
+  filtraría material de kits no comprados.
+
+- **La paleta salió del logo real**, no de una suposición. Descargué el SVG de
+  glexrobotics.com: `#2C53A0` y `#86C9BD` son las dos paradas de su degradado.
+  Antes había construido la paleta deduciéndola de las maquetas, y estaba mal.
+
+### Errores corregidos
+
+- **El logger estaba roto en silencio.** Las firmas de pino y de `LoggerPort`
+  están invertidas, y el casteo que había hacía que pino interpretara el mensaje
+  como contexto: las líneas de log salían sin los campos por los que hay que
+  filtrar en producción. Se añadió `toLoggerPort` y dos tokens de inyección
+  distintos para que el error no se pueda repetir.
+
+- **`upsert` para renombrar borraba datos.** Reflejar un cambio de nombre en el
+  directorio de docentes con un upsert borraba la institución y el correo, que
+  ese evento no trae. Se añadió `rename`.
+
+- **Mi reemplazo automático del logo rompió la pantalla de ingreso**: dejó un
+  `</div>` de más que cerraba el panel de marca antes de tiempo. Lo detectó el
+  cliente en una captura. Ahora hay una comprobación de balance de etiquetas.
+
+- **Fundamentos declaraba 1180px con 1660px de contenido** y recortaba una
+  sección entera; el gris de las etiquetas pequeñas daba 3,05:1 sobre blanco; y
+  había tres contradicciones de contenido entre portales sobre el kit y el grado
+  del mismo alumno.
+
+### Estado al cerrar
+
+- **9 paquetes y servicios compilan. 118 pruebas en verde**, en memoria y sin
+  Docker.
+- **Nada se ha ejecutado nunca contra infraestructura real.** Docker no llegó a
+  arrancar en esta máquina: corrupción del almacén de componentes de Windows
+  (`0x80188306`, doble titularidad de dos ensamblados de `Microsoft.GroupPolicy`)
+  que resistió a `StartComponentCleanup`, `ResetBase`, `RestoreHealth` y `sfc`.
+  Lo que queda es una reparación en el sitio del sistema operativo.
+
+### Siguiente paso
+
+Levantarlo en una máquina con Docker y verificar las cuatro cosas que justifican
+la arquitectura y que **la concurrencia real puede desmentir**: el canje de un
+solo uso, el tope de plazas, que la outbox no pierde eventos y la deduplicación.
+Todo el procedimiento está en [PUESTA-EN-MARCHA.md](PUESTA-EN-MARCHA.md).
+
+---
+
 ## Sesión 3 — 2026-09-02 — Cierre de la Fase 1 y gateway
 
 ### Qué se construyó
