@@ -1,0 +1,38 @@
+# Lo que NO entra en el contexto de construccion.
+#
+# No es solo velocidad: `.env` contiene ACTIVATION_CODE_PEPPER y los secretos de
+# JWT, y copiarlo a una capa de la imagen los deja ahi para siempre -aunque un
+# paso posterior lo borre, la capa anterior sigue en el historico de la imagen y
+# cualquiera que la descargue puede extraerlos-.
+.env
+.env.*
+!.env.example
+
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/.next-dev
+**/.turbo
+.turbo
+
+# La memoria incremental de TypeScript. Es CRITICO excluirla, y no es una
+# optimizacion: `dist` no entra en la imagen, pero si entrara el .tsbuildinfo el
+# compilador creeria que todo esta al dia y NO emitiria nada. El resultado es una
+# construccion que "compila" sin errores y produce un paquete sin un solo archivo
+# JavaScript, y el fallo aparece mucho despues, como "el modulo no exporta X".
+**/*.tsbuildinfo
+
+.git
+.github
+docs
+design
+infra/docker
+# ...pero el punto de entrada de las imagenes si tiene que entrar.
+!infra/docker/entrypoint.sh
+**/test
+**/*.spec.ts
+**/*.test.ts
+
+*.log
+.DS_Store

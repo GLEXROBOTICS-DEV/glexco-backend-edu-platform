@@ -1,6 +1,19 @@
-import type { NextConfig } from 'next';
-
-const config: NextConfig = {
+/**
+ * Configuracion de Next.
+ *
+ * **En `.mjs` y no en `.ts`, a proposito.** Next necesita TypeScript EN
+ * EJECUCION para leer un `next.config.ts`, y en la imagen de produccion las
+ * dependencias de desarrollo no estan: al arrancar, Next detectaba que faltaba y
+ * se ponia a instalarlo con yarn dentro del contenedor. Eso falla en cuanto el
+ * sistema de archivos es de solo lectura o no hay salida a internet, y cuando
+ * funciona alarga cada arranque con una instalacion que no pinta nada ahi.
+ *
+ * La anotacion de tipo se conserva como JSDoc, asi que el editor sigue
+ * autocompletando y avisando de una opcion mal escrita.
+ *
+ * @type {import('next').NextConfig}
+ */
+const config = {
   reactStrictMode: true,
   poweredByHeader: false,
 

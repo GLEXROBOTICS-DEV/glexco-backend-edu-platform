@@ -14,6 +14,7 @@ agente) que retome el proyecto. Léelo entero antes de tocar código.
 | [docs/DOMINIO.md](docs/DOMINIO.md) | Reglas de negocio: roles, kits, códigos, salones. |
 | [docs/PUESTA-EN-MARCHA.md](docs/PUESTA-EN-MARCHA.md) | **Cómo levantarlo con Docker y qué verificar.** Léelo si tienes Docker funcionando. |
 | [docs/TRASPASO.md](docs/TRASPASO.md) | **Si llegas desde un zip en otra máquina, empieza por aquí.** |
+| [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md) | **Cómo llevarlo a Railway**, y qué cambia al mudarse a AWS o Huawei. |
 
 ---
 
