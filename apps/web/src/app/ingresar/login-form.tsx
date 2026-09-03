@@ -64,6 +64,16 @@ export function LoginForm() {
           Olvidé mi contraseña
         </a>
       </p>
+
+      {/* El alta se ofrece aqui y no solo en una esquina: hasta ahora un alumno
+          nuevo no tenia forma de entrar sin que alguien de GLEXCO le creara la
+          cuenta por API, y esta es la puerta. */}
+      <p className="border-t border-line-200 pt-5 text-center text-sm text-ink-500">
+        ¿Primera vez?{' '}
+        <a href="/registro" className="font-medium text-brand-600 hover:underline">
+          Activa el código de tu libro
+        </a>
+      </p>
     </form>
   );
 }

@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { loginSchema } from '@glexco/contracts';
 import { gatewayUrl } from './api';
 import { portalPath } from './portal';
+import { establishSession, type AuthResponse } from './session-cookies';
 import { SESSION_COOKIES } from './session';
 
 /**
@@ -20,15 +21,6 @@ import { SESSION_COOKIES } from './session';
 export interface LoginState {
   error?: string;
   fieldErrors?: Record<string, string[]>;
-}
-
-interface LoginResponse {
-  accessToken: string;
-  expiresInSeconds: number;
-  user: {
-    userId: string;
-    portal: 'discover' | 'academy' | 'teacher' | 'institution' | 'admin';
-  };
 }
 
 export async function login(_previous: LoginState, formData: FormData): Promise<LoginState> {
@@ -56,35 +48,8 @@ export async function login(_previous: LoginState, formData: FormData): Promise<
     return { error: body?.message ?? 'No se pudo iniciar sesion.' };
   }
 
-  const body = (await response.json()) as LoginResponse;
-  const store = await cookies();
-
-  // El refresh viene en cookie del propio backend; hay que reenviarla al
-  // navegador desde aqui porque la peticion la hizo el servidor de Next, no el
-  // navegador, y su `Set-Cookie` moriria en este proceso.
-  const refresh = extractRefreshCookie(response.headers.getSetCookie?.() ?? []);
-
-  const secure = process.env.NODE_ENV === 'production';
-
-  store.set(SESSION_COOKIES.access, body.accessToken, {
-    httpOnly: true,
-    secure,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: body.expiresInSeconds,
-  });
-
-  if (refresh) {
-    store.set(SESSION_COOKIES.refresh, refresh.value, {
-      httpOnly: true,
-      secure,
-      sameSite: 'lax',
-      // Solo se envia a la ruta que la usa. Una cookie de refresco viajando en
-      // cada peticion de imagen es superficie de exposicion gratuita.
-      path: '/',
-      ...(refresh.maxAge ? { maxAge: refresh.maxAge } : {}),
-    });
-  }
+  const body = (await response.json()) as AuthResponse;
+  await establishSession(body, response.headers.getSetCookie?.() ?? []);
 
   redirect(portalPath(body.user.portal));
 }
@@ -107,22 +72,4 @@ export async function logout(): Promise<void> {
   store.delete(SESSION_COOKIES.access);
   store.delete(SESSION_COOKIES.refresh);
   redirect('/ingresar');
-}
-
-function extractRefreshCookie(
-  setCookies: string[],
-): { value: string; maxAge?: number } | null {
-  for (const raw of setCookies) {
-    if (!raw.startsWith(`${SESSION_COOKIES.refresh}=`)) continue;
-
-    const [pair, ...attributes] = raw.split(';');
-    const value = pair?.slice(SESSION_COOKIES.refresh.length + 1) ?? '';
-    const maxAgeAttr = attributes
-      .map((attribute) => attribute.trim().toLowerCase())
-      .find((attribute) => attribute.startsWith('max-age='));
-
-    const maxAge = maxAgeAttr ? Number.parseInt(maxAgeAttr.slice(8), 10) : undefined;
-    return maxAge && Number.isFinite(maxAge) ? { value, maxAge } : { value };
-  }
-  return null;
 }
