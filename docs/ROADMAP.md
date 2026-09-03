@@ -190,16 +190,37 @@ frontend o clientes reales:
 - [ ] Endpoints de alta y edición de contenido (hoy se siembra por SQL; el
       cambio de estado de publicación sí está).
 
-## ⬜ Fase 4 — Portales de alumno (Discover y Academy)
+## 🔄 Fase 4 — Portales de alumno (Discover y Academy)
 
-- [ ] **Canvas de Claude Design aprobado** antes de codificar.
-- [ ] `@glexco/icons`: iconografía SVG propia (robots, insignias, niveles).
-- [ ] `apps/web` en Next.js 15: App Router, RSC, i18n es/en, skeletons.
-- [ ] Discover: inicio, laboratorio de robots, mis cursos, zona de retos,
-      biblioteca multimedia, mis logros, mi perfil.
-- [ ] Academy: inicio, laboratorio por niveles, cursos, proyectos y desafíos,
-      biblioteca, certificaciones, portafolio, perfil.
-- [ ] Accesibilidad WCAG 2.1 AA y navegación completa por teclado.
+**Hecho:**
+
+- [x] **Canvas de Claude Design aprobado** antes de codificar.
+- [x] `@glexco/icons`: iconografía SVG propia (robot, kit, insignia, nivel, reto,
+      código, salón, certificado, biblioteca). Solo iconos **del dominio**; el
+      cromo de interfaz sigue viniendo de Lucide.
+- [x] `apps/web` en Next.js 15 con App Router y React Server Components.
+- [x] Sistema de diseño con los tokens del canvas. Discover y Academy comparten
+      componentes y **difieren en densidad**, declarada una sola vez con
+      `data-portal`.
+- [x] Sesión en cookie `httpOnly`: el token nunca llega a JavaScript. Las
+      llamadas autenticadas se hacen desde el servidor.
+- [x] Ingreso, cierre de sesión y enrutado al portal por edad y rol.
+- [x] Portadas de Discover y Academy leyendo el **kit real** del catálogo.
+- [x] Estados vacíos con la acción siguiente, esqueletos con la forma del
+      contenido, foco visible y salto al contenido.
+- [x] `pnpm smoke:web`: 17 comprobaciones del portal contra el backend real.
+
+**Pendiente:**
+
+- [ ] Discover: laboratorio de robots, mis cursos, zona de retos, mis logros,
+      mi perfil.
+- [ ] Academy: laboratorio por niveles, cursos, proyectos y desafíos,
+      certificaciones, portafolio, perfil.
+- [ ] Biblioteca multimedia con reproductor y descargas por URL prefirmada.
+- [ ] Registro de alumno y activación de código desde el portal.
+- [ ] i18n es/en con next-intl (hoy los textos están en español en el código).
+- [ ] Auditoría de accesibilidad WCAG 2.1 AA completa y navegación por teclado
+      verificada pantalla a pantalla.
 
 ## ⬜ Fase 5 — Teacher Center y evaluación
 

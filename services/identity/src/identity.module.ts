@@ -43,6 +43,7 @@ import {
   UNIT_OF_WORK,
   COOKIE_OPTIONS,
 } from './tokens';
+import { GetMyProfileUseCase } from './application/get-my-profile.usecase';
 import { AuthController } from './interface/http/auth.controller';
 import { AccountController, UsersController } from './interface/http/account.controller';
 import { RegisterStudentUseCase } from './application/register-student.usecase';
@@ -60,6 +61,7 @@ import {
   ListSessionsUseCase,
   RevokeSessionUseCase,
 } from './application/manage-sessions.usecase';
+import type { UserRepository } from './domain/user/user.repository';
 import { PgUserRepository } from './infrastructure/persistence/pg-user.repository';
 import { RedisSessionStore } from './infrastructure/persistence/redis-session.store';
 import { PgOneTimeTokenStore } from './infrastructure/persistence/pg-one-time-token.store';
@@ -426,6 +428,11 @@ export {
       inject: [CreateStaffUserUseCase],
     },
     {
+      provide: GetMyProfileUseCase,
+      useFactory: (users: UserRepository) => new GetMyProfileUseCase(users),
+      inject: [USER_REPOSITORY],
+    },
+    {
       provide: AuthController,
       useFactory: (...args: ConstructorParameters<typeof AuthController>) =>
         new AuthController(...args),
@@ -437,6 +444,7 @@ export {
         VerifyEmailUseCase,
         RequestPasswordResetUseCase,
         ConfirmPasswordResetUseCase,
+        GetMyProfileUseCase,
         COOKIE_OPTIONS,
       ],
     },

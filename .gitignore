@@ -27,3 +27,7 @@ tmp/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.example.json
+
+# Next.js
+.next/
+next-env.d.ts

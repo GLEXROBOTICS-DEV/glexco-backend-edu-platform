@@ -7,6 +7,120 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 7 — 2026-09-02 — Arranque de la Fase 4 y aclaración sobre el video
+
+### Aclaración del cliente que cambió una decisión
+
+El cliente aclaró que **no hay videollamadas ni subidas de video por parte de los
+colegios**: los tutoriales los produce GLEXCO y son los mismos para todos.
+
+Eso convierte el catálogo de video en algo **fijo y pequeño**, que abarata mucho
+la factura del proveedor externo, pero no elimina la necesidad de tenerlo: un
+tutorial de 10 min en 720p pesa ~150 MB y visto por 100.000 alumnos son 15 TB de
+salida, que a precio de almacenamiento de objetos son cuatro cifras por un solo
+video. Además, un MP4 servido tal cual no se adapta a la conexión, y en un
+colegio con mala línea el alumno mira la rueda girando en vez de la clase.
+
+**Cambio aplicado:** `media-service` ya no acepta video en cualquier ámbito. La
+tabla `SCOPE_TYPES` restringe `video/mp4` al ámbito `content` —material de
+GLEXCO—; las evidencias quedan en foto y PDF, y los avatares solo en imagen.
+
+**Contradicción abierta:** el roadmap de la Fase 5 dice *"Evidencias (foto/video)
+del alumno"*. Con la aclaración de esta sesión, las evidencias son solo foto. Si
+en algún momento un alumno debe grabar su robot funcionando, hay que revisarlo.
+
+### Qué se construyó de la Fase 4
+
+**`@glexco/icons`** con nueve iconos del dominio (robot, kit, insignia, nivel,
+reto, código, salón, certificado, biblioteca). Solo iconos de dominio: redibujar
+una lupa no aporta nada y resta consistencia, así que el cromo de interfaz sigue
+viniendo de Lucide. Todos en `currentColor` y `aria-hidden` por defecto.
+
+**`apps/web`** en Next.js 15 con App Router y React Server Components:
+
+- Sistema de diseño con los tokens del canvas aprobado.
+- Ingreso, cierre de sesión y enrutado al portal según edad y rol.
+- Portadas de Discover y Academy leyendo el kit real del catálogo.
+- Estados vacíos que dicen qué hacer, esqueletos con la forma del contenido,
+  foco visible y salto al contenido.
+
+**`pnpm smoke:web`**: 17 comprobaciones del portal contra el backend real.
+
+### Decisiones no obvias
+
+- **El token vive en una cookie `httpOnly` y las llamadas autenticadas se hacen
+  desde el servidor.** Meterlo en `localStorage` —que es lo habitual en
+  tutoriales de Next— lo deja al alcance de cualquier script inyectado: un solo
+  XSS en cualquier dependencia del frontend se convierte en el robo de la sesión
+  de todos los alumnos.
+
+- **Discover y Academy comparten componentes y difieren en densidad**, declarada
+  una sola vez en el layout con `data-portal`. Si cada componente llevara su
+  propia variante, la coherencia dependería de que nadie se olvidara de pasarla.
+  No es decoración: un niño de seis años necesita objetivos grandes y aire, y un
+  estudiante de instituto necesita ver más por pantalla sin que le hablen como a
+  un niño.
+
+- **La navegación difiere de verdad, no solo en etiquetas.** Un niño de primaria
+  no tiene certificaciones ni portafolio. Compartir la barra y renombrar sería
+  mentir sobre lo que hay detrás.
+
+- **El formulario de ingreso funciona sin JavaScript.** `useActionState` sobre un
+  `<form action>` degrada a un envío normal del navegador: en un laboratorio con
+  equipos viejos o una conexión que corta el bundle a mitad, el alumno sigue
+  pudiendo entrar.
+
+- **Esqueletos con la forma del contenido, no spinners.** Un spinner no dice nada
+  y hace que la página salte cuando llega el contenido; un esqueleto reserva el
+  hueco y evita el desplazamiento de maquetación.
+
+### Errores encontrados y corregidos
+
+- **`/auth/me` no servía para nada.** Devolvía los claims del token, que quien
+  llama ya tiene. El nombre, el correo y el avatar no viajan en el token a
+  propósito —son millones de tokens en cada petición—, así que el portal no podía
+  ni saludar al alumno por su nombre. Ahora lee de la base y devuelve además el
+  **portal**, que depende de la edad y de los roles: sacarlo del token dejaría a
+  un docente recién nombrado viendo el portal de alumno hasta que su token
+  caducara. Los permisos se recalculan desde los roles, no se copian del token,
+  porque un rol retirado dejaría el menú mostrando opciones que el backend ya
+  rechaza.
+
+- **Un módulo con `'use server'` solo puede exportar funciones asíncronas.**
+  `portalPath` era un ayudante síncrono en `auth.actions.ts` y rompía la
+  compilación. Movido a `lib/portal.ts`.
+
+- **El nombre de la variable del gateway no coincidía** (`NEXT_PUBLIC_GATEWAY_URL`
+  frente al `NEXT_PUBLIC_API_URL` que ya existía en `.env`).
+
+### Un hallazgo que conviene conocer
+
+En `next dev`, **el access token aparece en el HTML**: React 19 serializa en el
+payload de depuración los valores que atraviesan sus funciones instrumentadas, y
+ahí cae la cookie entera. Se comprobó contra el build de producción y **allí no
+aparece**, así que no es una vulnerabilidad desplegada. Aun así conviene no
+compartir pantalla ni el `view-source` de un servidor de desarrollo con la sesión
+iniciada. `web-check.mjs` distingue los dos casos en vez de dar por bueno
+cualquiera de ellos.
+
+### Estado al cerrar
+
+- `pnpm build`: **11/11** (10 del backend más el portal). `pnpm test`: **118**.
+- `pnpm smoke`: **51/51**. `pnpm concurrency`: **14/14**. `pnpm smoke:web`: **17/17**.
+- Siete procesos en marcha: identity, institutions, catalog, media, gateway, el
+  portal y la infraestructura.
+- **Sin push todavía**, por decisión del cliente.
+
+### Qué falta de la Fase 4
+
+Las pantallas interiores de los dos portales (laboratorio, cursos, retos,
+biblioteca con reproductor, logros, certificaciones, portafolio, perfil), el
+registro y la activación de código desde el portal, la internacionalización con
+next-intl —hoy los textos están en español en el código— y la auditoría de
+accesibilidad pantalla a pantalla.
+
+---
+
 ## Sesión 6 — 2026-09-02 — Cierre de la Fase 3
 
 Continuación directa de la sesión 5, en la misma máquina y con la

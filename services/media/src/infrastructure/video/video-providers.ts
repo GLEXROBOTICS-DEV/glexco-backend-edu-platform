@@ -7,6 +7,19 @@ import type { S3ObjectStorage } from '../storage/s3-object-storage';
 /**
  * Proveedor de video externo.
  *
+ * **Que es y por que hace falta.** Un video no se sirve como un PDF. Un tutorial
+ * de diez minutos en 720p pesa unos 150 MB; visto por cien mil alumnos son
+ * 15 TB de salida, que a precio de almacenamiento de objetos son cuatro cifras
+ * por UN solo video. Ademas, un MP4 servido tal cual no se adapta a la conexion:
+ * en un colegio con mala linea el alumno mira la rueda girando en vez de la
+ * clase. El bitrate adaptativo exige transcodificar cada video a varias
+ * calidades, y eso un bucket no lo hace.
+ *
+ * **El catalogo de GLEXCO juega a favor.** Los tutoriales los produce GLEXCO y
+ * son los mismos para todos: es un catalogo fijo y pequeno, no contenido subido
+ * por usuarios. Eso abarata mucho la factura -se paga por minuto almacenado y
+ * por minuto visto- y hace la eleccion de proveedor reversible.
+ *
  * La decision de arquitectura es hibrida y esta tomada: el video largo NO se
  * sirve desde nuestro ancho de banda. Un video de clase son cientos de megas y
  * lo abren aulas enteras a la vez; servirlo nosotros es lo primero que dispara

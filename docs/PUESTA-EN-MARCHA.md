@@ -69,6 +69,7 @@ pnpm --filter @glexco/institutions dev   # 3102
 pnpm --filter @glexco/catalog      dev   # 3103
 pnpm --filter @glexco/media        dev   # 3108
 pnpm --filter @glexco/api-gateway  dev   # 3000
+pnpm --filter @glexco/web          dev   # 3010 (portal)
 ```
 
 Y la verificación:
@@ -78,6 +79,7 @@ pnpm seed           # kit, lote de codigos, institucion y salon
 pnpm smoke          # 51 comprobaciones de punta a punta
 pnpm smoke:direct   # las mismas contra identity, saltándose el gateway
 pnpm concurrency    # las cuatro comprobaciones de la seccion 3
+pnpm smoke:web      # 17 comprobaciones del portal (necesita el portal en marcha)
 ```
 
 `pnpm seed` hace falta porque identidad habla con el catálogo **real**: un código
@@ -196,7 +198,7 @@ Ver [ROADMAP.md](ROADMAP.md) para el detalle. Resumen del estado:
 | 1 · Identidad y acceso | ✅ (falta ejecutarlo) |
 | 2 · Instituciones y salones | ✅ (falta ejecutarlo) |
 | 3 · Catálogo, kits, códigos y medios | ✅ |
-| 4 · Portales de alumno | ⬜ el canvas de diseño ya está aprobado |
+| 4 · Portales de alumno | 🔄 ingreso y portadas funcionando |
 | 5–8 | ⬜ |
 
 **La Fase 3 está cerrada.** El siguiente paso es la **Fase 4**: los portales de

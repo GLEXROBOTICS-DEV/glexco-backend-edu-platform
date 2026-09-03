@@ -1,0 +1,117 @@
+@import 'tailwindcss';
+
+/**
+ * Sistema de diseno GLEXCO.
+ *
+ * Los valores salen del canvas aprobado por el cliente (`design/canvas/`), que a
+ * su vez saca la paleta del logo real: #2C53A0 y #86C9BD son las dos paradas de
+ * su degradado. No se deducen de las maquetas ni se eligen "a ojo".
+ */
+
+@theme {
+  /* --- Marca ------------------------------------------------------------ */
+  --color-brand-900: #1d3a72;
+  --color-brand-800: #24437f;
+  --color-brand-700: #25478a;
+  --color-brand-600: #2c53a0;
+  --color-brand-400: #3e86c0;
+  --color-brand-200: #86c9bd;
+
+  /* --- Semanticos ------------------------------------------------------- */
+  --color-achievement: #f0a93b;
+  --color-success: #0a7d57;
+  --color-danger: #a61b1b;
+
+  /* --- Neutros ---------------------------------------------------------- */
+  --color-ink-900: #1b2a38;
+  --color-ink-700: #35475a;
+  --color-ink-500: #5a6b7c;
+  --color-ink-400: #64748b;
+  --color-line-300: #cbd5e1;
+  --color-line-200: #e4eaf0;
+  --color-surface-200: #edf1f5;
+  --color-surface-100: #f7f9fb;
+  --color-surface-50: #fbfcfd;
+
+  /* --- Tipografia ------------------------------------------------------- */
+  --font-display: 'Outfit', 'Segoe UI', system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+}
+
+/**
+ * Discover y Academy comparten sistema pero NO densidad.
+ *
+ * No es decoracion: un nino de seis anos necesita objetivos grandes y mucho
+ * aire, y un estudiante de instituto necesita ver mas informacion por pantalla
+ * sin que le hablen como a un nino. Un solo espaciado obligaria a elegir cual de
+ * los dos sale perjudicado.
+ *
+ * La densidad se declara aqui una vez, en el layout de cada portal, y no
+ * salpicada por cada componente.
+ */
+:root {
+  --portal-radius: 0.75rem;
+  --portal-gap: 1.25rem;
+  --portal-card-padding: 1.25rem;
+  --portal-title-size: 1.5rem;
+}
+
+[data-portal='discover'] {
+  --portal-radius: 1.25rem;
+  --portal-gap: 1.75rem;
+  --portal-card-padding: 1.75rem;
+  --portal-title-size: 1.875rem;
+}
+
+[data-portal='academy'] {
+  --portal-radius: 0.625rem;
+  --portal-gap: 1.25rem;
+  --portal-card-padding: 1.25rem;
+  --portal-title-size: 1.5rem;
+}
+
+html {
+  /* Nada de scroll horizontal en un portatil escolar de 1366px. */
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--color-surface-100);
+  color: var(--color-ink-900);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  color: var(--color-ink-900);
+}
+
+/**
+ * Foco siempre visible.
+ *
+ * No se quita nunca. Esta plataforma la usan alumnos que navegan solo con
+ * teclado, y sin el anillo de foco no hay forma de saber donde estas. El
+ * `:focus-visible` lo muestra a quien navega con teclado sin ensuciar el clic
+ * de raton.
+ */
+:focus-visible {
+  outline: 3px solid var(--color-brand-400);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/** Respeta a quien pidio menos movimiento: hay alumnos con trastornos
+ *  vestibulares y la animacion les provoca mareo real. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

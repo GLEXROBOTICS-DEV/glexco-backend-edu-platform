@@ -22,15 +22,14 @@ import {
   type StudentRegistrationInput,
 } from '@glexco/contracts';
 import {
-  CurrentActor,
   JwtAuthGuard,
   PermissionsGuard,
   Public,
   zodBody,
-  type RequestActor,
 } from '@glexco/nest-platform';
 import { UnauthorizedError, type ExecutionContext as UseCaseContext } from '@glexco/kernel';
 import { COOKIE_OPTIONS } from '../../tokens';
+import { GetMyProfileUseCase } from '../../application/get-my-profile.usecase';
 import { RegisterStudentUseCase } from '../../application/register-student.usecase';
 import { LoginUseCase } from '../../application/login.usecase';
 import { RefreshSessionUseCase } from '../../application/refresh-session.usecase';
@@ -74,6 +73,7 @@ export class AuthController {
     // `CookieOptions` es una interfaz, asi que en tiempo de ejecucion su tipo es
     // `Object` y Nest no tiene forma de resolverla. El token explicito es
     // obligatorio, no una preferencia de estilo.
+    private readonly myProfile: GetMyProfileUseCase,
     @Inject(COOKIE_OPTIONS) private readonly cookieOptions: CookieOptions,
   ) {}
 
@@ -192,15 +192,21 @@ export class AuthController {
   }
 
   /** Perfil del usuario autenticado. Lo usa el frontend al recargar la pagina. */
+  /**
+   * Perfil del usuario autenticado.
+   *
+   * Lee de la base, no del token. Antes devolvia los claims tal cual, que quien
+   * llama ya tiene; el nombre, el correo y el avatar no viajan en el token a
+   * proposito -son millones de tokens en cada peticion- y sin este endpoint el
+   * portal no puede ni saludar al alumno por su nombre.
+   *
+   * Devuelve ademas el PORTAL, que depende de la edad y de los roles y no se
+   * puede sacar del token: un docente recien nombrado seguiria viendo el portal
+   * de alumno hasta que su token caducara.
+   */
   @Get('me')
-  me(@CurrentActor() actor: RequestActor) {
-    return {
-      userId: actor.userId,
-      roles: actor.roles,
-      permissions: actor.permissions,
-      institutionId: actor.institutionId ?? null,
-      locale: actor.locale,
-    };
+  async me(@Req() request: Request) {
+    return this.myProfile.execute(undefined, contextFrom(request));
   }
 
   private setRefreshCookie(response: Response, token: string, expiresAt: Date): void {

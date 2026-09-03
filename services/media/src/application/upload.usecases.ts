@@ -42,6 +42,28 @@ const SCOPE_BUCKET: Record<UploadScope, keyof BucketMap> = {
   document: 'documents',
 };
 
+/**
+ * Que tipos admite cada ambito.
+ *
+ * **El video solo entra por `content`,** que es el material que produce GLEXCO.
+ * Los colegios no suben video: sus alumnos entregan evidencias en foto y los
+ * tutoriales los pone GLEXCO, iguales para todos. Dejar la puerta abierta
+ * "por si acaso" no seria neutral -un video de dos gigas por alumno multiplica
+ * el almacenamiento y el ancho de banda de salida sin que nadie lo haya
+ * decidido-, y ademas quitaria la unica garantia que hace barato el catalogo de
+ * video: que es pequeno, fijo y conocido.
+ *
+ * El avatar se limita a imagen por la razon evidente, y un documento no es una
+ * foto: aceptar cualquier cosa en cualquier sitio convierte la lista de tipos en
+ * decorativa.
+ */
+const SCOPE_TYPES: Record<UploadScope, readonly string[]> = {
+  evidence: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  content: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4'],
+  avatar: ['image/jpeg', 'image/png', 'image/webp'],
+  document: ['application/pdf'],
+};
+
 export interface RequestUploadInput {
   scope: UploadScope;
   mimeType: string;
@@ -110,6 +132,15 @@ export class RequestUploadUseCase implements UseCase<RequestUploadInput, Request
     }
 
     const mimeType: AcceptedMimeType = input.mimeType;
+
+    if (!SCOPE_TYPES[input.scope].includes(mimeType)) {
+      throw new BusinessRuleError(
+        'MEDIA_TYPE_NOT_ALLOWED_FOR_SCOPE',
+        'Ese tipo de archivo no se admite para este uso.',
+        { scope: input.scope, mimeType, allowed: SCOPE_TYPES[input.scope] },
+      );
+    }
+
     const spec = ACCEPTED_MEDIA[mimeType];
 
     // El tamano declarado se comprueba ANTES de firmar. No sustituye al limite

@@ -45,7 +45,7 @@ defecto**, pero el registro independiente debe funcionar igual de bien.
 
 ## 2. Estado actual
 
-**Fases 0 a 3 completas.** El backend **ya se ejecuta
+**Fases 0 a 3 completas; Fase 4 arrancada.** El backend **ya se ejecuta
 contra Postgres, Redis y NATS reales**. Ver [docs/BITACORA.md](docs/BITACORA.md)
 para el detalle y el pendiente exacto, y [docs/ROADMAP.md](docs/ROADMAP.md) para
 lo que falta de cada fase.
@@ -58,6 +58,7 @@ Verificado:
 | `pnpm test` | **118 pruebas** en memoria |
 | `pnpm smoke` | **51 comprobaciones** de punta a punta |
 | `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
+| `pnpm smoke:web` | **17 comprobaciones** del portal contra el backend |
 
 Las de concurrencia son las que justifican la arquitectura: un solo canje de
 veinte simultáneos, cinco plazas de veinte solicitudes, la outbox reteniendo el
@@ -72,7 +73,8 @@ Plataforma-Glexco/
 │   ├── config/          Validación de variables de entorno con Zod
 │   ├── observability/   Logging estructurado (pino) + trazas (OpenTelemetry)
 │   ├── nest-platform/   Adaptadores NestJS: Redis, Postgres, NATS, guards, bootstrap
-│   └── tsconfig/        Configuraciones de TypeScript compartidas
+│   ├── tsconfig/        Configuraciones de TypeScript compartidas
+│   └── icons/           Iconografía SVG propia del dominio
 ├── services/
 │   ├── identity/        ✅ dominio, 11 casos de uso, infraestructura, HTTP, SQL, 65 tests
 │   ├── api-gateway/     ✅ enrutado, rate limiting, circuit breakers, apagado ordenado
@@ -81,7 +83,7 @@ Plataforma-Glexco/
 │   ├── media/           ✅ subidas prefirmadas, validación de tipo real, miniaturas
 │   ├── learning/        ⬜ vacío        assessment/   ⬜ vacío
 │   └── engagement/      ⬜ vacío        analytics/    ⬜ vacío
-├── apps/web/            ⬜ vacío (Next.js, Fase 4)
+├── apps/web/            🔄 Next.js 15, ingreso y portadas de Discover y Academy
 ├── design/canvas/       ✅ dirección visual aprobada (10 artboards)
 ├── infra/
 │   ├── docker/          ✅ docker-compose + init SQL (schemas, roles, outbox)
@@ -118,6 +120,8 @@ pnpm --filter @glexco/media dev            # arrancar medios (3108)
 pnpm seed                                  # kit, lote de codigos, institucion y salon
 pnpm smoke                                 # 32 comprobaciones de punta a punta
 pnpm concurrency                           # las 4 comprobaciones de concurrencia real
+pnpm --filter @glexco/web dev              # portal (3010)
+pnpm smoke:web                             # comprobaciones del portal
 ```
 
 ### Requisitos de entorno
@@ -160,6 +164,20 @@ pnpm concurrency                           # las 4 comprobaciones de concurrenci
 - **Validación:** esquemas Zod en `@glexco/contracts`, compartidos entre backend
   y frontend. El backend **siempre** revalida; la validación de cliente es
   comodidad, no seguridad.
+
+### En el frontend (`apps/web`)
+
+- **Server Components por defecto.** `'use client'` solo donde hace falta estado
+  o eventos. El contenido educativo es estático por usuario y los equipos
+  escolares son modestos: cuanto menos JavaScript llegue, mejor.
+- **El token vive en una cookie `httpOnly` y las llamadas autenticadas se hacen
+  desde el servidor.** Nunca en `localStorage`: un XSS en cualquier dependencia
+  se convertiría en el robo de la sesión de todos los alumnos.
+- **Todo pasa por el gateway.** El frontend no conoce las URLs de los
+  microservicios.
+- **Los formularios funcionan sin JavaScript.** `useActionState` sobre
+  `<form action>` degrada a un envío normal del navegador.
+- **La densidad la fija el layout** con `data-portal`, no cada componente.
 
 ### Al añadir un microservicio nuevo
 
