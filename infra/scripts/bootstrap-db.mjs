@@ -86,10 +86,16 @@ async function main() {
     // desarrollo escrita dentro. Asi el mismo archivo sirve para las dos cosas
     // sin tener dos copias que se separen.
     process.stdout.write('Fijando la contrasena de los roles...\n');
+    // La contrasena va INTERPOLADA y no como parametro. No es un descuido:
+    // `ALTER ROLE` es una sentencia de utilidad, no una consulta, y PostgreSQL
+    // no admite marcadores de posicion ahi -falla con `syntax error at or near
+    // "$1"`-. Se cita como literal escapando las comillas simples, que es lo
+    // unico que puede romper la sentencia.
+    const quoted = quoteLiteral(password);
     for (const service of SERVICES) {
-      await client.query(`ALTER ROLE ${quoteIdent(`glexco_${service}`)} WITH PASSWORD $1`, [
-        password,
-      ]);
+      await client.query(
+        `ALTER ROLE ${quoteIdent(`glexco_${service}`)} WITH PASSWORD ${quoted}`,
+      );
     }
 
     process.stdout.write('Creando las tablas outbox y processed_events...\n');
@@ -139,6 +145,17 @@ function printConnectionStrings(adminUrl, database, password) {
  *  es un habito que acaba mordiendo cuando el nombre deja de ser fijo. */
 function quoteIdent(name) {
   return `"${name.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Cita una cadena como literal SQL.
+ *
+ * Se usa SOLO donde PostgreSQL no admite parametros. En cualquier otro sitio va
+ * un marcador de posicion: esta funcion existe por una limitacion del motor, no
+ * como alternativa a los parametros.
+ */
+function quoteLiteral(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
 }
 
 main().catch((error) => {
