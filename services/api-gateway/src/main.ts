@@ -143,7 +143,15 @@ async function main(): Promise<void> {
 
     if (isDomainError(error)) {
       const status =
-        error.kind === 'rate_limited' ? 429 : error.kind === 'unavailable' ? 503 : 500;
+        error.kind === 'rate_limited'
+          ? 429
+          : error.kind === 'unavailable'
+            ? 503
+            : error.kind === 'unauthorized'
+              ? 401
+              : error.kind === 'forbidden'
+                ? 403
+                : 500;
 
       const retryAfter = (error.details as { retryAfterSeconds?: number }).retryAfterSeconds;
       if (retryAfter) response.setHeader('Retry-After', String(retryAfter));

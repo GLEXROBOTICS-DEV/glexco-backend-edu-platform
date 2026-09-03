@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { CircuitBreaker, RATE_LIMITS, type RateLimiter } from '@glexco/nest-platform';
 import { getRequestContext, type Logger } from '@glexco/observability';
-import { ServiceUnavailableError } from '@glexco/kernel';
+import { ServiceUnavailableError, UnauthorizedError } from '@glexco/kernel';
 import type { GatewayConfig, RouteDefinition } from './config';
 
 /**
@@ -89,6 +89,7 @@ export class ServiceProxy {
       const correlationId = getRequestContext()?.correlationId ?? '';
 
       try {
+        this.assertCredentialPresent(route, request);
         await this.enforceRateLimit(route, request);
 
         const breaker = this.breakerFor(route.target as string);
@@ -101,6 +102,47 @@ export class ServiceProxy {
         next(error);
       }
     };
+  }
+
+  /**
+   * Corta en el borde lo que no lleva credencial.
+   *
+   * **Comprueba PRESENCIA, no validez, y es a proposito.** El gateway no tiene
+   * el secreto de firma y no debe tenerlo: repartirlo multiplica los sitios
+   * desde los que se puede falsificar un token. La verificacion criptografica la
+   * hace cada servicio en cada peticion, que es donde importa.
+   *
+   * Entonces, ¿que aporta? Defensa en profundidad barata. Un sondeo anonimo de
+   * `/api/v1/users` muere aqui en vez de recorrer la red interna, y sobre todo:
+   * si algun dia alguien anade un controlador y se equivoca marcandolo
+   * `@Public()`, esta tabla sigue sin exponerlo. Es la unica proteccion que
+   * queda cuando la del servicio falla, y esa es justo la que hay que tener.
+   *
+   * Antes de esto, `publicPaths` estaba declarado en la tabla de rutas y no lo
+   * leia nadie: un campo que se lee como un control de seguridad y no hace nada
+   * es peor que no tenerlo, porque el siguiente que lo vea creera que anadir una
+   * linea ahi expone o cierra algo.
+   */
+  private assertCredentialPresent(route: RouteDefinition, request: Request): void {
+    // Sin `publicPaths`, el prefijo entero exige credencial. Es el valor por
+    // defecto seguro: exponer algo tiene que costar anadir una linea, y no
+    // olvidarse de anadirla.
+    const isPublic = (route.publicPaths ?? []).some((pattern) =>
+      pattern.test(pathWithinPrefix(request)),
+    );
+    if (isPublic) return;
+
+    const authorization = request.headers.authorization;
+    if (typeof authorization === 'string' && authorization.startsWith('Bearer ')) return;
+
+    // Tambien se deja pasar una cookie de sesion: el refresco llega asi, sin
+    // cabecera de autorizacion, y rechazarlo aqui romperia la renovacion.
+    if (request.headers.cookie?.includes('glexco_rt=')) return;
+
+    throw new UnauthorizedError(
+      'AUTHENTICATION_REQUIRED',
+      'Esta operacion exige haber iniciado sesion.',
+    );
   }
 
   private breakerFor(key: string): CircuitBreaker {
@@ -215,4 +257,18 @@ interface UpstreamResponse {
   status: number;
   headers: Headers;
   body: string;
+}
+
+/**
+ * La ruta relativa al prefijo, que es contra lo que se escriben los patrones.
+ *
+ * Express deja en `request.url` lo que queda tras el `app.use`, asi que
+ * `/api/v1/auth/login` llega aqui como `/login`. Se recorta la cadena de
+ * consulta: un patron anclado con `$` no casaria con `/login?next=/discover`, y
+ * ese fallo dejaria fuera una ruta publica sin que nadie entienda por que.
+ */
+function pathWithinPrefix(request: Request): string {
+  const url = request.url || '/';
+  const queryAt = url.indexOf('?');
+  return queryAt >= 0 ? url.slice(0, queryAt) : url;
 }

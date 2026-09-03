@@ -81,8 +81,23 @@ export const ROUTES: RouteDefinition[] = [
   },
   { prefix: 'account', target: 'IDENTITY_URL' },
   { prefix: 'users', target: 'IDENTITY_URL' },
-  { prefix: 'institutions', target: 'INSTITUTIONS_URL' },
-  { prefix: 'classrooms', target: 'INSTITUTIONS_URL' },
+  {
+    prefix: 'institutions',
+    target: 'INSTITUTIONS_URL',
+    // La busqueda por codigo institucional la usa el formulario de alta ANTES
+    // de que exista la cuenta. Devuelve solo nombre, ciudad y niveles: nunca
+    // conteos de alumnos ni datos del responsable, que a un tercero le darian un
+    // mapa comercial de la cartera de clientes.
+    publicPaths: [/^\/by-code\/[^/]+$/],
+  },
+  {
+    prefix: 'classrooms',
+    target: 'INSTITUTIONS_URL',
+    // Los salones elegibles del formulario de alta, por lo mismo. Devuelve
+    // `hasCapacity` y no el numero de matriculados: una cifra exacta permitiria
+    // medir la matricula de cualquier colegio sondeando un endpoint publico.
+    publicPaths: [/^\/selectable$/],
+  },
   { prefix: 'catalog', target: 'CATALOG_URL' },
   { prefix: 'kits', target: 'CATALOG_URL' },
   { prefix: 'courses', target: 'CATALOG_URL' },

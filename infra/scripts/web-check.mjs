@@ -1735,6 +1735,67 @@ async function main() {
     `status=${anunciosAjenos.status} items=${anunciosAjenos.body?.items?.length}`,
   );
 
+
+  // ------------------------------------------------------------------
+  section('13. El gateway corta en el borde lo que no lleva credencial');
+  // ------------------------------------------------------------------
+
+  // `publicPaths` estaba declarado en la tabla de rutas y no lo leia NADIE. Un
+  // campo que se lee como un control de seguridad y no hace nada es peor que no
+  // tenerlo: el siguiente que lo vea creera que anadir una linea ahi expone o
+  // cierra algo. Ahora se aplica de verdad.
+  //
+  // Comprueba PRESENCIA de credencial, no validez, y es a proposito: el gateway
+  // no tiene el secreto de firma y no debe tenerlo. La verificacion
+  // criptografica la hace cada servicio. Lo que esto aporta es la proteccion que
+  // queda cuando la del servicio falla: si algun dia alguien marca un
+  // controlador `@Public()` por error, esta tabla sigue sin exponerlo.
+  for (const ruta of [
+    '/api/v1/users',
+    '/api/v1/classrooms',
+    '/api/v1/analytics/me',
+    '/api/v1/catalog/my-kits',
+    '/api/v1/announcements',
+  ]) {
+    const anonima = await fetch(`${GATEWAY}${ruta}`);
+    report(
+      `${ruta} exige credencial en el borde`,
+      anonima.status === 401,
+      `status=${anonima.status}`,
+    );
+  }
+
+  // Y lo que SI es publico sigue siendolo, que es la otra mitad: una defensa que
+  // rompe el formulario de alta no sirve de nada.
+  const publicaCodigo = await fetch(
+    `${GATEWAY}/api/v1/institutions/by-code/${escuelaPanel.code}`,
+  );
+  report(
+    'La busqueda del colegio por codigo sigue siendo publica',
+    publicaCodigo.status === 200,
+    `status=${publicaCodigo.status}`,
+  );
+
+  const publicaSalones = await fetch(
+    `${GATEWAY}/api/v1/classrooms/selectable?institutionId=${escuelaPanel.institutionId}&grade=${escuelaPanel.grade}`,
+  );
+  report(
+    'Y los salones elegibles del formulario de alta tambien',
+    publicaSalones.status === 200,
+    `status=${publicaSalones.status}`,
+  );
+
+  const publicaLogin = await fetch(`${GATEWAY}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'nadie@ejemplo.pe', password: 'x' }),
+  });
+  report(
+    'El ingreso llega a identidad y lo rechaza ELLA, no el borde',
+    publicaLogin.status === 401,
+    `status=${publicaLogin.status}`,
+  );
+
   console.log(
     `\n${colors.bold}Resultado:${colors.reset} ${colors.ok}${passed} pasan${colors.reset}` +
       (failed > 0 ? `, ${colors.fail}${failed} fallan${colors.reset}` : '') +
