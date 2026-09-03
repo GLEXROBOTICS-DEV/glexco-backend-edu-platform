@@ -16,6 +16,7 @@ import {
 } from '../../domain/activation-code/activation-code.aggregate';
 import type {
   ActivationCodeRepository,
+  BatchCodeSummary,
   CodeBatchSummary,
   NewCodeBatch,
 } from '../../domain/repositories';
@@ -288,6 +289,55 @@ export class PgActivationCodeRepository implements ActivationCodeRepository {
       nextCursor:
         hasMore && last
           ? encodeCursor({ createdAt: last.created_at.toISOString(), id: last.batch_id })
+          : null,
+    };
+  }
+
+  async listCodesByBatch(
+    batchId: string,
+    page: CursorQuery,
+  ): Promise<CursorPage<BatchCodeSummary>> {
+    const limit = normalizeLimit(page.limit);
+    const params: unknown[] = [batchId];
+    let condition = 'batch_id = $1';
+
+    const cursor = page.cursor
+      ? decodeCursor<{ createdAt: string; id: string }>(page.cursor)
+      : null;
+
+    if (cursor) {
+      params.push(cursor.createdAt, cursor.id);
+      condition += ` AND (created_at, id) < ($2::timestamptz, $3::uuid)`;
+    }
+
+    params.push(limit + 1);
+
+    const { rows } = await this.readPool.query<CodeRow>(
+      `SELECT ${COLUMNS} FROM catalog.activation_codes
+        WHERE ${condition}
+        ORDER BY created_at DESC, id DESC
+        LIMIT $${params.length}`,
+      params,
+    );
+
+    const hasMore = rows.length > limit;
+    const items = rows.slice(0, limit);
+    const last = items[items.length - 1];
+
+    return {
+      items: items.map((row) => ({
+        activationCodeId: row.id,
+        codeSuffix: row.code_suffix,
+        status: row.status,
+        redeemedBy: row.redeemed_by,
+        redeemedAt: row.redeemed_at?.toISOString() ?? null,
+        expiresAt: row.expires_at?.toISOString() ?? null,
+        revokedReason: row.revoked_reason,
+        createdAt: row.created_at.toISOString(),
+      })),
+      nextCursor:
+        hasMore && last
+          ? encodeCursor({ createdAt: last.created_at.toISOString(), id: last.id })
           : null,
     };
   }

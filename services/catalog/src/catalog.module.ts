@@ -4,7 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Pool } from 'pg';
 import type { Redis } from 'ioredis';
-import type { Clock, SecureRandom, UnitOfWork } from '@glexco/kernel';
+import type { CacheStore, Clock, SecureRandom, UnitOfWork } from '@glexco/kernel';
 import { authEnvSchema, baseEnvSchema, loadEnv, withServiceDatabaseUrl } from '@glexco/config';
 import {
   CONFIG,
@@ -18,6 +18,7 @@ import {
   ENTITLEMENT_REPOSITORY,
   CONTENT_REPOSITORY,
   CODE_PEPPER,
+  CACHE_STORE,
 } from './tokens';
 import {
   CorrelationMiddleware,
@@ -31,6 +32,7 @@ import {
   PermissionsGuard,
   PgUnitOfWork,
   REDIS_CLIENT,
+  RedisCacheStore,
   createReadPool,
   createRedisClient,
   createWritePool,
@@ -39,7 +41,9 @@ import { createLogger, toLoggerPort, type Logger } from '@glexco/observability';
 
 import {
   CatalogController,
+  ActivationCodesController,
   CodeBatchesController,
+  ContentPublicationController,
   InternalActivationCodesController,
 } from './interface/http/controllers';
 import {
@@ -51,6 +55,12 @@ import {
   GetCodeBatchUseCase,
   ListCodeBatchesUseCase,
 } from './application/generate-code-batch.usecase';
+import {
+  ListBatchCodesUseCase,
+  RevokeActivationCodeUseCase,
+} from './application/revoke-activation-code.usecase';
+import { PublishContentUseCase } from './application/publish-content.usecase';
+import { CachedContentRepository } from './infrastructure/persistence/cached-content.repository';
 import type { ActivationCodeRepository } from './domain/repositories';
 import { PgActivationCodeRepository } from './infrastructure/persistence/pg-activation-code.repository';
 import {
@@ -106,12 +116,15 @@ export {
   ENTITLEMENT_REPOSITORY,
   CONTENT_REPOSITORY,
   CODE_PEPPER,
+  CACHE_STORE,
 } from './tokens';
 
 @Module({
   controllers: [
+    ActivationCodesController,
     CatalogController,
     CodeBatchesController,
+    ContentPublicationController,
     InternalActivationCodesController,
     HealthController,
   ],
@@ -217,9 +230,20 @@ export {
       inject: [DB_READ_POOL],
     },
     {
+      provide: CACHE_STORE,
+      useFactory: (redis: Redis, config: CatalogConfig, logger: Logger) =>
+        new RedisCacheStore(redis, config.CACHE_DEFAULT_TTL_SECONDS, logger),
+      inject: [REDIS_CLIENT, CONFIG, LOGGER],
+    },
+    {
+      // El repositorio de contenido va SIEMPRE envuelto en cache: la biblioteca
+      // de un kit es la consulta mas repetida de la plataforma y su contenido
+      // cambia una vez al trimestre. Envolverlo aqui, y no en el controlador,
+      // hace que la cache cubra a cualquiera que lea contenido.
       provide: CONTENT_REPOSITORY,
-      useFactory: (read: Pool) => new PgContentRepository(read),
-      inject: [DB_READ_POOL],
+      useFactory: (read: Pool, cache: CacheStore) =>
+        new CachedContentRepository(new PgContentRepository(read), cache),
+      inject: [DB_READ_POOL, CACHE_STORE],
     },
 
     {
@@ -259,6 +283,29 @@ export {
     {
       provide: ListCodeBatchesUseCase,
       useFactory: (codes: ActivationCodeRepository) => new ListCodeBatchesUseCase(codes),
+      inject: [ACTIVATION_CODE_REPOSITORY],
+    },
+    {
+      provide: PublishContentUseCase,
+      useFactory: (...args: ConstructorParameters<typeof PublishContentUseCase>) =>
+        new PublishContentUseCase(...args),
+      inject: [CONTENT_REPOSITORY, UNIT_OF_WORK, CACHE_STORE, CLOCK, LOGGER_PORT],
+    },
+    {
+      provide: RevokeActivationCodeUseCase,
+      useFactory: (...args: ConstructorParameters<typeof RevokeActivationCodeUseCase>) =>
+        new RevokeActivationCodeUseCase(...args),
+      inject: [
+        ACTIVATION_CODE_REPOSITORY,
+        ENTITLEMENT_REPOSITORY,
+        UNIT_OF_WORK,
+        CLOCK,
+        LOGGER_PORT,
+      ],
+    },
+    {
+      provide: ListBatchCodesUseCase,
+      useFactory: (codes: ActivationCodeRepository) => new ListBatchCodesUseCase(codes),
       inject: [ACTIVATION_CODE_REPOSITORY],
     },
     {

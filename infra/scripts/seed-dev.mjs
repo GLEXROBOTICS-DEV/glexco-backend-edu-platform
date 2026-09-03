@@ -119,9 +119,65 @@ export async function seedCatalog({ codeCount = 30, kitCode, grade = 'primary_6'
       values,
     );
 
+    // Contenido academico minimo pero real: un curso publicado con una leccion
+    // y dos recursos. Sin esto la biblioteca del kit responde vacia y no hay
+    // nada sobre lo que probar la publicacion ni la invalidacion de cache.
+    const courseId = randomUUID();
+    const moduleId = randomUUID();
+    const lessonId = randomUUID();
+    const assetId = randomUUID();
+    const draftAssetId = randomUUID();
+
+    await client.query(
+      `INSERT INTO catalog.courses
+         (id, kit_id, title, description, robot_platform, order_index, status, estimated_minutes)
+       VALUES ($1,$2,$3,$4,'ukit',0,'published',45)`,
+      [courseId, kitId, 'Primeros pasos con uKit', 'Curso sembrado para pruebas.'],
+    );
+
+    await client.query(
+      `INSERT INTO catalog.modules (id, course_id, title, order_index) VALUES ($1,$2,$3,0)`,
+      [moduleId, courseId, 'Modulo 1'],
+    );
+
+    await client.query(
+      `INSERT INTO catalog.lessons
+         (id, course_id, module_id, title, description, order_index, status, estimated_minutes)
+       VALUES ($1,$2,$3,$4,'',0,'published',15)`,
+      [lessonId, courseId, moduleId, 'Conoce tu robot'],
+    );
+
+    await client.query(
+      `INSERT INTO catalog.content_assets
+         (id, kit_id, lesson_id, title, description, type, storage_kind, storage_ref,
+          bucket, locale, status, order_index, downloadable)
+       VALUES ($1,$2,$3,$4,'','document','object_storage',$5,'glexco-documents','es','published',0,true)`,
+      [assetId, kitId, lessonId, 'Guia del docente', `kits/${kitId}/guia.pdf`],
+    );
+
+    // Uno en borrador a proposito: la biblioteca del alumno NO debe traerlo, y
+    // sirve para probar la transicion a publicado.
+    await client.query(
+      `INSERT INTO catalog.content_assets
+         (id, kit_id, lesson_id, title, description, type, storage_kind, storage_ref,
+          bucket, locale, status, order_index, downloadable)
+       VALUES ($1,$2,$3,$4,'','document','object_storage',$5,'glexco-documents','es','draft',1,false)`,
+      [draftAssetId, kitId, lessonId, 'Ficha en preparacion', `kits/${kitId}/ficha.pdf`],
+    );
+
     await client.query('COMMIT');
 
-    return { kitId, kitCode: resolvedKitCode, batchId, grade, codes };
+    return {
+      kitId,
+      kitCode: resolvedKitCode,
+      batchId,
+      grade,
+      codes,
+      courseId,
+      lessonId,
+      assetId,
+      draftAssetId,
+    };
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     throw error;
@@ -297,6 +353,7 @@ if (invokedDirectly) {
 
     console.log('Sembrado completo.\n');
     console.log(`  kit          ${catalog.kitId}  (${catalog.kitCode}, ${catalog.grade})`);
+    console.log(`  curso        ${catalog.courseId}  (publicado, 1 leccion, 2 recursos)`);
     console.log(`  lote         ${catalog.batchId}  (${catalog.codes.length} codigos)`);
     console.log(`  institucion  ${institution.institutionId}`);
     console.log(`  salon        ${institution.classroomId}  (capacidad ${institution.capacity})`);

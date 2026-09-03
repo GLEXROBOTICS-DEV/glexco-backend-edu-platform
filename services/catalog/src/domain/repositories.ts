@@ -101,6 +101,14 @@ export interface ActivationCodeRepository {
 
   listBatches(page: CursorQuery): Promise<CursorPage<CodeBatchSummary>>;
 
+  /**
+   * Codigos de un lote, para que soporte localice el que hay que anular.
+   *
+   * Devuelve el SUFIJO y nunca el codigo -que no existe en la base-, asi que
+   * recorrer el listado no permite reconstruir codigos ajenos.
+   */
+  listCodesByBatch(batchId: string, page: CursorQuery): Promise<CursorPage<BatchCodeSummary>>;
+
   /** Marca como caducados los codigos que pasaron su fecha limite. Tarea periodica. */
   expireOverdue(now: Date): Promise<number>;
 }
@@ -115,6 +123,19 @@ export interface NewCodeBatch {
   /** Orden de compra o numero de pedido, para rastrear la tirada. */
   reference: string | null;
   createdBy: string;
+}
+
+export interface BatchCodeSummary {
+  activationCodeId: string;
+  /** Los cuatro ultimos caracteres. Basta para confirmarlo con el cliente al
+   *  telefono y no permite reconstruir el codigo. */
+  codeSuffix: string;
+  status: string;
+  redeemedBy: string | null;
+  redeemedAt: string | null;
+  expiresAt: string | null;
+  revokedReason: string | null;
+  createdAt: string;
 }
 
 export interface CodeBatchSummary {

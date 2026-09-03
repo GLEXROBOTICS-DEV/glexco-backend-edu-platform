@@ -69,6 +69,34 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * esta hecho cuando la peticion de registro responde. Sondear es lo correcto
  * aqui: lo que se comprueba es que acaba ocurriendo, no cuando.
  */
+async function getJson(url, token) {
+  const response = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+  const text = await response.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { raw: text };
+  }
+  return { status: response.status, body };
+}
+
+async function postJson(url, token, payload) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  const text = await response.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { raw: text };
+  }
+  return { status: response.status, body };
+}
+
 async function waitForKits(studentId, timeoutMs = 30_000) {
   if (!studentId) return [];
 
@@ -491,6 +519,137 @@ ${colors.fail}Sin codigos sembrados no se puede registrar a nadie.${colors.reset
     'Catalogo canjea al consumir el alta y concede el derecho al kit',
     grantedKits.length === 1 && grantedKits[0]?.kitId === kit.kitId,
     `kits=${JSON.stringify(grantedKits)}`,
+  );
+
+  // --------------------------------------------------------------------
+  section('9. Contenido: derecho de acceso, cache y anulacion');
+  // --------------------------------------------------------------------
+  // El alumno del canje asincrono ya tiene derecho al kit: se usa para
+  // comprobar que ve SU contenido y solo el publicado.
+  const pupilToken = mintAccessToken({
+    userId: asyncRegistration.body?.userId,
+    roles: [ROLES.STUDENT],
+  });
+
+  const library = await getJson(
+    `${CATALOG}/api/v1/catalog/library?kitId=${kit.kitId}`,
+    pupilToken,
+  );
+  report(
+    'La biblioteca del kit trae solo el recurso publicado',
+    library.status === 200 && library.body?.items?.length === 1,
+    `status=${library.status} items=${library.body?.items?.length}`,
+  );
+
+  // Segunda lectura idéntica: la sirve la cache. No se puede observar desde
+  // fuera, así que lo que se comprueba es que el resultado es el mismo -una
+  // cache que devolviera otra cosa sería peor que no tenerla-.
+  const libraryCached = await getJson(
+    `${CATALOG}/api/v1/catalog/library?kitId=${kit.kitId}`,
+    pupilToken,
+  );
+  report(
+    'La segunda lectura devuelve exactamente lo mismo',
+    JSON.stringify(libraryCached.body) === JSON.stringify(library.body),
+  );
+
+  // Se publica el recurso que estaba en borrador. Sin invalidacion por
+  // etiqueta, la biblioteca seguiria devolviendo uno solo hasta que venciera
+  // el TTL de diez minutos.
+  const toReview = await postJson(
+    `${CATALOG}/api/v1/catalog/content/${kit.draftAssetId}/status`,
+    operatorToken,
+    { target: 'asset', status: 'in_review' },
+  );
+  const published = await postJson(
+    `${CATALOG}/api/v1/catalog/content/${kit.draftAssetId}/status`,
+    operatorToken,
+    { target: 'asset', status: 'published' },
+  );
+  report(
+    'Publicar exige pasar por revision (draft -> in_review -> published)',
+    toReview.status === 200 && published.status === 200,
+    `revision=${toReview.status} publicado=${published.status}`,
+  );
+
+  const skipReview = await postJson(
+    `${CATALOG}/api/v1/catalog/content/${kit.assetId}/status`,
+    operatorToken,
+    { target: 'asset', status: 'draft' },
+  );
+  report(
+    'Un salto de estado no permitido se rechaza',
+    skipReview.status === 422 && skipReview.body?.code === 'INVALID_PUBLICATION_TRANSITION',
+    `status=${skipReview.status} code=${skipReview.body?.code}`,
+  );
+
+  const libraryAfter = await getJson(
+    `${CATALOG}/api/v1/catalog/library?kitId=${kit.kitId}`,
+    pupilToken,
+  );
+  report(
+    'Al publicar, la cache se invalida y el recurso nuevo aparece de inmediato',
+    libraryAfter.body?.items?.length === 2,
+    `items=${libraryAfter.body?.items?.length}`,
+  );
+
+  // Aislamiento: un alumno sin derecho a ese kit no ve su biblioteca, y el
+  // error es el mismo que si el kit no existiera.
+  const [outsider] = await seedUsers(1);
+  const denied = await getJson(
+    `${CATALOG}/api/v1/catalog/library?kitId=${kit.kitId}`,
+    mintAccessToken({ userId: outsider.id, roles: outsider.roles }),
+  );
+  report(
+    'Un alumno sin derecho no ve la biblioteca del kit',
+    denied.status === 403 && denied.body?.code === 'KIT_NOT_ACCESSIBLE',
+    `status=${denied.status} code=${denied.body?.code}`,
+  );
+
+  // Anulacion: soporte localiza el codigo por su sufijo y lo anula. El derecho
+  // que concedio se retira en la MISMA transaccion.
+  const batchCodes = await getJson(
+    `${CATALOG}/api/v1/catalog/batches/${batchBody?.batchId}/codes`,
+    operatorToken,
+  );
+  const redeemedRow = batchCodes.body?.items?.find((item) => item.status === 'redeemed');
+  report(
+    'El listado del lote muestra el sufijo y nunca el codigo',
+    batchCodes.status === 200 &&
+      batchCodes.body?.items?.length === 5 &&
+      batchCodes.body.items.every(
+        (item) => item.codeSuffix?.length === 4 && item.code === undefined,
+      ),
+    `items=${batchCodes.body?.items?.length}`,
+  );
+
+  const revoked = await postJson(
+    `${CATALOG}/api/v1/catalog/activation-codes/${redeemedRow?.activationCodeId}/revoke`,
+    operatorToken,
+    { reason: 'devolucion del libro en la prueba de humo' },
+  );
+  report(
+    'Anular un codigo canjeado retira tambien el derecho de acceso',
+    revoked.status === 200 && revoked.body?.entitlementRevoked === true,
+    `status=${revoked.status} ${JSON.stringify(revoked.body)}`,
+  );
+
+  const kitsAfterRevoke = await getJson(`${CATALOG}/api/v1/catalog/my-kits`, pupilToken);
+  report(
+    'El alumno deja de tener el kit tras la anulacion',
+    kitsAfterRevoke.body?.kits?.length === 0,
+    `kits=${JSON.stringify(kitsAfterRevoke.body?.kits)}`,
+  );
+
+  const reRevoke = await postJson(
+    `${CATALOG}/api/v1/catalog/activation-codes/${redeemedRow?.activationCodeId}/revoke`,
+    operatorToken,
+    { reason: 'reintento de soporte' },
+  );
+  report(
+    'Anular dos veces es idempotente, no un error',
+    reRevoke.status === 200,
+    `status=${reRevoke.status}`,
   );
 
   // --------------------------------------------------------------------

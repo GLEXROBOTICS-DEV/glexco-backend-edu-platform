@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { uuidSchema } from './common';
-import { MAX_CODE_BATCH_SIZE } from '../domain/vocabulary';
+import { MAX_CODE_BATCH_SIZE, PUBLICATION_STATUS } from '../domain/vocabulary';
 
 /**
  * Peticion de generacion de un lote de codigos de activacion.
@@ -55,3 +55,35 @@ export const listCodeBatchesSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 export type ListCodeBatchesQuery = z.infer<typeof listCodeBatchesSchema>;
+
+/**
+ * Anulacion de un codigo de activacion.
+ *
+ * El motivo es obligatorio y no un campo libre opcional: la anulacion retira
+ * acceso que alguien ya pago, y cuando alguien pregunte por que -y preguntara-
+ * la respuesta tiene que estar en la fila, no en la memoria de quien la ejecuto.
+ */
+export const revokeActivationCodeSchema = z.object({
+  reason: z.string().trim().min(5, 'errors.validation.reason_required').max(300),
+});
+export type RevokeActivationCodeRequest = z.infer<typeof revokeActivationCodeSchema>;
+
+export const listBatchCodesSchema = z.object({
+  cursor: z.string().max(2048).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+export type ListBatchCodesQuery = z.infer<typeof listBatchCodesSchema>;
+
+/**
+ * Cambio de estado de publicacion de un contenido.
+ *
+ * El destino se pide explicito -y no como un `POST /publish` sin cuerpo- porque
+ * la misma operacion sirve para publicar, mandar a revision, devolver a
+ * borrador y archivar. Un endpoint por transicion multiplicaria las rutas sin
+ * anadir nada.
+ */
+export const publishContentSchema = z.object({
+  target: z.enum(['course', 'asset']),
+  status: z.nativeEnum(PUBLICATION_STATUS),
+});
+export type PublishContentRequest = z.infer<typeof publishContentSchema>;

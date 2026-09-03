@@ -20,10 +20,16 @@ import {
   PERMISSIONS,
   activationCodeSchema,
   generateCodeBatchSchema,
+  listBatchCodesSchema,
   listCodeBatchesSchema,
+  publishContentSchema,
+  revokeActivationCodeSchema,
   uuidSchema,
   type GenerateCodeBatchRequest,
+  type ListBatchCodesQuery,
   type ListCodeBatchesQuery,
+  type PublishContentRequest,
+  type RevokeActivationCodeRequest,
 } from '@glexco/contracts';
 import {
   CurrentActor,
@@ -44,6 +50,11 @@ import {
   GetCodeBatchUseCase,
   ListCodeBatchesUseCase,
 } from '../../application/generate-code-batch.usecase';
+import {
+  ListBatchCodesUseCase,
+  RevokeActivationCodeUseCase,
+} from '../../application/revoke-activation-code.usecase';
+import { PublishContentUseCase } from '../../application/publish-content.usecase';
 import type { EntitlementRepository, KitRepository } from '../../domain/repositories';
 import { CONTENT_REPOSITORY, ENTITLEMENT_REPOSITORY, KIT_REPOSITORY } from '../../tokens';
 
@@ -236,6 +247,7 @@ export class CodeBatchesController {
     private readonly generate: GenerateCodeBatchUseCase,
     private readonly getBatch: GetCodeBatchUseCase,
     private readonly listBatches: ListCodeBatchesUseCase,
+    private readonly listCodes: ListBatchCodesUseCase,
   ) {}
 
   /**
@@ -295,6 +307,86 @@ export class CodeBatchesController {
   @RequirePermissions(PERMISSIONS.ACTIVATION_CODE_READ)
   async summary(@Param('batchId') batchId: string) {
     return this.getBatch.execute({ batchId });
+  }
+
+  /**
+   * Codigos del lote, por sufijo.
+   *
+   * Es como soporte localiza la fila que hay que anular: el cliente lee los
+   * cuatro ultimos caracteres de su libro y aqui se encuentra. El codigo
+   * completo no aparece porque no existe en la base.
+   */
+  @Get(':batchId/codes')
+  @RequirePermissions(PERMISSIONS.ACTIVATION_CODE_READ)
+  async codes(
+    @Param('batchId') batchId: string,
+    @Query(zodQuery(listBatchCodesSchema)) query: ListBatchCodesQuery,
+  ) {
+    return this.listCodes.execute({
+      batchId,
+      page: { limit: query.limit, cursor: query.cursor },
+    });
+  }
+}
+
+/**
+ * Publicacion y retirada de contenido.
+ *
+ * Es del equipo academico de GLEXCO (`content_manager` y por encima), no del
+ * colegio: lo que se publica aqui lo ven todos los alumnos que tengan el kit.
+ *
+ * Cada cambio invalida la cache del kit por etiqueta. Sin eso, publicar una
+ * leccion tardaria en verse lo que durase el TTL, y -peor- archivar contenido
+ * lo dejaria visible mientras tanto: alguien lo habria retirado creyendo que ya
+ * no se ve.
+ */
+@Controller({ path: 'catalog/content', version: '1' })
+export class ContentPublicationController {
+  constructor(private readonly publish: PublishContentUseCase) {}
+
+  @Post(':id/status')
+  @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
+  @HttpCode(HttpStatus.OK)
+  async changeStatus(
+    @Param('id') id: string,
+    @Body(zodBody(publishContentSchema)) input: PublishContentRequest,
+    @Req() request: Request,
+  ) {
+    return this.publish.execute(
+      { target: input.target, id, status: input.status },
+      contextFrom(request),
+    );
+  }
+}
+
+/**
+ * Anulacion de codigos.
+ *
+ * Va en su propio controlador y no junto a los lotes porque su permiso es otro:
+ * `ACTIVATION_CODE_REVOKE` retira acceso ya pagado, mientras que
+ * `ACTIVATION_CODE_READ` solo mira. Mezclarlos invitaria a conceder los dos
+ * juntos por comodidad.
+ */
+@Controller({ path: 'catalog/activation-codes', version: '1' })
+export class ActivationCodesController {
+  constructor(private readonly revoke: RevokeActivationCodeUseCase) {}
+
+  /**
+   * Anula un codigo y, si estaba canjeado, retira el acceso que concedio.
+   *
+   * Las dos cosas ocurren en la misma transaccion: anular sin retirar deja al
+   * alumno viendo contenido de un libro devuelto, y retirar sin anular permite
+   * volver a canjearlo.
+   */
+  @Post(':activationCodeId/revoke')
+  @RequirePermissions(PERMISSIONS.ACTIVATION_CODE_REVOKE)
+  @HttpCode(HttpStatus.OK)
+  async revokeCode(
+    @Param('activationCodeId') activationCodeId: string,
+    @Body(zodBody(revokeActivationCodeSchema)) input: RevokeActivationCodeRequest,
+    @Req() request: Request,
+  ) {
+    return this.revoke.execute({ activationCodeId, reason: input.reason }, contextFrom(request));
   }
 }
 

@@ -18,3 +18,4 @@ export const KIT_REPOSITORY = Symbol('KIT_REPOSITORY');
 export const ENTITLEMENT_REPOSITORY = Symbol('ENTITLEMENT_REPOSITORY');
 export const CONTENT_REPOSITORY = Symbol('CONTENT_REPOSITORY');
 export const CODE_PEPPER = Symbol('CODE_PEPPER');
+export const CACHE_STORE = Symbol('CACHE_STORE');
