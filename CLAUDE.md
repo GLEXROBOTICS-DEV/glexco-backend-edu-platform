@@ -13,6 +13,7 @@ agente) que retome el proyecto. Léelo entero antes de tocar código.
 | [docs/ESCALABILIDAD.md](docs/ESCALABILIDAD.md) | Modelo de capacidad y estrategia de escalado. |
 | [docs/DOMINIO.md](docs/DOMINIO.md) | Reglas de negocio: roles, kits, códigos, salones. |
 | [docs/PUESTA-EN-MARCHA.md](docs/PUESTA-EN-MARCHA.md) | **Cómo levantarlo con Docker y qué verificar.** Léelo si tienes Docker funcionando. |
+| [docs/TRASPASO.md](docs/TRASPASO.md) | **Si llegas desde un zip en otra máquina, empieza por aquí.** |
 
 ---
 
