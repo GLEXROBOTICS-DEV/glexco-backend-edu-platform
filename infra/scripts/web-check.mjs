@@ -1735,6 +1735,42 @@ async function main() {
     `status=${anunciosAjenos.status} items=${anunciosAjenos.body?.items?.length}`,
   );
 
+  // --- Los anuncios en pantalla ---
+  const panelAnuncios = await waitForHtml(
+    `${WEB}/docentes/anuncios`,
+    `glexco_at=${anuncioTeacherToken}`,
+    (html) => html.includes('Traigan el kit el viernes'),
+  );
+  report(
+    'El docente ve su anuncio en la pantalla, servida desde el servidor',
+    Boolean(panelAnuncios),
+    panelAnuncios ? '' : 'no aparecio en 40 s',
+  );
+  report(
+    'El formulario de publicacion viene en el HTML: funciona sin JavaScript',
+    Boolean(panelAnuncios?.includes('name="body"')) &&
+      Boolean(panelAnuncios?.includes('name="classroomId"')),
+  );
+  report(
+    'Un anuncio fijado se marca, y con su palabra al lado del color',
+    Boolean(panelAnuncios?.includes('data-pinned="1"')) &&
+      Boolean(panelAnuncios?.includes('Fijado')),
+  );
+  report(
+    'Los saltos de linea del docente se conservan en pantalla',
+    Boolean(panelAnuncios?.includes('whitespace-pre-line')),
+  );
+
+  // La portada del alumno NO pinta un bloque vacio cuando no hay anuncios: seria
+  // ruido diario en la pantalla que mas se abre.
+  const portadaSinAnuncios = await fetchHtml(`${WEB}/academy`, bibJar);
+  report(
+    'Sin anuncios, la portada del alumno no muestra un bloque vacio',
+    portadaSinAnuncios.status === 200 && !portadaSinAnuncios.html.includes('No hay anuncios'),
+    `status=${portadaSinAnuncios.status}`,
+  );
+
+
 
   // ------------------------------------------------------------------
   section('13. El gateway corta en el borde lo que no lleva credencial');

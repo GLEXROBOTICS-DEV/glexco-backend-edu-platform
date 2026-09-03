@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { ClassroomIcon, KitIcon, LevelIcon, RobotIcon } from '@glexco/icons';
+import { BadgeIcon, ClassroomIcon, KitIcon, LevelIcon, RobotIcon } from '@glexco/icons';
 import { PERMISSIONS } from '@glexco/contracts';
 import { getSession } from '../../lib/session';
 import { logout } from '../../lib/auth.actions';
@@ -51,6 +51,7 @@ export default async function DocentesLayout({ children }: { children: React.Rea
             <ul className="flex items-center gap-1">
               <NavLink href="/docentes" label="Mis salones" Icon={ClassroomIcon} />
               <NavLink href="/docentes/evaluaciones" label="Evaluaciones" Icon={RobotIcon} />
+              <NavLink href="/docentes/anuncios" label="Anuncios" Icon={BadgeIcon} />
               {isAdmin ? (
                 <NavLink href="/docentes/institucion" label="Mi institución" Icon={LevelIcon} />
               ) : null}

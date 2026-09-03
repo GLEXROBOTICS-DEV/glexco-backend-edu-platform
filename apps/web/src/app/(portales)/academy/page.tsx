@@ -4,6 +4,7 @@ import { KitIcon, LevelIcon } from '@glexco/icons';
 import { requireSession } from '../../../lib/session';
 import { fetchMyKits, gradeLabel } from '../../../lib/catalog';
 import { Card, CardSkeleton, EmptyState, SectionTitle, Stat } from '../../../components/ui';
+import { AnnouncementList } from '../../../components/announcements';
 
 export const metadata: Metadata = { title: 'Academy' };
 
@@ -35,6 +36,13 @@ export default async function AcademyHome() {
 
       <Suspense fallback={<CardSkeleton />}>
         <RutaFormativa />
+      </Suspense>
+
+      {/* Debajo de los kits, no encima. Lo primero que busca el alumno es su
+          contenido; un aviso del docente es importante pero no puede empujar
+          fuera de la pantalla aquello a lo que viene a entrar. */}
+      <Suspense fallback={<CardSkeleton />}>
+        <AnnouncementList hideWhenEmpty />
       </Suspense>
     </>
   );

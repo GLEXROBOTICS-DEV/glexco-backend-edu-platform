@@ -4,6 +4,7 @@ import { KitIcon, RobotIcon } from '@glexco/icons';
 import { requireSession } from '../../../lib/session';
 import { fetchMyKits, gradeLabel } from '../../../lib/catalog';
 import { Card, CardSkeleton, EmptyState, SectionTitle } from '../../../components/ui';
+import { AnnouncementList } from '../../../components/announcements';
 
 export const metadata: Metadata = { title: 'Discover' };
 
@@ -24,6 +25,13 @@ export default async function DiscoverHome() {
           da el salto de maquetacion cuando llegan. */}
       <Suspense fallback={<KitsSkeleton />}>
         <MisKits />
+      </Suspense>
+
+      {/* Debajo de los kits, no encima. Lo primero que busca el alumno es su
+          contenido; un aviso del docente es importante pero no puede empujar
+          fuera de la pantalla aquello a lo que viene a entrar. */}
+      <Suspense fallback={<CardSkeleton />}>
+        <AnnouncementList hideWhenEmpty />
       </Suspense>
     </>
   );
