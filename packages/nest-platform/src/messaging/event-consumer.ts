@@ -79,7 +79,7 @@ export class EventConsumer {
     // donde iba en vez de volver al principio del stream o saltarse lo perdido.
     const durableName = `${this.options.serviceName}-consumer`;
 
-    await manager.consumers.add(this.options.streamName, {
+    const configuration = {
       durable_name: durableName,
       ack_policy: AckPolicy.Explicit,
       deliver_policy: DeliverPolicy.All,
@@ -90,7 +90,35 @@ export class EventConsumer {
       // que en realidad se esta procesando bien.
       ack_wait: 60_000_000_000,
       max_ack_pending: 100,
-    });
+    };
+
+    // `add` sobre un consumidor duradero que YA existe con otra configuracion
+    // falla con "consumer already exists", y ese fallo tumba el arranque entero
+    // del consumidor. El caso que lo dispara es el mas normal del mundo: alguien
+    // anade un asunto nuevo a `subjects` y despliega.
+    //
+    // El resultado era especialmente traicionero. El servicio arrancaba, el
+    // health check pasaba, y el aviso decia que los dashboards seguirian
+    // sirviendo lo ya proyectado "hasta que el bus vuelva" -pero el bus estaba
+    // perfectamente-. La proyeccion quedaba muerta hasta que alguien se fijara
+    // en que los datos nuevos no aparecian.
+    //
+    // Se actualiza en su lugar. Actualizar conserva la POSICION del consumidor,
+    // asi que no se reprocesa el stream entero ni se pierde lo pendiente; solo
+    // cambia el filtro. Borrar y recrear haria una de esas dos cosas segun la
+    // politica de entrega, y las dos son peores.
+    try {
+      await manager.consumers.add(this.options.streamName, configuration);
+    } catch (error) {
+      if (!isConsumerExists(error)) throw error;
+
+      await manager.consumers.update(this.options.streamName, durableName, configuration);
+
+      this.options.logger.info(
+        { durableName, subjects: this.options.subjects },
+        'Consumidor ya existente: se actualiza su filtro de asuntos',
+      );
+    }
 
     const consumer = await jetstream.consumers.get(this.options.streamName, durableName);
     const messages = await consumer.consume();
@@ -252,4 +280,18 @@ export class EventConsumer {
     );
     return rowCount ?? 0;
   }
+}
+
+/**
+ * Distingue "ese consumidor ya existe" de cualquier otro fallo de NATS.
+ *
+ * Se compara por el codigo de la API de JetStream (10148) y, como respaldo, por
+ * el texto. El codigo es lo estable; el texto cambia entre versiones del
+ * servidor, pero comprobar solo el codigo dejaria de funcionar con un cliente
+ * que no lo propague, y este es un camino que solo se recorre en un despliegue.
+ */
+function isConsumerExists(error: unknown): boolean {
+  const asRecord = error as { api_error?: { err_code?: number }; message?: string };
+  if (asRecord?.api_error?.err_code === 10148) return true;
+  return /consumer already exists/i.test(asRecord?.message ?? '');
 }
