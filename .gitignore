@@ -32,3 +32,7 @@ tmp/
 .next/
 .next-dev/
 next-env.d.ts
+
+# Token de Railway para el CLI en entornos no interactivos. Es una credencial:
+# nunca entra al repositorio.
+.railway-token

@@ -129,5 +129,14 @@ EXPOSE 3000
 # Node 22 maneja SIGTERM correctamente y `bootstrapService` ya implementa el
 # apagado ordenado -deja de aceptar peticiones, termina las que hay en vuelo,
 # cierra los pools y drena NATS-, asi que no hace falta un init como dumb-init.
+# Los scripts de operacion entran en la imagen. `migrate.mjs` sobre todo: sin el,
+# no hay forma de aplicar una migracion en produccion, y el comando previo al
+# despliegue -que es donde tiene que correr- no tendria nada que ejecutar.
+# `bootstrap-db.mjs` va tambien porque preparar una base nueva se hace DESDE
+# dentro de la red privada: exponer PostgreSQL a internet para lanzarlo una vez
+# es un precio que no hay que pagar.
+COPY --from=build --chown=node:node /app/infra/scripts /app/infra/scripts
+COPY --from=build --chown=node:node /app/infra/docker/postgres/init /app/infra/docker/postgres/init
+
 COPY --chown=node:node infra/docker/entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]

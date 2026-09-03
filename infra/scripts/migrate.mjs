@@ -31,8 +31,44 @@ if (!service) {
   process.exit(1);
 }
 
+/**
+ * Donde estan las migraciones.
+ *
+ * Hay DOS disposiciones y las dos tienen que funcionar. En el repositorio, este
+ * script vive en `infra/scripts/` y las migraciones en `services/<x>/migrations`.
+ * En la imagen de produccion, `pnpm deploy` deja el paquete del servicio como
+ * raiz, asi que quedan en `<cwd>/migrations` y `services/` no existe.
+ *
+ * Sin este respaldo, migrar en produccion falla con un ENOENT sobre una ruta que
+ * nunca existio ahi, y el mensaje no da ninguna pista de por que.
+ */
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const migrationsDir = join(repoRoot, 'services', service, 'migrations');
+
+async function resolveMigrationsDir() {
+  const candidates = [
+    join(repoRoot, 'services', service, 'migrations'),
+    join(process.cwd(), 'migrations'),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      await readdir(candidate);
+      return candidate;
+    } catch {
+      // Se prueba la siguiente.
+    }
+  }
+
+  console.error(
+    [
+      `No se encontraron las migraciones de "${service}". Se busco en:`,
+      ...candidates.map((candidate) => `  - ${candidate}`),
+    ].join('\n'),
+  );
+  process.exit(1);
+}
+
+const migrationsDir = await resolveMigrationsDir();
 
 const connectionString =
   process.env[`DATABASE_URL_${service.toUpperCase()}`] ?? process.env.DATABASE_URL;

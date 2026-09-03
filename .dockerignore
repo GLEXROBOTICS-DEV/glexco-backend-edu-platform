@@ -28,8 +28,12 @@ node_modules
 docs
 design
 infra/docker
-# ...pero el punto de entrada de las imagenes si tiene que entrar.
+# ...pero el punto de entrada y el SQL de preparacion de la base si entran: el
+# segundo es lo que `bootstrap-db.mjs` ejecuta contra una base recien creada.
 !infra/docker/entrypoint.sh
+!infra/docker/postgres
+!infra/docker/postgres/init
+!infra/docker/postgres/init/*.sql
 **/test
 **/*.spec.ts
 **/*.test.ts
