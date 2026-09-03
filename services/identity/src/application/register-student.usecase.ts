@@ -12,6 +12,7 @@ import {
 import type { StudentRegistrationInput } from '@glexco/contracts';
 import { RATE_LIMITS, type RateLimiter } from '@glexco/nest-platform';
 import { User } from '../domain/user/user.aggregate';
+import { EmailVerificationRequested } from '../domain/user/user.events';
 import {
   BirthDate,
   Email,
@@ -25,7 +26,6 @@ import type {
   ActivationCodeGateway,
   AuditLog,
   ClassroomGateway,
-  OneTimeTokenStore,
   PasswordPolicy,
 } from './ports';
 
@@ -75,7 +75,6 @@ export class RegisterStudentUseCase
     private readonly passwordPolicy: PasswordPolicy,
     private readonly activationCodes: ActivationCodeGateway,
     private readonly classrooms: ClassroomGateway,
-    private readonly oneTimeTokens: OneTimeTokenStore,
     private readonly rateLimiter: RateLimiter,
     private readonly audit: AuditLog,
     private readonly clock: Clock,
@@ -152,24 +151,33 @@ export class RegisterStudentUseCase
       now,
     });
 
-    // 7. Usuario y evento, en la misma transaccion.
+    // 7. Usuario y eventos, en la misma transaccion.
     await this.unitOfWork.run(async (tx) => {
       await this.users.save(user, tx);
       // `enqueue` deja el evento en la outbox dentro de esta transaccion. Es
       // esto lo que garantiza que catalogo se entere del alta aunque NATS este
       // caido en este instante.
-      (tx as { enqueue(...events: unknown[]): void }).enqueue(...user.pullDomainEvents());
-    });
-
-    // A partir de aqui, nada puede hacer fallar el registro: el usuario ya
-    // existe. Un correo que no sale es un problema recuperable (el usuario puede
-    // pedir el reenvio); devolver un error tras haber creado la cuenta seria
-    // mucho peor, porque el usuario reintentaria y chocaria con "correo ya
-    // registrado".
-    await this.issueVerificationToken(user, context).catch((error) => {
-      this.logger.error('No se pudo emitir el token de verificacion tras el registro', error, {
-        userId: user.id.value,
-      });
+      //
+      // La peticion del correo de verificacion va en la MISMA transaccion, y no
+      // como un efecto posterior de "mejor esfuerzo": si se encolara despues,
+      // una caida entre ambos pasos dejaria una cuenta creada a la que nadie va
+      // a escribir nunca, y el alumno no tendria forma de saber por que no le
+      // llega el correo. El token NO viaja en el evento; ver su declaracion.
+      (tx as { enqueue(...events: unknown[]): void }).enqueue(
+        ...user.pullDomainEvents(),
+        new EmailVerificationRequested(
+          {
+            userId: user.id.value,
+            email: user.email.value,
+            firstName: name.first,
+            locale: locale.value,
+            guardianEmail: guardianEmail?.value ?? null,
+            requestedAt: now.toISOString(),
+          },
+          1,
+          { correlationId: context.correlationId },
+        ),
+      );
     });
 
     await this.audit
@@ -331,19 +339,4 @@ export class RegisterStudentUseCase
     return { name: check.classroomName };
   }
 
-  /**
-   * Emite el token de verificacion de correo.
-   *
-   * En cuentas de menores de 14 el aviso va tambien al apoderado. El envio del
-   * correo lo hace el servicio de engagement al consumir el evento de registro;
-   * aqui solo se crea el token, para que su vida y su unicidad las controle
-   * identidad, que es quien las hara valer.
-   */
-  private async issueVerificationToken(user: User, _context: ExecutionContext): Promise<void> {
-    await this.oneTimeTokens.issue({
-      purpose: 'email_verification',
-      userId: user.id.value,
-      ttlSeconds: 48 * 3600,
-    });
-  }
 }

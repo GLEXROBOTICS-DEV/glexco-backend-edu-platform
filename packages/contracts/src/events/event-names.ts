@@ -27,6 +27,25 @@ export const EVENTS = {
   SESSION_REVOKED: 'identity.session.revoked.v1',
   /** Familia de refresh tokens reutilizada: indicio de robo de credencial. */
   SESSION_REUSE_DETECTED: 'identity.session.reuse_detected.v1',
+  /**
+   * Hay que enviar un correo con un enlace de un solo uso.
+   *
+   * **El token NO viaja en estos eventos, y es la decision de diseno que los
+   * define.** Un evento vive dias en la outbox y en el stream de JetStream: meter
+   * ahi un token de recuperacion de contrasena significa que quien pueda leer
+   * una tabla de outbox o el stream puede tomar el control de cualquier cuenta.
+   * Es el mismo criterio por el que el codigo de activacion viaja como id de
+   * fila y no en claro.
+   *
+   * Lo que viaja es a QUIEN hay que escribir y POR QUE. Engagement pide el token
+   * a identidad por la API interna en el momento de enviar, asi que el secreto
+   * cruza la red una sola vez y no queda escrito en ningun registro duradero.
+   * De regalo, la hora de vida del enlace empieza cuando el correo sale y no
+   * cuando se encolo el evento: con la outbox retrasada, un token embebido
+   * llegaria ya medio caducado.
+   */
+  EMAIL_VERIFICATION_REQUESTED: 'identity.email_verification.requested.v1',
+  PASSWORD_RESET_REQUESTED: 'identity.password_reset.requested.v1',
 
   // --- institutions ---
   INSTITUTION_CREATED: 'institutions.institution.created.v1',

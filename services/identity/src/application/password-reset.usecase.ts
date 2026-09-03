@@ -13,6 +13,7 @@ import type { UserRepository } from '../domain/user/user.repository';
 import { Email, PasswordHash, UserId } from '../domain/user/value-objects';
 import type { SessionStore } from '../domain/session/session';
 import type { AuditLog, OneTimeTokenStore, PasswordPolicy } from './ports';
+import { PasswordResetRequested } from '../domain/user/user.events';
 
 // ---------------------------------------------------------------------------
 // Solicitud
@@ -41,7 +42,7 @@ export interface RequestPasswordResetInput {
 export class RequestPasswordResetUseCase implements UseCase<RequestPasswordResetInput, void> {
   constructor(
     private readonly users: UserRepository,
-    private readonly tokenStore: OneTimeTokenStore,
+    private readonly unitOfWork: UnitOfWork,
     private readonly rateLimiter: RateLimiter,
     private readonly audit: AuditLog,
     private readonly logger: LoggerPort,
@@ -87,15 +88,29 @@ export class RequestPasswordResetUseCase implements UseCase<RequestPasswordReset
       return;
     }
 
-    // Una hora de vida: suficiente para que alguien lea su correo, y corto para
-    // limitar la ventana si el buzon esta comprometido.
-    await this.tokenStore.issue({
-      purpose: 'password_reset',
-      userId: user.id.value,
-      ttlSeconds: 3600,
+    // El token NO se acuna aqui, y no es un olvido. Engagement lo pide a la API
+    // interna justo antes de enviar el correo, de modo que el secreto no pasa
+    // por la outbox ni por el stream, donde viviria dias. Ademas, la hora de
+    // vida del enlace empieza cuando el correo sale: acunarlo aqui y encolar el
+    // envio haria que un retraso de la outbox entregara un enlace ya medio
+    // caducado, que es la clase de fallo que solo aparece bajo carga.
+    await this.unitOfWork.run(async (tx) => {
+      (tx as { enqueue(...events: unknown[]): void }).enqueue(
+        new PasswordResetRequested(
+          {
+            userId: user.id.value,
+            email: user.email.value,
+            firstName: user.name.first,
+            locale: user.locale.value,
+            requestedAt: new Date().toISOString(),
+          },
+          1,
+          { correlationId: context.correlationId },
+        ),
+      );
     });
 
-    this.logger.info('Token de recuperacion emitido', { userId: user.id.value });
+    this.logger.info('Recuperacion de contrasena solicitada', { userId: user.id.value });
 
     await this.audit
       .record({

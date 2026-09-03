@@ -87,7 +87,7 @@ Plataforma-Glexco/
 │   ├── assessment/      ✅ cuestionarios, banco GLEXCO vs docente, bandeja de corrección
 │   ├── analytics/       ✅ los cinco dashboards, como proyección de eventos
 │   ├── learning/        ⬜ vacío
-│   └── engagement/      ⬜ vacío
+│   └── engagement/      ✅ correo real (verificacion y recuperacion), anuncios de salon
 ├── apps/web/            🔄 Next.js 15: registro y activación, ingreso, portadas,
 │                        progreso, cuestionarios, panel del docente, corrección
 │                        y autoría de evaluaciones
@@ -125,6 +125,7 @@ pnpm --filter @glexco/identity dev         # arrancar identidad (3101)
 pnpm --filter @glexco/api-gateway dev      # arrancar gateway (3000)
 pnpm --filter @glexco/media dev            # arrancar medios (3108)
 pnpm --filter @glexco/assessment dev       # arrancar evaluacion (3105)
+pnpm --filter @glexco/engagement dev       # arrancar comunicacion (3106)
 pnpm --filter @glexco/analytics dev        # arrancar analitica (3107)
 pnpm seed                                  # kit, lote de codigos, institucion y salon
 pnpm smoke                                 # 95 comprobaciones de punta a punta

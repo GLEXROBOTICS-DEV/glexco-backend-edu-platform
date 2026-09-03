@@ -20,6 +20,8 @@ import {
   createReadPool,
   createRedisClient,
   createWritePool,
+  INTERNAL_SERVICE_TOKEN,
+  InternalOnlyGuard,
 } from '@glexco/nest-platform';
 import { createLogger, toLoggerPort, type Logger } from '@glexco/observability';
 
@@ -46,6 +48,7 @@ import {
 import { GetMyProfileUseCase } from './application/get-my-profile.usecase';
 import { AuthController } from './interface/http/auth.controller';
 import { AccountController, UsersController } from './interface/http/account.controller';
+import { InternalTokensController } from './interface/http/internal.controller';
 import { RegisterStudentUseCase } from './application/register-student.usecase';
 import { LoginUseCase } from './application/login.usecase';
 import { RefreshSessionUseCase } from './application/refresh-session.usecase';
@@ -110,11 +113,23 @@ export {
  * implementacion en memoria sin tocar Nest ni levantar Docker.
  */
 @Module({
-  controllers: [AuthController, AccountController, UsersController, HealthController],
+  controllers: [
+    AuthController,
+    AccountController,
+    UsersController,
+    InternalTokensController,
+    HealthController,
+  ],
   providers: [
     Reflector,
+    InternalOnlyGuard,
 
     { provide: CONFIG, useFactory: (): IdentityConfig => loadIdentityConfig() },
+    {
+      provide: INTERNAL_SERVICE_TOKEN,
+      useFactory: (config: IdentityConfig) => config.INTERNAL_SERVICE_TOKEN,
+      inject: [CONFIG],
+    },
 
     {
       provide: LOGGER,
@@ -298,7 +313,6 @@ export {
         PASSWORD_POLICY,
         ACTIVATION_CODE_GATEWAY,
         CLASSROOM_GATEWAY,
-        ONE_TIME_TOKENS,
         RATE_LIMITER,
         AUDIT_LOG,
         CLOCK,
@@ -342,7 +356,7 @@ export {
       provide: RequestPasswordResetUseCase,
       useFactory: (...args: ConstructorParameters<typeof RequestPasswordResetUseCase>) =>
         new RequestPasswordResetUseCase(...args),
-      inject: [USER_REPOSITORY, ONE_TIME_TOKENS, RATE_LIMITER, AUDIT_LOG, LOGGER_PORT],
+      inject: [USER_REPOSITORY, UNIT_OF_WORK, RATE_LIMITER, AUDIT_LOG, LOGGER_PORT],
     },
     {
       provide: ConfirmPasswordResetUseCase,

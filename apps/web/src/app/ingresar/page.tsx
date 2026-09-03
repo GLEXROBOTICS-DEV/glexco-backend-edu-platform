@@ -21,6 +21,10 @@ export default async function IngresarPage({ searchParams }: PageProps) {
   // reintenta y choca con "ese correo ya esta registrado".
   const params = await searchParams;
   const justRegistered = params['registrado'] === '1';
+  // Se llega asi tras cambiar la contrasena. NO se inicia sesion automatica: el
+  // restablecimiento suele hacerse porque alguien pudo tomar la cuenta, y la
+  // contrasena nueva es lo unico que demuestra quien es.
+  const justReset = params['restablecida'] === '1';
 
   return (
     <main id="contenido" className="flex min-h-dvh flex-col lg:flex-row">
@@ -48,6 +52,16 @@ export default async function IngresarPage({ searchParams }: PageProps) {
           <p className="mt-2 text-sm text-ink-500">
             Usa el correo con el que te registraste.
           </p>
+
+          {justReset ? (
+            <p
+              role="status"
+              data-reset="1"
+              className="mt-4 rounded-lg border border-success/25 bg-success/5 px-4 py-3 text-sm text-ink-700"
+            >
+              Tu contraseña ya está cambiada. Ingresa con la nueva.
+            </p>
+          ) : null}
 
           {justRegistered ? (
             <p

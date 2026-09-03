@@ -133,3 +133,43 @@ export class UserProfileUpdated extends DomainEvent<UserProfileUpdatedPayload> {
     super(EVENTS.USER_PROFILE_UPDATED, AGGREGATE, payload.userId, version, payload, context);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Correos con enlace de un solo uso
+// ---------------------------------------------------------------------------
+
+/**
+ * Peticion de envio de un correo con enlace.
+ *
+ * **El token NO va en el payload, y es lo que define este evento.** Un evento
+ * vive dias en la outbox y en el stream: un token de recuperacion escrito ahi
+ * convierte el acceso de lectura a una tabla en el control de cualquier cuenta.
+ * Es el mismo criterio por el que el codigo de activacion viaja como id de fila.
+ *
+ * Engagement pide el token a identidad por la API interna justo antes de enviar,
+ * asi que el secreto cruza la red una vez y no queda escrito en ningun registro
+ * duradero. Ademas, la vida del enlace empieza cuando el correo sale: con la
+ * outbox retrasada, un token embebido llegaria ya medio caducado.
+ */
+export interface EmailDeliveryRequestedPayload {
+  userId: string;
+  email: string;
+  firstName: string;
+  locale: 'es' | 'en';
+  /** Correo del apoderado, cuando el alumno es menor de 14. El aviso de creacion
+   *  de cuenta va tambien a un adulto: es un requisito legal, no una cortesia. */
+  guardianEmail?: string | null;
+  requestedAt: string;
+}
+
+export class EmailVerificationRequested extends DomainEvent<EmailDeliveryRequestedPayload> {
+  constructor(payload: EmailDeliveryRequestedPayload, version: number, context?: DomainEventContext) {
+    super(EVENTS.EMAIL_VERIFICATION_REQUESTED, AGGREGATE, payload.userId, version, payload, context);
+  }
+}
+
+export class PasswordResetRequested extends DomainEvent<EmailDeliveryRequestedPayload> {
+  constructor(payload: EmailDeliveryRequestedPayload, version: number, context?: DomainEventContext) {
+    super(EVENTS.PASSWORD_RESET_REQUESTED, AGGREGATE, payload.userId, version, payload, context);
+  }
+}

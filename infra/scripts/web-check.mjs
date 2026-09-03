@@ -22,6 +22,11 @@ const ASSESSMENT = process.env.ASSESSMENT_URL ?? 'http://localhost:3105';
 const INSTITUTIONS = process.env.INSTITUTIONS_URL ?? 'http://localhost:3102';
 const CATALOG = process.env.CATALOG_URL ?? 'http://localhost:3103';
 const ANALYTICS = process.env.ANALYTICS_URL ?? 'http://localhost:3107';
+const ENGAGEMENT = process.env.ENGAGEMENT_URL ?? 'http://localhost:3106';
+/** Mailpit: un SMTP real que acepta cualquier cosa y no la entrega a nadie. Es
+ *  lo que permite comprobar el correo de punta a punta sin escribirle a una
+ *  direccion de verdad, que ademas serian datos de un menor. */
+const MAILPIT = process.env.MAILPIT_URL ?? 'http://localhost:8025';
 
 const colors = {
   ok: '\x1b[32m',
@@ -1452,6 +1457,284 @@ async function main() {
     conNombre ? '' : 'el nombre no aparecio en 40 s',
   );
 
+
+  // ------------------------------------------------------------------
+  section('12. Correo real: verificacion y recuperacion de contrasena');
+  // ------------------------------------------------------------------
+
+  // Hasta que existio engagement, identidad emitia el token de verificacion y
+  // NADIE lo consumia: nadie recibia el correo, y un alumno que olvidara su
+  // contrasena no tenia forma de recuperarla. Esto lo comprueba de punta a
+  // punta contra Mailpit, que es un servidor SMTP real.
+  const correoKit = await seedCatalog({ codeCount: 2, grade: 'primary_3' });
+  const correoStamp = Date.now();
+  const correoEmail = `verifica.${correoStamp}@colegio.pe`;
+  const apoderado = `apoderado.${correoStamp}@correo.pe`;
+  const correoPassword = 'contrasena-inicial-2026';
+
+  const altaCorreo = await fetch(`${GATEWAY}/api/v1/auth/register/student`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      accountType: 'independent',
+      email: correoEmail,
+      password: correoPassword,
+      firstName: 'Elena',
+      lastName: 'Vega',
+      // Menor de 14: el aviso tiene que llegar TAMBIEN al apoderado.
+      birthDate: '2017-09-09',
+      guardianEmail: apoderado,
+      grade: 'primary_3',
+      activationCode: correoKit.codes[0],
+      acceptedTerms: true,
+      locale: 'es',
+    }),
+  });
+
+  report(
+    'Se registra un alumno menor de 14 con su apoderado',
+    altaCorreo.status === 201,
+    `status=${altaCorreo.status}`,
+  );
+
+  const verificacion = await waitForMail(correoStamp, (msg) => /confirma/i.test(msg.Subject));
+  report(
+    'El correo de verificacion SALE de verdad, por SMTP',
+    Boolean(verificacion),
+    verificacion ? '' : 'no llego en 40 s',
+  );
+
+  const destinatarios = await mailboxFor(correoStamp);
+  report(
+    'Llega al alumno Y a su apoderado, en envios separados y no en copia',
+    destinatarios.length >= 2 &&
+      destinatarios.some((m) => JSON.stringify(m.To).includes(correoEmail)) &&
+      destinatarios.some((m) => JSON.stringify(m.To).includes(apoderado)) &&
+      destinatarios.every((m) => (m.To ?? []).length === 1),
+    `mensajes=${destinatarios.length}`,
+  );
+
+  const cuerpo = await mailBody(verificacion?.ID);
+  report(
+    'Trae version en texto plano, no solo HTML',
+    Boolean(cuerpo?.Text && cuerpo.Text.length > 50),
+  );
+
+  const enlaceVerificacion = /https?:\/\/[^\s"<]*verificar[^\s"<]*/.exec(cuerpo?.Text ?? '')?.[0];
+  report(
+    'El enlace apunta al PORTAL y no a la API: quien lo abre es una persona',
+    Boolean(enlaceVerificacion) && enlaceVerificacion.includes(WEB),
+    `enlace=${enlaceVerificacion?.slice(0, 60)}`,
+  );
+
+  const primera = await fetch(enlaceVerificacion ?? `${WEB}/verificar`);
+  const primeraHtml = await primera.text();
+  report(
+    'Abrir el enlace confirma la cuenta',
+    primera.status === 200 && primeraHtml.includes('data-verified="1"'),
+    `status=${primera.status}`,
+  );
+
+  const segunda = await fetch(enlaceVerificacion ?? `${WEB}/verificar`);
+  const segundaHtml = await segunda.text();
+  report(
+    'Y el enlace es de UN SOLO USO: la segunda vez ya no sirve',
+    segundaHtml.includes('data-verified="0"'),
+  );
+
+  // --- Recuperacion de contrasena ---
+  const solicitud = await fetch(`${GATEWAY}/api/v1/auth/password-reset/request`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: correoEmail, locale: 'es' }),
+  });
+  report(
+    'Se acepta la solicitud de recuperacion',
+    solicitud.status === 202 || solicitud.status === 200,
+    `status=${solicitud.status}`,
+  );
+
+  const reset = await waitForMail(correoStamp, (msg) => /contrase/i.test(msg.Subject));
+  report(
+    'Llega el correo con el enlace para cambiarla',
+    Boolean(reset),
+    reset ? '' : 'no llego en 40 s',
+  );
+
+  const resetBody = await mailBody(reset?.ID);
+  // Es la parte MAS importante de este correo: la unica senal que recibe la
+  // victima de un intento de robo de cuenta, y tiene que decir que no haga nada.
+  report(
+    'Avisa de que hacer si NO fue quien lo recibe el que lo pidio',
+    /no lo pediste/i.test(resetBody?.Text ?? ''),
+  );
+
+  const resetToken = /nueva\?token=([^\s"<&]+)/.exec(resetBody?.Text ?? '')?.[1];
+  report('El enlace trae su token de un solo uso', Boolean(resetToken));
+
+  const nuevaPagina = await fetch(`${WEB}/recuperar/nueva?token=${resetToken}`);
+  const nuevaHtml = await nuevaPagina.text();
+  report(
+    'La pantalla se sirve desde el servidor y lleva el token en un campo oculto',
+    nuevaPagina.status === 200 && nuevaHtml.includes('name="token"'),
+    `status=${nuevaPagina.status}`,
+  );
+
+  // LA comprobacion que sostiene todo este diseno: el token vive en el correo y
+  // en la peticion, y en ningun registro duradero. Si viajara en el evento
+  // estaria escrito en la outbox de identidad y en el stream de JetStream, y
+  // quien pudiera leer una tabla —o una copia de seguridad— tomaria cualquier
+  // cuenta de la plataforma.
+  const outbox = await pgQuery(
+    process.env.DATABASE_URL_IDENTITY,
+    `SELECT count(*)::int AS total FROM identity.outbox
+      WHERE event_name IN ('identity.email_verification.requested.v1',
+                           'identity.password_reset.requested.v1')
+        AND payload::text LIKE '%token%'`,
+  );
+  report(
+    'El token NO viaja en el evento: no aparece en la outbox de identidad',
+    outbox?.[0]?.total === 0,
+    `filas con token=${outbox?.[0]?.total}`,
+  );
+
+  const registro = await pgQuery(
+    process.env.DATABASE_URL_ENGAGEMENT,
+    `SELECT count(*)::int AS total FROM engagement.email_deliveries WHERE recipient LIKE $1`,
+    [`%${correoStamp}%`],
+  );
+  report(
+    'Engagement registra QUE se envio, para que soporte pueda responder',
+    (registro?.[0]?.total ?? 0) >= 3,
+    `envios=${registro?.[0]?.total}`,
+  );
+
+  const columnas = await pgQuery(
+    process.env.DATABASE_URL_ENGAGEMENT,
+    `SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'engagement' AND table_name = 'email_deliveries'`,
+  );
+  report(
+    'Pero NO guarda el cuerpo del mensaje, que contiene el enlace',
+    !(columnas ?? []).some((row) => /body|content|html|token|url/i.test(row.column_name)),
+    `columnas=${(columnas ?? []).map((r) => r.column_name).join(',')}`,
+  );
+
+  // El cambio de verdad: la contrasena nueva funciona y la vieja no.
+  const confirmacion = await fetch(`${GATEWAY}/api/v1/auth/password-reset/confirm`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      token: decodeURIComponent(resetToken ?? ''),
+      password: 'una-contrasena-nueva-2026',
+    }),
+  });
+  report('Se cambia la contrasena con el enlace', confirmacion.status === 200, `status=${confirmacion.status}`);
+
+  const conNueva = await fetch(`${GATEWAY}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: correoEmail, password: 'una-contrasena-nueva-2026', rememberMe: false }),
+  });
+  const conVieja = await fetch(`${GATEWAY}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: correoEmail, password: correoPassword, rememberMe: false }),
+  });
+
+  report('El alumno entra con la contrasena nueva', conNueva.status === 200, `status=${conNueva.status}`);
+  report('Y la vieja deja de servir', conVieja.status === 401, `status=${conVieja.status}`);
+
+  // --- Anuncios de salon ---
+  const anuncioEscuela = await seedInstitution({ grade: 'primary_3' });
+  const [anuncioTeacher] = await seedUsers(1, {
+    roles: [ROLES.TEACHER],
+    institutionId: anuncioEscuela.institutionId,
+  });
+  const anuncioTeacherToken = mintAccessToken({
+    userId: anuncioTeacher.id,
+    roles: anuncioTeacher.roles,
+    institutionId: anuncioEscuela.institutionId,
+  });
+
+  const salonAnuncio = await postJson(
+    `${INSTITUTIONS}/api/v1/classrooms`,
+    anuncioTeacherToken,
+    {
+      name: `Salon Anuncios ${Date.now()}`,
+      grade: 'primary_3',
+      capacity: 30,
+      academicYear: new Date().getFullYear(),
+      teacherId: anuncioTeacher.id,
+    },
+  );
+
+  // El directorio de engagement se alimenta por evento: se espera a que llegue.
+  const proyectadoSalon = await waitFor(async () => {
+    const rows = await pgQuery(
+      process.env.DATABASE_URL_ENGAGEMENT,
+      `SELECT 1 FROM engagement.classroom_directory WHERE classroom_id = $1`,
+      [salonAnuncio.body?.classroomId],
+    );
+    return (rows ?? []).length > 0;
+  }, 30_000);
+
+  report(
+    'El salon llega al directorio de engagement por evento',
+    proyectadoSalon,
+    proyectadoSalon ? '' : 'no se proyecto en 30 s',
+  );
+
+  const anuncio = await postJson(`${ENGAGEMENT}/api/v1/announcements`, anuncioTeacherToken, {
+    classroomId: salonAnuncio.body?.classroomId,
+    title: 'Traigan el kit el viernes',
+    body: 'Vamos a montar el brazo robotico. Revisen que no falte ninguna pieza.',
+    pinned: true,
+  });
+  report(
+    'El docente publica un anuncio en su salon',
+    anuncio.status === 201,
+    `status=${anuncio.status} ${JSON.stringify(anuncio.body).slice(0, 120)}`,
+  );
+
+  // Un docente de OTRO colegio. Con institucion propia, porque la base exige que
+  // todo el personal tenga una: un docente suelto no existe en este dominio.
+  const otraEscuela = await seedInstitution({ grade: 'primary_3' });
+  const [ajeno] = await seedUsers(1, {
+    roles: [ROLES.TEACHER],
+    institutionId: otraEscuela.institutionId,
+  });
+  const ajenoToken = mintAccessToken({
+    userId: ajeno.id,
+    roles: ajeno.roles,
+    institutionId: otraEscuela.institutionId,
+  });
+  const anuncioAjeno = await postJson(`${ENGAGEMENT}/api/v1/announcements`, ajenoToken, {
+    classroomId: salonAnuncio.body?.classroomId,
+    title: 'Anuncio de otro colegio',
+    body: 'Esto no deberia publicarse.',
+  });
+  report(
+    'Un docente de otro colegio NO puede publicar en ese salon',
+    anuncioAjeno.status === 404,
+    `status=${anuncioAjeno.status}`,
+  );
+
+  const misAnuncios = await getJson(`${ENGAGEMENT}/api/v1/announcements`, anuncioTeacherToken);
+  report(
+    'El docente ve los anuncios de su salon',
+    misAnuncios.status === 200 &&
+      (misAnuncios.body?.items ?? []).some((item) => item.title === 'Traigan el kit el viernes'),
+    `status=${misAnuncios.status} items=${misAnuncios.body?.items?.length}`,
+  );
+
+  const anunciosAjenos = await getJson(`${ENGAGEMENT}/api/v1/announcements`, ajenoToken);
+  report(
+    'Y un docente de otro colegio no ve ninguno, en vez de un error',
+    anunciosAjenos.status === 200 && (anunciosAjenos.body?.items ?? []).length === 0,
+    `status=${anunciosAjenos.status} items=${anunciosAjenos.body?.items?.length}`,
+  );
+
   console.log(
     `\n${colors.bold}Resultado:${colors.reset} ${colors.ok}${passed} pasan${colors.reset}` +
       (failed > 0 ? `, ${colors.fail}${failed} fallan${colors.reset}` : '') +
@@ -1479,6 +1762,62 @@ async function waitFor(condition, timeoutMs = 40_000) {
   }
 
   return false;
+}
+
+/**
+ * Espera a que llegue un correo al buzon de pruebas.
+ *
+ * Se filtra por el sello de tiempo que va en la direccion, y no por el ultimo
+ * mensaje: las comprobaciones dejan correos de ejecuciones anteriores en el
+ * buzon, y coger "el mas reciente" hace que una prueba pase por el mensaje de
+ * otra.
+ */
+async function waitForMail(stamp, matches, timeoutMs = 40_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const mine = await mailboxFor(stamp);
+    const found = mine.find(matches);
+    if (found) return found;
+    await sleep(500);
+  }
+  return null;
+}
+
+async function mailboxFor(stamp) {
+  const response = await fetch(`${MAILPIT}/api/v1/messages?limit=50`).catch(() => null);
+  if (!response?.ok) return [];
+  const body = await response.json().catch(() => null);
+  return (body?.messages ?? []).filter((msg) => JSON.stringify(msg.To ?? []).includes(String(stamp)));
+}
+
+async function mailBody(id) {
+  if (!id) return null;
+  const response = await fetch(`${MAILPIT}/api/v1/message/${id}`).catch(() => null);
+  if (!response?.ok) return null;
+  return response.json().catch(() => null);
+}
+
+/**
+ * Consulta directa a un schema.
+ *
+ * Se usa SOLO para comprobar lo que ninguna API expone a proposito: que el token
+ * no esta escrito en la outbox, y que la tabla de envios no guarda el cuerpo del
+ * mensaje. Son justo las afirmaciones que no se pueden verificar desde fuera.
+ */
+async function pgQuery(connectionString, sql, params = []) {
+  if (!connectionString) return null;
+  const pg = (await import('pg')).default;
+  const client = new pg.Client({ connectionString });
+  try {
+    await client.connect();
+    const { rows } = await client.query(sql, params);
+    return rows;
+  } catch (error) {
+    console.error('consulta directa fallida:', error.message);
+    return null;
+  } finally {
+    await client.end().catch(() => undefined);
+  }
 }
 
 async function getJson(url, token) {

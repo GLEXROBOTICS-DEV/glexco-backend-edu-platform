@@ -56,6 +56,7 @@ pnpm --filter @glexco/institutions db:migrate
 pnpm --filter @glexco/catalog      db:migrate
 pnpm --filter @glexco/media        db:migrate
 pnpm --filter @glexco/assessment   db:migrate
+pnpm --filter @glexco/engagement   db:migrate
 pnpm --filter @glexco/analytics    db:migrate
 ```
 
@@ -67,6 +68,7 @@ Cada servicio en su terminal:
 | `pnpm --filter @glexco/institutions dev` | 3102 |
 | `pnpm --filter @glexco/catalog dev` | 3103 |
 | `pnpm --filter @glexco/assessment dev` | 3105 |
+| `pnpm --filter @glexco/engagement dev` | 3106 |
 | `pnpm --filter @glexco/analytics dev` | 3107 |
 | `pnpm --filter @glexco/media dev` | 3108 |
 | `pnpm --filter @glexco/api-gateway dev` | 3000 |
