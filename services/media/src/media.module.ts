@@ -49,6 +49,7 @@ import {
   ConfirmUploadUseCase,
   IssueDownloadUrlUseCase,
   RequestUploadUseCase,
+  ShareLinkUseCase,
   type BucketMap,
 } from './application/upload.usecases';
 import { PgMediaAssetRepository } from './infrastructure/persistence/pg-media-asset.repository';
@@ -300,10 +301,21 @@ export function loadMediaConfig(): MediaConfig {
     },
 
     {
+      provide: ShareLinkUseCase,
+      useFactory: (...args: ConstructorParameters<typeof ShareLinkUseCase>) =>
+        new ShareLinkUseCase(...args),
+      inject: [MEDIA_REPOSITORY, UNIT_OF_WORK, CLOCK, SECURE_RANDOM, LOGGER_PORT],
+    },
+    {
       provide: MediaController,
       useFactory: (...args: ConstructorParameters<typeof MediaController>) =>
         new MediaController(...args),
-      inject: [RequestUploadUseCase, ConfirmUploadUseCase, IssueDownloadUrlUseCase],
+      inject: [
+        RequestUploadUseCase,
+        ConfirmUploadUseCase,
+        IssueDownloadUrlUseCase,
+        ShareLinkUseCase,
+      ],
     },
 
     {

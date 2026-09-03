@@ -55,6 +55,7 @@ pnpm --filter @glexco/identity     db:migrate
 pnpm --filter @glexco/institutions db:migrate
 pnpm --filter @glexco/catalog      db:migrate
 pnpm --filter @glexco/media        db:migrate
+pnpm --filter @glexco/assessment   db:migrate
 ```
 
 Si el puerto 5432 ya lo ocupa otro proyecto, ajusta `GLEXCO_POSTGRES_PORT` en
@@ -68,6 +69,7 @@ pnpm --filter @glexco/identity     dev   # 3101
 pnpm --filter @glexco/institutions dev   # 3102
 pnpm --filter @glexco/catalog      dev   # 3103
 pnpm --filter @glexco/media        dev   # 3108
+pnpm --filter @glexco/assessment   dev   # 3105
 pnpm --filter @glexco/api-gateway  dev   # 3000
 pnpm --filter @glexco/web          dev   # 3010 (portal)
 ```
@@ -76,7 +78,7 @@ Y la verificación:
 
 ```bash
 pnpm seed           # kit, lote de codigos, institucion y salon
-pnpm smoke          # 51 comprobaciones de punta a punta
+pnpm smoke          # 73 comprobaciones de punta a punta
 pnpm smoke:direct   # las mismas contra identity, saltándose el gateway
 pnpm concurrency    # las cuatro comprobaciones de la seccion 3
 pnpm smoke:web      # 17 comprobaciones del portal (necesita el portal en marcha)
@@ -198,6 +200,7 @@ Ver [ROADMAP.md](ROADMAP.md) para el detalle. Resumen del estado:
 | 1 · Identidad y acceso | ✅ (falta ejecutarlo) |
 | 2 · Instituciones y salones | ✅ (falta ejecutarlo) |
 | 3 · Catálogo, kits, códigos y medios | ✅ |
+| 5 · Evaluación | 🔄 servicio funcionando, falta el portal docente |
 | 4 · Portales de alumno | 🔄 ingreso y portadas funcionando |
 | 5–8 | ⬜ |
 

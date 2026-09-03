@@ -1,5 +1,6 @@
 import 'server-only';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { cache } from 'react';
 
 /**
@@ -121,13 +122,18 @@ async function fetchProfile(token: string): Promise<Profile | null> {
   }
 }
 
+/**
+ * La sesion, o a ingresar.
+ *
+ * Redirige en vez de lanzar. El layout de los portales ya comprueba la sesion,
+ * pero Next renderiza layout y pagina EN PARALELO: la pagina llega aqui antes
+ * de que la redireccion del layout surta efecto, y una excepcion en ese momento
+ * llena el log de errores en un caso que no lo es. `redirect()` es lo que Next
+ * espera y no deja rastro de error.
+ */
 export async function requireSession(): Promise<SessionUser> {
   const session = await getSession();
-  if (!session) {
-    // Quien llame decide si redirige; lanzar aqui evita que una pagina siga
-    // adelante con `session!` y reviente mas tarde con un error sin sentido.
-    throw new Error('SESSION_REQUIRED');
-  }
+  if (!session) redirect('/ingresar');
   return session;
 }
 

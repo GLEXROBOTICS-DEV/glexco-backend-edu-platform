@@ -24,6 +24,25 @@ export abstract class Entity<Id extends Identifier> {
 export abstract class AggregateRoot<Id extends Identifier> extends Entity<Id> {
   private domainEventBuffer: DomainEvent[] = [];
   private currentVersion = 0;
+  private changed = false;
+
+  /**
+   * Si el agregado cambio desde que se cargo.
+   *
+   * Existe para cerrar una clase entera de error que ya aparecio tres veces en
+   * este proyecto. El patron es siempre el mismo: una operacion idempotente
+   * -reanular, reentregar, reconfirmar- sale sin tocar nada, la version no
+   * avanza, y el `UPDATE ... WHERE version < :nueva` no encuentra fila. El
+   * repositorio interpreta eso como escritura concurrente y lanza un conflicto
+   * que no existe, justo en el camino que deberia ser el mas inofensivo.
+   *
+   * Con esto, un `save` sobre un agregado sin cambios no hace nada, que es
+   * exactamente lo correcto. El error deja de poder cometerse en vez de tener
+   * que recordarlo en cada caso de uso.
+   */
+  get hasChanges(): boolean {
+    return this.changed;
+  }
 
   /** Version optimista. El UPDATE incluye `WHERE version = :expected` para que
    *  dos replicas que editan la misma raiz no se pisen silenciosamente. */
@@ -31,9 +50,15 @@ export abstract class AggregateRoot<Id extends Identifier> extends Entity<Id> {
     return this.currentVersion;
   }
 
-  /** Fija la version leida de la base al rehidratar el agregado. */
+  /**
+   * Fija la version leida de la base al rehidratar el agregado.
+   *
+   * Marca el agregado como limpio: acaba de salir de la base, asi que por
+   * definicion todavia no ha cambiado nada.
+   */
   protected setVersion(version: number): void {
     this.currentVersion = version;
+    this.changed = false;
   }
 
   get domainEvents(): readonly DomainEvent[] {
@@ -53,11 +78,13 @@ export abstract class AggregateRoot<Id extends Identifier> extends Entity<Id> {
    */
   protected touch(): void {
     this.currentVersion += 1;
+    this.changed = true;
   }
 
   /** Registra un hecho y avanza la version del agregado. */
   protected record(build: (nextVersion: number) => DomainEvent): void {
     this.currentVersion += 1;
+    this.changed = true;
     this.domainEventBuffer.push(build(this.currentVersion));
   }
 

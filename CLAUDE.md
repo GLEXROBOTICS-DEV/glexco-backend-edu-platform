@@ -45,7 +45,7 @@ defecto**, pero el registro independiente debe funcionar igual de bien.
 
 ## 2. Estado actual
 
-**Fases 0 a 3 completas; Fase 4 arrancada.** El backend **ya se ejecuta
+**Fases 0 a 3 completas; Fases 4 y 5 arrancadas.** El backend **ya se ejecuta
 contra Postgres, Redis y NATS reales**. Ver [docs/BITACORA.md](docs/BITACORA.md)
 para el detalle y el pendiente exacto, y [docs/ROADMAP.md](docs/ROADMAP.md) para
 lo que falta de cada fase.
@@ -56,7 +56,7 @@ Verificado:
 |---|---|
 | `pnpm build` | 9/9 paquetes y servicios |
 | `pnpm test` | **118 pruebas** en memoria |
-| `pnpm smoke` | **51 comprobaciones** de punta a punta |
+| `pnpm smoke` | **73 comprobaciones** de punta a punta |
 | `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
 | `pnpm smoke:web` | **17 comprobaciones** del portal contra el backend |
 
@@ -80,8 +80,9 @@ Plataforma-Glexco/
 │   ├── api-gateway/     ✅ enrutado, rate limiting, circuit breakers, apagado ordenado
 │   ├── institutions/    ✅ instituciones, salones con tope, licencias, matrículas
 │   ├── catalog/         ✅ kits, códigos, lotes de imprenta, derechos, canje asíncrono
-│   ├── media/           ✅ subidas prefirmadas, validación de tipo real, miniaturas
-│   ├── learning/        ⬜ vacío        assessment/   ⬜ vacío
+│   ├── media/           ✅ subidas prefirmadas, tipo real, miniaturas, enlaces externos
+│   ├── assessment/      🔄 cuestionarios, banco GLEXCO vs docente, corrección automática
+│   ├── learning/        ⬜ vacío
 │   └── engagement/      ⬜ vacío        analytics/    ⬜ vacío
 ├── apps/web/            🔄 Next.js 15, ingreso y portadas de Discover y Academy
 ├── design/canvas/       ✅ dirección visual aprobada (10 artboards)
@@ -117,6 +118,7 @@ pnpm --filter @glexco/identity db:migrate  # aplicar migraciones
 pnpm --filter @glexco/identity dev         # arrancar identidad (3101)
 pnpm --filter @glexco/api-gateway dev      # arrancar gateway (3000)
 pnpm --filter @glexco/media dev            # arrancar medios (3108)
+pnpm --filter @glexco/assessment dev       # arrancar evaluacion (3105)
 pnpm seed                                  # kit, lote de codigos, institucion y salon
 pnpm smoke                                 # 32 comprobaciones de punta a punta
 pnpm concurrency                           # las 4 comprobaciones de concurrencia real
@@ -220,7 +222,16 @@ alguna, para y pregunta antes de continuar.
 6. **Los buckets son privados.** El contenido se sirve con URLs prefirmadas de
    vida corta. Nunca hagas público un bucket "para que funcione".
 
-7. **Toda lectura pesada va al pool de réplicas** (`DB_READ_POOL`); las
+7. **La clave de corrección de una evaluación nunca sale hacia un alumno.**
+   `Assessment.forStudent()` es el único camino por el que una pregunta llega al
+   portal, y no incluye `correctOptionIds` ni `explanation`. Un cuestionario
+   cuyas respuestas viajan al navegador no evalúa nada: basta abrir la pestaña de
+   red. Que el frontend "no las pinte" no sirve de nada.
+
+8. **Un docente no modifica una evaluación de GLEXCO.** Es la misma para todos
+   los colegios; editarla cambiaría el examen de todo el país. Puede duplicarla.
+
+9. **Toda lectura pesada va al pool de réplicas** (`DB_READ_POOL`); las
    escrituras y las lecturas que deben ver su propia escritura, al de escritura
    (`DB_WRITE_POOL`). Ver [docs/ESCALABILIDAD.md](docs/ESCALABILIDAD.md).
 
@@ -254,6 +265,15 @@ alguna, para y pregunta antes de continuar.
 - **`CREATE SCHEMA IF NOT EXISTS` falla con `permission denied for database`**
   aunque el schema ya exista: el motor comprueba el permiso antes que la
   existencia. Consulta `pg_namespace` primero.
+- **Un `save` sobre un agregado sin cambios no escribe.** `AggregateRoot`
+  expone `hasChanges` y todos los repositorios salen antes si es `false`. Sin
+  eso, cualquier operación idempotente que sale sin tocar nada -reanular,
+  reentregar, reconfirmar- deja la versión igual, el `UPDATE ... WHERE version <
+  :nueva` no encuentra fila y se lanza un conflicto de concurrencia inventado.
+  Este error apareció tres veces antes de cerrarse en la raíz.
+- **`next dev` y `next build` escriben en carpetas distintas** (`.next-dev` y
+  `.next`). Con la misma, un `pnpm build` del monorepo mientras corre el
+  servidor de desarrollo lo rompe con `Cannot find module './735.js'`.
 - **Los límites de fuerza bruta son reales en local**: cinco códigos de
   activación por IP y hora, diez registros por IP y hora. Dos o tres ejecuciones
   seguidas de `pnpm smoke` los agotan. Para limpiarlos, ver el final de la

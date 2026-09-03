@@ -8,6 +8,7 @@ import {
   type DomainEventContext,
 } from '@glexco/kernel';
 import { EVENTS } from '@glexco/contracts';
+import type { ExternalLink } from './shared-link';
 
 export class MediaAssetId extends defineId('MediaAsset') {}
 
@@ -157,9 +158,22 @@ interface MediaAssetState {
   ownerId: string;
   institutionId: string | null;
   scope: string;
-  bucket: string;
-  storageKey: StorageKey;
-  declaredMimeType: AcceptedMimeType;
+  /**
+   * Como llego el material.
+   *
+   * `upload` son bytes en nuestro bucket; `link`, material alojado fuera -el
+   * OneDrive del colegio, normalmente- del que solo guardamos la direccion.
+   * Conviven en el mismo agregado porque para el docente son lo mismo: lo que
+   * le entrego su alumno. Separarlos le obligaria a mirar en dos sitios.
+   */
+  source: 'upload' | 'link';
+  /** Solo en `upload`. */
+  bucket: string | null;
+  storageKey: StorageKey | null;
+  declaredMimeType: AcceptedMimeType | null;
+  /** Solo en `link`. */
+  externalUrl: string | null;
+  externalHost: string | null;
   detectedMimeType: string | null;
   originalFilename: string;
   sizeBytes: number | null;
@@ -213,9 +227,12 @@ export class MediaAsset extends AggregateRoot<MediaAssetId> {
       ownerId: input.ownerId,
       institutionId: input.institutionId,
       scope: input.scope,
+      source: 'upload',
       bucket: input.bucket,
       storageKey,
       declaredMimeType: input.declaredMimeType,
+      externalUrl: null,
+      externalHost: null,
       detectedMimeType: null,
       originalFilename: input.originalFilename,
       sizeBytes: null,
@@ -235,6 +252,72 @@ export class MediaAsset extends AggregateRoot<MediaAssetId> {
     return asset;
   }
 
+  /**
+   * Registra material alojado fuera de la plataforma.
+   *
+   * Nace ya en `ready`, y no en `pending`, porque no hay nada que esperar: no
+   * hay bytes que subir ni firma binaria que comprobar. Fingir un paso de
+   * validacion aqui seria peor que no tenerlo, porque daria una confianza que
+   * no existe: de un enlace no sabemos ni que hay al otro lado ni si quien lo
+   * abra tendra permiso.
+   *
+   * Lo que si esta comprobado -y ocurre antes, al construir `ExternalLink`- es
+   * que la direccion es https, sin credenciales, sin acortador y a un dominio
+   * de la lista blanca.
+   */
+  static shareLink(input: {
+    id: MediaAssetId;
+    ownerId: string;
+    institutionId: string | null;
+    scope: string;
+    link: ExternalLink;
+    title: string;
+    now: Date;
+  }): MediaAsset {
+    const asset = new MediaAsset(input.id, {
+      ownerId: input.ownerId,
+      institutionId: input.institutionId,
+      scope: input.scope,
+      source: 'link',
+      bucket: null,
+      storageKey: null,
+      declaredMimeType: null,
+      externalUrl: input.link.url,
+      externalHost: input.link.host,
+      detectedMimeType: null,
+      originalFilename: input.title,
+      sizeBytes: null,
+      status: MEDIA_STATUS.READY,
+      rejectionReason: null,
+      thumbnailKey: null,
+      videoProviderRef: null,
+      createdAt: input.now,
+      updatedAt: input.now,
+    });
+
+    // Este SI emite evento: a diferencia de una URL de subida pedida y nunca
+    // usada, aqui el alumno ya entrego algo y evaluacion tiene que enterarse.
+    asset.record(
+      (version) =>
+        new MediaUploaded(
+          {
+            mediaAssetId: input.id.value,
+            ownerId: input.ownerId,
+            scope: input.scope,
+            bucket: '',
+            storageKey: input.link.url,
+            mimeType: 'external/link',
+            sizeBytes: 0,
+            institutionId: input.institutionId,
+          },
+          version,
+          { actorId: input.ownerId, tenantId: input.institutionId ?? undefined },
+        ),
+    );
+
+    return asset;
+  }
+
   static rehydrate(id: MediaAssetId, state: MediaAssetState, version: number): MediaAsset {
     const asset = new MediaAsset(id, state);
     asset.setVersion(version);
@@ -250,6 +333,13 @@ export class MediaAsset extends AggregateRoot<MediaAssetId> {
    */
   markReady(input: { detectedMimeType: string; sizeBytes: number; now: Date }): void {
     this.assertPending();
+
+    if (this.state.source !== 'upload' || !this.state.declaredMimeType) {
+      throw new BusinessRuleError(
+        'MEDIA_NOT_AN_UPLOAD',
+        'Solo una subida se confirma; un enlace no tiene bytes que comprobar.',
+      );
+    }
 
     const spec = ACCEPTED_MEDIA[this.state.declaredMimeType];
 
@@ -285,8 +375,8 @@ export class MediaAsset extends AggregateRoot<MediaAssetId> {
             mediaAssetId: this.id.value,
             ownerId: this.state.ownerId,
             scope: this.state.scope,
-            bucket: this.state.bucket,
-            storageKey: this.state.storageKey.value,
+            bucket: this.state.bucket ?? '',
+            storageKey: this.state.storageKey?.value ?? '',
             mimeType: input.detectedMimeType,
             sizeBytes: input.sizeBytes,
             institutionId: this.state.institutionId,
@@ -313,7 +403,7 @@ export class MediaAsset extends AggregateRoot<MediaAssetId> {
             mediaAssetId: this.id.value,
             ownerId: this.state.ownerId,
             reason,
-            declaredMimeType: this.state.declaredMimeType,
+            declaredMimeType: this.state.declaredMimeType ?? 'unknown',
           },
           version,
           { actorId: this.state.ownerId, tenantId: this.state.institutionId ?? undefined },
@@ -381,13 +471,26 @@ export class MediaAsset extends AggregateRoot<MediaAssetId> {
   get ownerId(): string {
     return this.state.ownerId;
   }
+  get source(): 'upload' | 'link' {
+    return this.state.source;
+  }
+  /** Vacio en un enlace: no vive en ningun bucket nuestro. */
   get bucket(): string {
-    return this.state.bucket;
+    return this.state.bucket ?? '';
   }
   get storageKey(): StorageKey {
+    if (!this.state.storageKey) {
+      throw new BusinessRuleError(
+        'MEDIA_NOT_AN_UPLOAD',
+        'Un enlace externo no tiene ubicacion en el almacen.',
+      );
+    }
     return this.state.storageKey;
   }
-  get declaredMimeType(): AcceptedMimeType {
+  get externalUrl(): string | null {
+    return this.state.externalUrl;
+  }
+  get declaredMimeType(): AcceptedMimeType | null {
     return this.state.declaredMimeType;
   }
   get status(): MediaStatus {

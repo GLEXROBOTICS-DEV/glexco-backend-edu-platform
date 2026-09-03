@@ -228,6 +228,25 @@ async function fetchHtml(url, cookie) {
   return { status: response.status, html: await response.text() };
 }
 
+/**
+ * Envoltura de fetch que dice QUE objetivo fallo.
+ *
+ * Sin esto, un ECONNREFUSED sale como `fetch failed` a secas y hay que adivinar
+ * si el que no responde es el portal, el gateway o Postgres. Con seis procesos
+ * en marcha, adivinar cuesta mas que el propio fallo.
+ */
+const nativeFetch = globalThis.fetch;
+globalThis.fetch = async (input, init) => {
+  const url = typeof input === 'string' ? input : input?.url ?? String(input);
+  try {
+    return await nativeFetch(input, init);
+  } catch (error) {
+    throw new Error(`no se pudo contactar con ${url}: ${error?.cause?.code ?? error.message}`, {
+      cause: error,
+    });
+  }
+};
+
 main().catch((error) => {
   console.error(`\n${colors.fail}La comprobacion se interrumpio:${colors.reset}`, error);
   console.error(

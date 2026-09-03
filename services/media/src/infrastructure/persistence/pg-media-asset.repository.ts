@@ -15,9 +15,12 @@ interface MediaRow {
   owner_id: string;
   institution_id: string | null;
   scope: string;
-  bucket: string;
-  storage_key: string;
-  declared_mime_type: string;
+  source: 'upload' | 'link';
+  bucket: string | null;
+  storage_key: string | null;
+  declared_mime_type: string | null;
+  external_url: string | null;
+  external_host: string | null;
   detected_mime_type: string | null;
   original_filename: string;
   size_bytes: string | null;
@@ -31,9 +34,10 @@ interface MediaRow {
 }
 
 const COLUMNS = `
-  id, owner_id, institution_id, scope, bucket, storage_key, declared_mime_type,
-  detected_mime_type, original_filename, size_bytes, status, rejection_reason,
-  thumbnail_key, video_provider_ref, version, created_at, updated_at
+  id, owner_id, institution_id, scope, source, bucket, storage_key,
+  declared_mime_type, external_url, external_host, detected_mime_type,
+  original_filename, size_bytes, status, rejection_reason, thumbnail_key,
+  video_provider_ref, version, created_at, updated_at
 `;
 
 export class PgMediaAssetRepository implements MediaAssetRepository {
@@ -67,15 +71,20 @@ export class PgMediaAssetRepository implements MediaAssetRepository {
   }
 
   async save(asset: MediaAsset, tx: TransactionContext): Promise<void> {
+    // Sin cambios no se escribe. Un `UPDATE ... WHERE version < :nueva` con la
+    // misma version no encontraria fila y se interpretaria como conflicto de
+    // concurrencia: ver `AggregateRoot.hasChanges`.
+    if (!asset.hasChanges) return;
     const client = (tx as PgTransaction).client;
     const state = asset.snapshot();
 
     const result = await client.query(
       `INSERT INTO media.media_assets
-         (id, owner_id, institution_id, scope, bucket, storage_key, declared_mime_type,
-          detected_mime_type, original_filename, size_bytes, status, rejection_reason,
-          thumbnail_key, video_provider_ref, version, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+         (id, owner_id, institution_id, scope, source, bucket, storage_key,
+          declared_mime_type, external_url, external_host, detected_mime_type,
+          original_filename, size_bytes, status, rejection_reason, thumbnail_key,
+          video_provider_ref, version, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
        ON CONFLICT (id) DO UPDATE
           SET detected_mime_type = EXCLUDED.detected_mime_type,
               size_bytes         = EXCLUDED.size_bytes,
@@ -91,9 +100,12 @@ export class PgMediaAssetRepository implements MediaAssetRepository {
         state.ownerId,
         state.institutionId,
         state.scope,
+        state.source,
         state.bucket,
-        state.storageKey.value,
+        state.storageKey?.value ?? null,
         state.declaredMimeType,
+        state.externalUrl,
+        state.externalHost,
         state.detectedMimeType,
         state.originalFilename,
         state.sizeBytes,
@@ -141,9 +153,12 @@ function toDomain(row: MediaRow): MediaAsset {
       ownerId: row.owner_id,
       institutionId: row.institution_id,
       scope: row.scope,
+      source: row.source,
       bucket: row.bucket,
-      storageKey: StorageKey.fromString(row.storage_key),
-      declaredMimeType: row.declared_mime_type as AcceptedMimeType,
+      storageKey: row.storage_key ? StorageKey.fromString(row.storage_key) : null,
+      declaredMimeType: (row.declared_mime_type as AcceptedMimeType | null) ?? null,
+      externalUrl: row.external_url,
+      externalHost: row.external_host,
       detectedMimeType: row.detected_mime_type,
       originalFilename: row.original_filename,
       // bigint llega como cadena para no perder precision con valores enormes;

@@ -39,3 +39,19 @@ export const requestUploadSchema = z.object({
   sizeBytes: z.coerce.number().int().positive(),
 });
 export type RequestUploadRequest = z.infer<typeof requestUploadSchema>;
+
+/**
+ * Compartir material alojado fuera de la plataforma.
+ *
+ * Es el flujo que ya usan los centros: el video de la exposicion vive en el
+ * OneDrive de la universidad y lo que circula es el enlace. La validacion de
+ * verdad -https, sin credenciales, sin acortador, dominio en lista blanca- la
+ * hace el backend; esto solo evita el viaje de ida y vuelta obvio.
+ */
+export const shareLinkSchema = z.object({
+  scope: uploadScopeSchema,
+  url: z.string().trim().url('errors.validation.link_malformed').max(2048),
+  /** Como lo vera el docente en su listado. */
+  title: z.string().trim().min(1).max(200),
+});
+export type ShareLinkRequest = z.infer<typeof shareLinkSchema>;

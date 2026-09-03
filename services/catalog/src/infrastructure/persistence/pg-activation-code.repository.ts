@@ -110,6 +110,10 @@ export class PgActivationCodeRepository implements ActivationCodeRepository {
   }
 
   async save(code: ActivationCode, tx: TransactionContext): Promise<void> {
+    // Sin cambios no se escribe. Un `UPDATE ... WHERE version < :nueva` con la
+    // misma version no encontraria fila y se interpretaria como conflicto de
+    // concurrencia: ver `AggregateRoot.hasChanges`.
+    if (!code.hasChanges) return;
     const client = (tx as PgTransaction).client;
     const state = code.snapshot();
 

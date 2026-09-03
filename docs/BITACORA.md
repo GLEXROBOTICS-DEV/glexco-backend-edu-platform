@@ -7,6 +7,129 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 8 — 2026-09-03 — Enlaces externos y arranque de la Fase 5
+
+### Dos aclaraciones del cliente
+
+**1. Los centros alojan el vídeo en su propio Outlook / OneDrive y comparten el
+enlace.** Se adopta ese flujo: `POST /media/links` registra material alojado
+fuera. Evita almacenar y servir gigabytes que no son nuestros y encaja con lo que
+la gente ya hace.
+
+**No sustituye a la subida.** El cliente pidió expresamente conservar la subida
+de vídeo con proveedor, así que conviven: quien tenga el vídeo en el móvil sube y
+va al proveedor externo; quien ya lo tenga publicado en su institución comparte
+el enlace. El vídeo vuelve a admitirse también en evidencias.
+
+**2. ¿Pueden docentes y administradores crear o modificar tareas y exámenes?**
+No existía nada: era la Fase 5 y `assessment-service` estaba vacío. Se ha
+construido, con la distinción que el cliente señaló al preguntar —GLEXCO pone
+evaluaciones por defecto, de marcar, tipo Coursera—.
+
+### Qué se construyó
+
+**Enlaces externos en `media-service`.** Lista blanca de dominios (Microsoft 365,
+Google Workspace, YouTube, Vimeo), https obligatorio, sin credenciales
+incrustadas y sin acortadores. Conviven con las subidas en la misma tabla.
+
+**`assessment-service` completo en su núcleo:** `Assessment`, `Question`,
+`Submission`, corrección automática de lo que es de marcar, corrección manual de
+lo abierto, y la API para las dos cosas.
+
+### Decisiones no obvias
+
+- **El origen de una evaluación no se acepta de la petición: se deduce de quién
+  la crea.** Si viniera en el cuerpo, un docente podría declarar su cuestionario
+  como contenido de GLEXCO y publicarlo a todos los colegios del país cambiando
+  un solo campo. Es la misma regla que ya protege el alta de personal en
+  identidad.
+
+- **Un docente no edita el banco de GLEXCO, pero puede duplicarlo.** Cuando
+  choca con el error, lo que quiere no es romper el banco común: quiere su propia
+  versión. Sin `clone`, la única salida sería copiar las preguntas a mano.
+
+- **La clave de corrección nunca sale hacia un alumno.** `forStudent()` no
+  incluye `correctOptionIds` ni `explanation`. Un cuestionario cuyas respuestas
+  correctas viajan al navegador no evalúa nada: basta abrir la pestaña de red.
+  Que el frontend "no las pinte" no sirve de nada. Hay una comprobación en la
+  prueba de humo que lo verifica sobre el JSON servido.
+
+- **Todo o nada en las preguntas de varias respuestas.** Dar puntos parciales por
+  cada acierto premia marcarlo todo: quien selecciona las cinco opciones acierta
+  las tres correctas y saca más que quien pensó y marcó dos de tres.
+
+- **El límite de tiempo lo cuenta el reloj del servidor**, con un minuto de
+  gracia para la latencia del envío final. Fiarse del cronómetro del navegador es
+  no tener límite: se cambia con la consola abierta en diez segundos.
+
+- **Con entregas hechas, las preguntas se congelan.** Cambiarlas invalidaría en
+  silencio las notas ya puestas: el alumno respondió a otra cosa. Se archiva y se
+  crea una versión nueva.
+
+- **La nota no se cierra mientras falte corrección manual.** Decirle a un alumno
+  que suspendió cuando falta la mitad de los puntos es peor que no decirle nada.
+
+- **La fecha límite se comprueba al EMPEZAR, no al entregar.** Cortar a mitad a
+  quien empezó a tiempo sería castigarle por tardar lo que la evaluación dura.
+
+- **El enlace externo no se puede validar del todo, y se dice.** El permiso lo
+  gobierna el proveedor del centro: el fallo más común con diferencia es que el
+  alumno comparte un enlace restringido a su cuenta y el docente recibe "acceso
+  denegado". La respuesta lo advierte de forma explícita, porque comprobarlo
+  exigiría la sesión del docente.
+
+- **Lista blanca de dominios, no lista negra**, y sin acortadores: `bit.ly/x`
+  pasa cualquier lista blanca y redirige a donde sea, con lo que la convierte en
+  decoración.
+
+### Un error que apareció tres veces y se cerró en la raíz
+
+El patrón: una operación idempotente sale sin tocar nada, la versión del agregado
+no avanza, y el `UPDATE ... WHERE version < :nueva` no encuentra fila. El
+repositorio lo interpreta como escritura concurrente y lanza un conflicto que no
+existe, justo en el camino que debería ser el más inofensivo.
+
+Apareció en el inicio de sesión (sesión 5), al reanular un código (sesión 6) y al
+reentregar un intento (esta sesión). Se cerró añadiendo `AggregateRoot.hasChanges`
+y una guarda en todos los repositorios: **un `save` sobre un agregado sin cambios
+no escribe**. El error deja de poder cometerse en vez de tener que recordarlo en
+cada caso de uso.
+
+### Otros errores corregidos
+
+- **`next dev` y `next build` compartían `.next`.** Un `pnpm build` del monorepo
+  mientras corría el servidor de desarrollo lo dejaba con `Cannot find module
+  './735.js'` y errores 500 en páginas que estaban bien. Ahora desarrollo escribe
+  en `.next-dev`.
+- **`requireSession` lanzaba en vez de redirigir.** Next renderiza layout y
+  página en paralelo, así que la página llegaba ahí antes de que la redirección
+  del layout surtiera efecto y llenaba el log de errores en un caso que no lo es.
+- **`web-check.mjs` no decía qué objetivo fallaba.** Un `fetch failed` a secas
+  con seis procesos en marcha obliga a adivinar. Ahora nombra la URL.
+- **`QUESTION_TYPES` estaba a punto de duplicarse** en el esquema Zod. Se alineó
+  con el vocabulario compartido, que ya lo definía.
+
+### Estado al cerrar
+
+- `pnpm build`: **12/12**. `pnpm test`: **118**.
+- `pnpm smoke`: **73/73**. `pnpm concurrency`: **14/14**. `pnpm smoke:web`: **17/17**.
+- Siete servicios: identity, institutions, catalog, media, assessment, gateway y
+  el portal.
+- **Sin push**, por decisión del cliente.
+
+### Qué falta
+
+**Fase 4**: las pantallas interiores de los portales, el registro y la activación
+de código desde el portal, i18n con next-intl y la auditoría de accesibilidad.
+
+**Fase 5**: rúbricas, la bandeja de corrección del docente en el portal
+(`listPendingForClassroom` ya existe en el backend), y el portal docente
+completo. Los tipos de pregunta `ordering` y `matching` están en el vocabulario
+pero su corrección automática no está escrita, así que hoy se tratan como
+manuales.
+
+---
+
 ## Sesión 7 — 2026-09-02 — Arranque de la Fase 4 y aclaración sobre el video
 
 ### Aclaración del cliente que cambió una decisión

@@ -16,6 +16,7 @@ import {
   isAcceptedMimeType,
   type AcceptedMimeType,
 } from '../domain/media-asset.aggregate';
+import { ExternalLink } from '../domain/shared-link';
 import type {
   ContentSniffer,
   MediaAssetRepository,
@@ -45,20 +46,23 @@ const SCOPE_BUCKET: Record<UploadScope, keyof BucketMap> = {
 /**
  * Que tipos admite cada ambito.
  *
- * **El video solo entra por `content`,** que es el material que produce GLEXCO.
- * Los colegios no suben video: sus alumnos entregan evidencias en foto y los
- * tutoriales los pone GLEXCO, iguales para todos. Dejar la puerta abierta
- * "por si acaso" no seria neutral -un video de dos gigas por alumno multiplica
- * el almacenamiento y el ancho de banda de salida sin que nadie lo haya
- * decidido-, y ademas quitaria la unica garantia que hace barato el catalogo de
- * video: que es pequeno, fijo y conocido.
+ * El video se admite en `content` -los tutoriales que produce GLEXCO- y en
+ * `evidence`, para que un alumno pueda grabar su robot funcionando cuando eso
+ * sea lo que hay que entregar. En los dos casos pasa por el proveedor externo:
+ * servir video desde nuestro ancho de banda es lo primero que dispara la
+ * factura.
+ *
+ * Existe ademas la via del ENLACE (`ShareLinkUseCase`), pensada para cuando el
+ * centro ya aloja el material en su propio OneDrive o Stream. Son alternativas,
+ * no sustitutas: quien tenga el video en el movil sube, y quien ya lo tenga
+ * publicado en su institucion comparte el enlace.
  *
  * El avatar se limita a imagen por la razon evidente, y un documento no es una
- * foto: aceptar cualquier cosa en cualquier sitio convierte la lista de tipos en
+ * foto: aceptar cualquier cosa en cualquier sitio convierte la lista en
  * decorativa.
  */
 const SCOPE_TYPES: Record<UploadScope, readonly string[]> = {
-  evidence: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  evidence: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4'],
   content: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4'],
   avatar: ['image/jpeg', 'image/png', 'image/webp'],
   document: ['application/pdf'],
@@ -269,6 +273,13 @@ export class ConfirmUploadUseCase implements UseCase<ConfirmUploadInput, Confirm
       throw new NotFoundError('MEDIA_NOT_FOUND', 'La subida indicada no existe.');
     }
 
+    if (preliminary.source !== 'upload') {
+      throw new BusinessRuleError(
+        'MEDIA_NOT_AN_UPLOAD',
+        'Un enlace externo no se confirma: no hay bytes que comprobar.',
+      );
+    }
+
     const metadata = await this.storage.head(preliminary.bucket, preliminary.storageKey.value);
 
     if (!metadata) {
@@ -301,7 +312,10 @@ export class ConfirmUploadUseCase implements UseCase<ConfirmUploadInput, Confirm
         };
       }
 
-      if (detected !== asset.declaredMimeType) {
+      // `!detected` es necesario ademas de la comparacion: con el tipo declarado
+      // ahora anulable, `null === null` daria por bueno un fichero que no se
+      // reconocio. Es justo el caso que hay que rechazar.
+      if (!detected || detected !== asset.declaredMimeType) {
         asset.reject(
           detected
             ? `el contenido real es ${detected}, no ${asset.declaredMimeType}`
@@ -377,6 +391,8 @@ export class ConfirmUploadUseCase implements UseCase<ConfirmUploadInput, Confirm
     const now = this.clock.now();
 
     try {
+      if (asset.source !== 'upload') return;
+
       if (asset.declaredMimeType === 'video/mp4') {
         const registered = await this.videoProvider.register({
           mediaAssetId: asset.id.value,
@@ -390,6 +406,8 @@ export class ConfirmUploadUseCase implements UseCase<ConfirmUploadInput, Confirm
         }
         return;
       }
+
+      if (!asset.declaredMimeType) return;
 
       const thumbnail = await this.thumbnailer.generate({
         bucket: asset.bucket,
@@ -407,6 +425,99 @@ export class ConfirmUploadUseCase implements UseCase<ConfirmUploadInput, Confirm
         correlationId: context.correlationId,
       });
     }
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+
+export interface ShareLinkInput {
+  scope: UploadScope;
+  url: string;
+  title: string;
+}
+
+export interface ShareLinkOutput {
+  mediaAssetId: string;
+  url: string;
+  host: string;
+  /** Aviso para la interfaz. No es decorativo: es el fallo mas frecuente. */
+  warning: string;
+}
+
+/**
+ * Registra material alojado fuera de la plataforma.
+ *
+ * Es el flujo que los centros ya tienen: el video de la exposicion vive en el
+ * OneDrive de la universidad y lo que se comparte es el enlace. Adoptarlo evita
+ * almacenar y servir gigabytes que no son nuestros, y encaja con lo que la gente
+ * hace igualmente.
+ *
+ * **Lo que esta operacion NO puede garantizar, y por eso lo advierte:** que
+ * quien reciba el enlace pueda abrirlo. El permiso lo gobierna el proveedor del
+ * centro, no nosotros, y el fallo mas comun con diferencia es que el alumno
+ * comparte un enlace restringido a su cuenta y el docente recibe "acceso
+ * denegado". Comprobarlo desde aqui exigiria la sesion del docente, asi que lo
+ * unico honesto es decirlo de forma explicita en la respuesta.
+ *
+ * Tampoco garantiza permanencia: si el alumno borra el archivo o su cuenta se
+ * da de baja al terminar el curso, la evidencia desaparece -incluso despues de
+ * calificada-. Para lo que tenga que quedar en un expediente, la subida sigue
+ * siendo la opcion correcta.
+ */
+export class ShareLinkUseCase implements UseCase<ShareLinkInput, ShareLinkOutput> {
+  constructor(
+    private readonly assets: MediaAssetRepository,
+    private readonly unitOfWork: UnitOfWork,
+    private readonly clock: Clock,
+    private readonly ids: SecureRandom,
+    private readonly logger: LoggerPort,
+  ) {}
+
+  async execute(input: ShareLinkInput, context: ExecutionContext): Promise<ShareLinkOutput> {
+    const actor = context.actor;
+    if (!actor) {
+      throw new BusinessRuleError(
+        'ACTOR_REQUIRED',
+        'Compartir un enlace exige estar autenticado.',
+      );
+    }
+
+    // Toda la validacion vive en el objeto de valor: https, sin credenciales,
+    // sin acortador y dominio en lista blanca. Aqui no se repite.
+    const link = ExternalLink.create(input.url);
+
+    const asset = MediaAsset.shareLink({
+      id: MediaAssetId.create(this.ids.uuid()),
+      ownerId: actor.userId,
+      institutionId: actor.institutionId ?? null,
+      scope: input.scope,
+      link,
+      title: input.title,
+      now: this.clock.now(),
+    });
+
+    await this.unitOfWork.run(async (tx) => {
+      await this.assets.save(asset, tx);
+      (tx as { enqueue(...events: unknown[]): void }).enqueue(...asset.pullDomainEvents());
+    });
+
+    this.logger.info('Enlace externo compartido', {
+      mediaAssetId: asset.id.value,
+      scope: input.scope,
+      host: link.host,
+      ownerId: actor.userId,
+      correlationId: context.correlationId,
+    });
+
+    return {
+      mediaAssetId: asset.id.value,
+      url: link.url,
+      host: link.host,
+      warning:
+        'Comprueba que el enlace se pueda abrir desde fuera de tu cuenta. ' +
+        'Si esta restringido, quien lo reciba vera "acceso denegado".',
+    };
   }
 }
 
@@ -456,6 +567,18 @@ export class IssueDownloadUrlUseCase
     asset.assertReadableBy({ userId: actor.userId, institutionId: actor.institutionId });
 
     const state = asset.snapshot();
+
+    // Material externo: se devuelve la direccion tal cual. No hay nada que
+    // firmar porque el objeto no es nuestro, y el permiso lo gobierna el
+    // proveedor del centro.
+    if (state.source === 'link' && state.externalUrl) {
+      return {
+        url: state.externalUrl,
+        expiresInSeconds: 0,
+        mimeType: 'external/link',
+        thumbnailUrl: null,
+      };
+    }
 
     if (state.videoProviderRef) {
       return {

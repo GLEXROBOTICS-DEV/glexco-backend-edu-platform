@@ -30,4 +30,5 @@ tmp/
 
 # Next.js
 .next/
+.next-dev/
 next-env.d.ts

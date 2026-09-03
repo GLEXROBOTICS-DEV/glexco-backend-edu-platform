@@ -192,6 +192,10 @@ export class PgEntitlementRepository implements EntitlementRepository {
   constructor(private readonly readPool: Pool) {}
 
   async save(entitlement: Entitlement, tx: TransactionContext): Promise<void> {
+    // Sin cambios no se escribe. Un `UPDATE ... WHERE version < :nueva` con la
+    // misma version no encontraria fila y se interpretaria como conflicto de
+    // concurrencia: ver `AggregateRoot.hasChanges`.
+    if (!entitlement.hasChanges) return;
     const client = (tx as PgTransaction).client;
     const state = entitlement.snapshot();
 

@@ -29,6 +29,7 @@ const { ROLES } = contracts;
  *  gateway no anade nada a lo que aqui se verifica. */
 const CATALOG = 'http://localhost:3103';
 const MEDIA = 'http://localhost:3108';
+const ASSESSMENT = 'http://localhost:3105';
 
 const DIRECT = process.argv.includes('--direct');
 const BASE = DIRECT ? 'http://localhost:3101' : 'http://localhost:3000';
@@ -792,6 +793,267 @@ ${colors.fail}Sin codigos sembrados no se puede registrar a nadie.${colors.reset
     'Un tipo fuera de la lista no llega ni a firmarse',
     notAccepted.status === 422,
     `status=${notAccepted.status} code=${notAccepted.body?.code}`,
+  );
+
+  // --------------------------------------------------------------------
+  section('11. Enlaces externos');
+  // --------------------------------------------------------------------
+  const linkOk = await postJson(`${MEDIA}/api/v1/media/links`, uploaderToken, {
+    scope: 'evidence',
+    url: 'https://contoso.sharepoint.com/sites/robotica/Documentos/exposicion.mp4',
+    title: 'Exposicion del grupo 3',
+  });
+  report(
+    'Acepta un enlace de un dominio institucional',
+    linkOk.status === 201 && linkOk.body?.host === 'contoso.sharepoint.com',
+    `status=${linkOk.status} ${JSON.stringify(linkOk.body).slice(0, 160)}`,
+  );
+  report(
+    'Advierte del permiso del enlace, que es el fallo mas comun',
+    typeof linkOk.body?.warning === 'string' && linkOk.body.warning.includes('acceso denegado'),
+  );
+
+  for (const [caso, url, code] of [
+    ['un dominio fuera de la lista', 'https://sitio-cualquiera.com/video.mp4', 'LINK_HOST_NOT_ALLOWED'],
+    ['un acortador', 'https://bit.ly/3xYzAbC', 'LINK_SHORTENER_NOT_ALLOWED'],
+    ['http sin cifrar', 'http://drive.google.com/file/d/abc', 'LINK_NOT_HTTPS'],
+    [
+      'credenciales incrustadas',
+      'https://user:clave@drive.google.com/file/d/abc',
+      'LINK_HAS_CREDENTIALS',
+    ],
+    [
+      'un dominio que solo TERMINA parecido',
+      'https://malicioso-sharepoint.com/x',
+      'LINK_HOST_NOT_ALLOWED',
+    ],
+  ]) {
+    const rejected = await postJson(`${MEDIA}/api/v1/media/links`, uploaderToken, {
+      scope: 'evidence',
+      url,
+      title: 'intento',
+    });
+    report(
+      `Rechaza ${caso}`,
+      rejected.status === 422 && rejected.body?.code === code,
+      `status=${rejected.status} code=${rejected.body?.code}`,
+    );
+  }
+
+  const linkUrl = await getJson(
+    `${MEDIA}/api/v1/media/${linkOk.body?.mediaAssetId}/url`,
+    uploaderToken,
+  );
+  report(
+    'La descarga de un enlace devuelve la direccion tal cual, sin firmar nada',
+    linkUrl.status === 200 && linkUrl.body?.url?.includes('sharepoint.com'),
+    `status=${linkUrl.status}`,
+  );
+
+  // --------------------------------------------------------------------
+  section('12. Evaluaciones: banco de GLEXCO y del docente');
+  // --------------------------------------------------------------------
+  const evalKit = await seedCatalog({ codeCount: 1 });
+  const institutionForExams = await seedInstitution({ capacity: 30, grade: evalKit.grade });
+
+  const [contentManager] = await seedUsers(1, { roles: [ROLES.CONTENT_MANAGER] });
+  const glexcoToken = mintAccessToken({ userId: contentManager.id, roles: contentManager.roles });
+
+  const [teacher] = await seedUsers(1, {
+    roles: [ROLES.TEACHER],
+    institutionId: institutionForExams.institutionId,
+  });
+  const teacherToken = mintAccessToken({
+    userId: teacher.id,
+    roles: teacher.roles,
+    institutionId: institutionForExams.institutionId,
+  });
+
+  // GLEXCO crea el cuestionario que viene con el kit, igual para todos.
+  const glexcoQuiz = await postJson(`${ASSESSMENT}/api/v1/assessments`, glexcoToken, {
+    kitId: evalKit.kitId,
+    kind: 'quiz',
+    title: 'Reconoce las piezas del uKit',
+    passingScore: 60,
+  });
+  report(
+    'El equipo de GLEXCO crea una evaluacion del banco comun',
+    glexcoQuiz.status === 201,
+    `status=${glexcoQuiz.status} ${JSON.stringify(glexcoQuiz.body).slice(0, 140)}`,
+  );
+
+  const q1 = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${glexcoQuiz.body?.assessmentId}/questions`,
+    glexcoToken,
+    {
+      type: 'single_choice',
+      prompt: 'Cual de estas piezas es un servomotor?',
+      options: [{ text: 'El bloque azul' }, { text: 'El servo' }, { text: 'El cable' }],
+      correctOptions: [1],
+      points: 10,
+    },
+  );
+  report('Anade una pregunta de marcar', q1.status === 201, `status=${q1.status}`);
+
+  const sinClave = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${glexcoQuiz.body?.assessmentId}/questions`,
+    glexcoToken,
+    {
+      type: 'single_choice',
+      prompt: 'Pregunta sin respuesta marcada',
+      options: [{ text: 'A' }, { text: 'B' }],
+      points: 5,
+    },
+  );
+  report(
+    'Rechaza una pregunta de marcar sin respuesta correcta',
+    sinClave.status === 422,
+    `status=${sinClave.status} code=${sinClave.body?.code}`,
+  );
+
+  const publicada = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${glexcoQuiz.body?.assessmentId}/publish`,
+    glexcoToken,
+    {},
+  );
+  report('Publica la evaluacion', publicada.status === 200, `status=${publicada.status}`);
+
+  // La regla que mas se intentara saltar.
+  const intentoDeEdicion = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${glexcoQuiz.body?.assessmentId}/questions`,
+    teacherToken,
+    { type: 'true_false', prompt: 'Intento del docente', options: [{ text: 'Si' }, { text: 'No' }], correctOptions: [0], points: 5 },
+  );
+  report(
+    'Un docente NO puede modificar una evaluacion de GLEXCO',
+    intentoDeEdicion.status === 403 &&
+      intentoDeEdicion.body?.code === 'ASSESSMENT_IS_GLEXCO_CONTENT',
+    `status=${intentoDeEdicion.status} code=${intentoDeEdicion.body?.code}`,
+  );
+
+  const copia = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${glexcoQuiz.body?.assessmentId}/clone`,
+    teacherToken,
+    { classroomId: institutionForExams.classroomId },
+  );
+  report(
+    'Pero SI puede duplicarla para adaptarla',
+    copia.status === 201 && Boolean(copia.body?.assessmentId),
+    `status=${copia.status}`,
+  );
+
+  const banco = await getJson(
+    `${ASSESSMENT}/api/v1/assessments?kitId=${evalKit.kitId}`,
+    teacherToken,
+  );
+  const delBanco = banco.body?.items?.find((a) => a.origin === 'glexco');
+  const propia = banco.body?.items?.find((a) => a.origin === 'institution');
+  report(
+    'El banco del docente marca que es editable y que no',
+    delBanco?.editable === false && propia?.editable === true,
+    `glexco.editable=${delBanco?.editable} propia.editable=${propia?.editable}`,
+  );
+
+  // --------------------------------------------------------------------
+  section('13. Evaluaciones: el alumno responde y se corrige solo');
+  // --------------------------------------------------------------------
+  const [examinee] = await seedUsers(1, { institutionId: institutionForExams.institutionId });
+  const examineeToken = mintAccessToken({
+    userId: examinee.id,
+    roles: examinee.roles,
+    institutionId: institutionForExams.institutionId,
+  });
+
+  const intento = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${glexcoQuiz.body?.assessmentId}/attempts`,
+    examineeToken,
+    { classroomId: institutionForExams.classroomId },
+  );
+  report(
+    'El alumno abre un intento y recibe las preguntas',
+    intento.status === 201 && intento.body?.questions?.length === 1,
+    `status=${intento.status} preguntas=${intento.body?.questions?.length}`,
+  );
+
+  // LA comprobacion que justifica el servicio.
+  const serializado = JSON.stringify(intento.body);
+  report(
+    'La clave de correccion NO viaja al alumno',
+    !serializado.includes('correctOptionIds') && !serializado.includes('explanation'),
+  );
+
+  const repetido = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${glexcoQuiz.body?.assessmentId}/attempts`,
+    examineeToken,
+    { classroomId: institutionForExams.classroomId },
+  );
+  report(
+    'Volver a abrir devuelve el MISMO intento, no uno nuevo',
+    repetido.body?.submissionId === intento.body?.submissionId,
+    `${repetido.body?.submissionId} vs ${intento.body?.submissionId}`,
+  );
+
+  const pregunta = intento.body?.questions?.[0];
+  const correcta = pregunta?.options?.find((o) => o.text === 'El servo');
+
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${intento.body?.submissionId}/answers`,
+    examineeToken,
+    { questionId: pregunta?.id, selectedOptionIds: [correcta?.id] },
+  );
+
+  const entregado = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${intento.body?.submissionId}/submit`,
+    examineeToken,
+    {},
+  );
+  report(
+    'Al entregar, lo de marcar se corrige al instante',
+    entregado.status === 200 &&
+      entregado.body?.status === 'graded' &&
+      entregado.body?.score === 10 &&
+      entregado.body?.passed === true,
+    JSON.stringify(entregado.body),
+  );
+
+  const reentrega = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${intento.body?.submissionId}/submit`,
+    examineeToken,
+    {},
+  );
+  report(
+    'Entregar dos veces es idempotente, no corrige de nuevo',
+    reentrega.status === 200 && reentrega.body?.score === 10,
+    `score=${reentrega.body?.score}`,
+  );
+
+  const congelada = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${glexcoQuiz.body?.assessmentId}/questions`,
+    glexcoToken,
+    { type: 'true_false', prompt: 'Tarde', options: [{ text: 'Si' }, { text: 'No' }], correctOptions: [0], points: 5 },
+  );
+  report(
+    'Con entregas hechas, ya no se pueden cambiar las preguntas',
+    congelada.status === 422 && congelada.body?.code === 'ASSESSMENT_HAS_SUBMISSIONS',
+    `status=${congelada.status} code=${congelada.body?.code}`,
+  );
+
+  // Aislamiento: un alumno de otra institucion no ve esta evaluacion propia.
+  const otraInstitucion = await seedInstitution({ capacity: 10, grade: evalKit.grade });
+  const [ajeno] = await seedUsers(1, { institutionId: otraInstitucion.institutionId });
+  const intentoAjeno = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${copia.body?.assessmentId}/attempts`,
+    mintAccessToken({
+      userId: ajeno.id,
+      roles: ajeno.roles,
+      institutionId: otraInstitucion.institutionId,
+    }),
+    {},
+  );
+  report(
+    'Un alumno de otra institucion no accede a la evaluacion de este colegio',
+    intentoAjeno.status === 404,
+    `status=${intentoAjeno.status} code=${intentoAjeno.body?.code}`,
   );
 
   // --------------------------------------------------------------------

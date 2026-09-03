@@ -10,13 +10,20 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
-import { PERMISSIONS, requestUploadSchema, type RequestUploadRequest } from '@glexco/contracts';
+import {
+  PERMISSIONS,
+  requestUploadSchema,
+  shareLinkSchema,
+  type RequestUploadRequest,
+  type ShareLinkRequest,
+} from '@glexco/contracts';
 import { RequirePermissions, zodBody } from '@glexco/nest-platform';
 import type { ExecutionContext as UseCaseContext } from '@glexco/kernel';
 import {
   ConfirmUploadUseCase,
   IssueDownloadUrlUseCase,
   RequestUploadUseCase,
+  ShareLinkUseCase,
 } from '../../application/upload.usecases';
 
 function contextFrom(request: Request): UseCaseContext {
@@ -55,6 +62,7 @@ export class MediaController {
     private readonly requestUpload: RequestUploadUseCase,
     private readonly confirmUpload: ConfirmUploadUseCase,
     private readonly issueDownload: IssueDownloadUrlUseCase,
+    private readonly shareLink: ShareLinkUseCase,
   ) {}
 
   /**
@@ -93,6 +101,23 @@ export class MediaController {
   @HttpCode(HttpStatus.OK)
   async confirm(@Param('mediaAssetId') mediaAssetId: string, @Req() request: Request) {
     return this.confirmUpload.execute({ mediaAssetId }, contextFrom(request));
+  }
+
+  /**
+   * Comparte material alojado fuera de la plataforma.
+   *
+   * Alternativa a subir, no sustituto: quien tenga el video en el movil lo sube
+   * y va al proveedor; quien ya lo tenga publicado en el OneDrive de su centro
+   * comparte el enlace y no se mueve un byte.
+   */
+  @Post('links')
+  @RequirePermissions(PERMISSIONS.MEDIA_UPLOAD)
+  @HttpCode(HttpStatus.CREATED)
+  async createLink(
+    @Body(zodBody(shareLinkSchema)) input: ShareLinkRequest,
+    @Req() request: Request,
+  ) {
+    return this.shareLink.execute(input, contextFrom(request));
   }
 
   /** URL de descarga de vida corta. Los buckets son privados. */

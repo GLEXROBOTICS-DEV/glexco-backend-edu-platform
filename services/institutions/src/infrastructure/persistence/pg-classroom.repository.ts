@@ -118,6 +118,10 @@ export class PgClassroomRepository implements ClassroomRepository {
    * su fila en vez de crear una segunda, que es lo que partiria su historial.
    */
   async save(classroom: Classroom, tx: TransactionContext): Promise<void> {
+    // Sin cambios no se escribe. Un `UPDATE ... WHERE version < :nueva` con la
+    // misma version no encontraria fila y se interpretaria como conflicto de
+    // concurrencia: ver `AggregateRoot.hasChanges`.
+    if (!classroom.hasChanges) return;
     const client = (tx as PgTransaction).client;
     const state = classroom.snapshot();
     const isNew = classroom.version === 1 && state.createdAt.getTime() === state.updatedAt.getTime();

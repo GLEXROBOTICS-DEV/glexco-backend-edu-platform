@@ -222,14 +222,34 @@ frontend o clientes reales:
 - [ ] Auditoría de accesibilidad WCAG 2.1 AA completa y navegación por teclado
       verificada pantalla a pantalla.
 
-## ⬜ Fase 5 — Teacher Center y evaluación
+## 🔄 Fase 5 — Teacher Center y evaluación
 
-- [ ] `assessment-service`: `Assessment`, `Question`, `Rubric`, `Submission`,
-      `Grade`.
-- [ ] Banco de evaluaciones, rúbricas, calificación automática y manual.
-- [ ] Evidencias (foto/video) del alumno.
-- [ ] Portal docente: panel, gestión de cursos y estudiantes, centro de
-      evaluación, recursos pedagógicos, capacitación docente.
+**Hecho:**
+
+- [x] `assessment-service` con `Assessment`, `Question` y `Submission`.
+- [x] **Doble origen**: el banco de GLEXCO viene con el kit y es el mismo para
+      todos los colegios; el docente crea las suyas para su salón. Un docente
+      **no puede editar** las de GLEXCO, pero sí **duplicarlas** para adaptarlas.
+- [x] Cuestionarios de marcar corregidos **automáticamente al entregar**
+      (el formato tipo Coursera), y corrección manual para lo abierto y las
+      entregas.
+- [x] **La clave de corrección nunca sale hacia el alumno.** `forStudent()` es el
+      único camino y no la incluye.
+- [x] Tope de intentos con bloqueo de fila, límite de tiempo contado por el
+      reloj del servidor, y preguntas congeladas en cuanto hay entregas.
+- [x] Evidencias del alumno: foto, PDF y vídeo por subida, **o enlace externo**
+      al OneDrive / Drive / Stream del centro.
+
+**Pendiente:**
+
+- [ ] Rúbricas de corrección (`Rubric`): hoy la corrección manual es por puntos
+      libres sobre cada pregunta.
+- [ ] Bandeja de corrección y panel del docente en el portal
+      (`listPendingForClassroom` ya existe; falta la interfaz).
+- [ ] Portal docente completo: gestión de cursos y estudiantes, recursos
+      pedagógicos, capacitación docente.
+- [ ] Tipos de pregunta `ordering` y `matching`: están en el vocabulario pero su
+      corrección automática no está escrita, así que se tratan como manuales.
 
 ## ⬜ Fase 6 — Progreso, gamificación y certificados
 

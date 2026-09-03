@@ -112,6 +112,10 @@ export class PgUserRepository implements UserRepository {
    * en vez de sobrescribir en silencio.
    */
   async save(user: User, tx: TransactionContext): Promise<void> {
+    // Sin cambios no se escribe. Un `UPDATE ... WHERE version < :nueva` con la
+    // misma version no encontraria fila y se interpretaria como conflicto de
+    // concurrencia: ver `AggregateRoot.hasChanges`.
+    if (!user.hasChanges) return;
     const client = (tx as PgTransaction).client;
     const state = user.snapshot();
     const isNew = user.version === 1 && state.createdAt.getTime() === state.updatedAt.getTime();
