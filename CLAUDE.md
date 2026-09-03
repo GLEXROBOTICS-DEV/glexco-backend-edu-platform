@@ -46,8 +46,10 @@ defecto**, pero el registro independiente debe funcionar igual de bien.
 
 ## 2. Estado actual
 
-**Fases 0 a 3 completas; Fases 4, 5 y 7 arrancadas.** El backend **ya se ejecuta
-contra Postgres, Redis y NATS reales**. Ver [docs/BITACORA.md](docs/BITACORA.md)
+**Fases 0 a 3 completas; Fase 5 casi cerrada; Fases 4 y 7 en curso.** El backend
+**ya se ejecuta contra Postgres, Redis, NATS y MinIO reales**, y el portal cubre
+el ciclo completo: el alumno responde, el docente corrige, y los cinco
+dashboards muestran el resultado. Ver [docs/BITACORA.md](docs/BITACORA.md)
 para el detalle y el pendiente exacto, y [docs/ROADMAP.md](docs/ROADMAP.md) para
 lo que falta de cada fase.
 
@@ -55,11 +57,11 @@ Verificado:
 
 | Comprobación | Resultado |
 |---|---|
-| `pnpm build` | 9/9 paquetes y servicios |
-| `pnpm test` | **118 pruebas** en memoria |
+| `pnpm build` | 13/13 paquetes, servicios y portal |
+| `pnpm test` | **155 pruebas** en memoria |
 | `pnpm smoke` | **95 comprobaciones** de punta a punta |
 | `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
-| `pnpm smoke:web` | **34 comprobaciones** del portal contra el backend |
+| `pnpm smoke:web` | **70 comprobaciones** del portal contra el backend |
 
 Las de concurrencia son las que justifican la arquitectura: un solo canje de
 veinte simultáneos, cinco plazas de veinte solicitudes, la outbox reteniendo el
@@ -82,11 +84,12 @@ Plataforma-Glexco/
 │   ├── institutions/    ✅ instituciones, salones con tope, licencias, matrículas
 │   ├── catalog/         ✅ kits, códigos, lotes de imprenta, derechos, canje asíncrono
 │   ├── media/           ✅ subidas prefirmadas, tipo real, miniaturas, enlaces externos
-│   ├── assessment/      🔄 cuestionarios, banco GLEXCO vs docente, corrección automática
-│   ├── analytics/       🔄 los cinco dashboards, como proyección de eventos
+│   ├── assessment/      ✅ cuestionarios, banco GLEXCO vs docente, bandeja de corrección
+│   ├── analytics/       ✅ los cinco dashboards, como proyección de eventos
 │   ├── learning/        ⬜ vacío
 │   └── engagement/      ⬜ vacío
-├── apps/web/            🔄 Next.js 15: ingreso, portadas, progreso y panel docente
+├── apps/web/            🔄 Next.js 15: ingreso, portadas, progreso, cuestionarios,
+│                        panel del docente, corrección y autoría de evaluaciones
 ├── design/canvas/       ✅ dirección visual aprobada (10 artboards)
 ├── infra/
 │   ├── docker/          ✅ docker-compose + init SQL (schemas, roles, outbox)
@@ -123,10 +126,10 @@ pnpm --filter @glexco/media dev            # arrancar medios (3108)
 pnpm --filter @glexco/assessment dev       # arrancar evaluacion (3105)
 pnpm --filter @glexco/analytics dev        # arrancar analitica (3107)
 pnpm seed                                  # kit, lote de codigos, institucion y salon
-pnpm smoke                                 # 32 comprobaciones de punta a punta
-pnpm concurrency                           # las 4 comprobaciones de concurrencia real
+pnpm smoke                                 # 95 comprobaciones de punta a punta
+pnpm concurrency                           # las 4 garantias de concurrencia real
 pnpm --filter @glexco/web dev              # portal (3010)
-pnpm smoke:web                             # comprobaciones del portal
+pnpm smoke:web                             # 70 comprobaciones del portal
 ```
 
 ### Requisitos de entorno
@@ -298,6 +301,18 @@ alguna, para y pregunta antes de continuar.
 - **`next dev` y `next build` escriben en carpetas distintas** (`.next-dev` y
   `.next`). Con la misma, un `pnpm build` del monorepo mientras corre el
   servidor de desarrollo lo rompe con `Cannot find module './735.js'`.
+- **Una restricción `CHECK` que no sigue al vocabulario compila y luego revienta
+  con un 500.** La de `assessment.kind` aceptaba `('quiz','task','exam')`,
+  valores que no existen en `ASSESSMENT_TYPES`: Zod aceptaba `'project'`, el
+  agregado también, y solo moría al insertar. Al añadir un `CHECK` sobre un campo
+  que ya tiene un enum en `@glexco/contracts`, cópialo de ahí.
+- **Un `pnpm build` del monorepo reinicia todos los servicios** (`dev` usa
+  `node --watch dist/main.js`). Si `pnpm smoke` falla con `ECONNREFUSED` justo
+  después de compilar, no es un fallo del código: espera unos segundos y repite.
+- **Las comprobaciones del portal no pueden buscar el texto de un JSX
+  interpolado.** React lo parte con separadores de comentario, así que
+  `"1 pregunta"` no aparece en el HTML aunque la pantalla lo pinte bien. Usa un
+  atributo `data-*` como ancla estable (`data-chart`, `data-pending`).
 - **Los límites de fuerza bruta son reales en local**: cinco códigos de
   activación por IP y hora, diez registros por IP y hora. Dos o tres ejecuciones
   seguidas de `pnpm smoke` los agotan. Para limpiarlos, ver el final de la

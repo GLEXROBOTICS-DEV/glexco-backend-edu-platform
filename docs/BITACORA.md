@@ -7,6 +7,248 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 9 — 2026-09-03 — Los cinco dashboards, y el ciclo completo de evaluación
+
+Sesión larga, con un hilo único: **cerrar el ciclo por el que un alumno responde,
+alguien corrige y todo el mundo lo ve en su dashboard.** Antes de esta sesión el
+backend sabía evaluar pero nadie podía usarlo desde una pantalla, y no existía
+ningún sitio donde se viera el progreso.
+
+### 1. Requisito nuevo del cliente: los dashboards
+
+El cliente lo planteó así: el progreso se verifica con **nuestras** evaluaciones
+predeterminadas, el colegio puede añadir las suyas, y todo se ve en dashboards
+profesionales, con un alcance por rol:
+
+| Quién | Qué ve |
+|---|---|
+| Alumno | El suyo. |
+| Docente | Uno general de su salón, y uno por alumno. |
+| Admin de institución | Los anteriores, más **qué docentes tienen alumnos que aprenden más**. |
+| GLEXCO | Uno por colegio, y la vista de plataforma. |
+
+No estaba planteado así en la documentación, así que se añadió la **sección 6.bis
+de [DOMINIO.md](DOMINIO.md)** con las reglas, y las secciones 9 a 11 de
+[ARQUITECTURA.md](ARQUITECTURA.md) con el cómo.
+
+**La decisión que más discusión merecía: cómo medir la eficacia docente.** Se
+mide por **PROGRESO y no por nota**, y las razones son de fondo:
+
+- Una nota media premia al docente que tiene el grupo con mejor punto de partida.
+  Con eso, un ranking de docentes mide sobre todo el barrio del colegio.
+- El progreso —cuánto ha subido cada alumno desde su primer intento— es lo único
+  que se puede atribuir razonablemente a la enseñanza.
+- Solo cuentan las evaluaciones de **GLEXCO**: son las mismas para todos, así que
+  son comparables. Si contaran las del docente, cualquiera podría subir su
+  métrica poniendo exámenes fáciles.
+- Cada fila lleva **el tamaño de su muestra**, y por debajo de 15 alumnos medidos
+  se marca como no concluyente. El aviso viaja **con los datos**, en la misma
+  respuesta de la API, no como un pie de página de la pantalla: un pie se pierde
+  al copiar la tabla a una reunión, y ahí es donde el número hace daño.
+- La pantalla **no lo presenta como un ranking**. Es una tabla ordenable con el
+  aviso arriba, y eso está comprobado en las pruebas del portal.
+
+### 2. `analytics-service`: proyección de lectura, no consultas cruzadas
+
+Servicio nuevo. Se alimenta **solo de eventos** y no consulta ningún otro schema.
+La alternativa —un servicio de informes que hace JOIN sobre evaluación, catálogo
+e instituciones— es la que se ve en todas partes y es exactamente la que impide
+que esos tres servicios cambien su esquema sin romper los informes.
+
+Para que eso sea posible, `submission.graded.v1` viaja **con más de lo mínimo**:
+`kitId`, `origin`, `institutionId` y los fallos por pregunta. Sin esos campos la
+analítica tendría que llamar de vuelta a evaluación por cada entrega, y una
+proyección asíncrona se convertiría en una dependencia sincrona.
+
+Tablas: `student_assessment_facts`, `question_miss_facts`, `classroom_rollups`,
+`institution_rollups`, `projection_state`. Los resúmenes se **recalculan enteros
+desde los hechos** en vez de sumar incrementos: un evento entregado dos veces
+—que JetStream garantiza *al menos* una vez— no puede inflar una media.
+
+Seis endpoints, cada uno con doble comprobación: el guard dice qué clase de
+operación puede hacer el actor, y el caso de uso comprueba **sobre qué recurso**.
+El ámbito se resuelve con las propias proyecciones de la analítica y no llamando
+a instituciones: esa comprobación corre en cada apertura de dashboard.
+
+### 3. Las pantallas
+
+**Del alumno** (`/discover/progreso`, `/academy/progreso`): medias separadas de
+GLEXCO y del docente, cuánto ha mejorado, y la evolución en el tiempo.
+
+**Del docente** (`/docentes`, `/docentes/salones/[id]`): media **y dispersión
+juntas**. Una media de 70 con todos en 70 y una media de 70 con media clase en
+100 y media en 40 son dos clases distintas que piden dos cosas distintas;
+mostrar solo la media las presenta como iguales, y ese es el error más común de
+un panel de aula. Y las preguntas que más falla el salón, que es el dato más
+accionable que existe: no dice "tu clase va mal", dice qué volver a explicar.
+
+**De institución** (`/docentes/institucion`): lo anterior más la eficacia docente
+y la activación de códigos, que es la métrica comercial.
+
+Los gráficos son **SVG propio, sin librería**: +2 kB sobre la carga base frente a
+los 40-100 kB de una librería de gráficos, en equipos de laboratorio escolar. La
+paleta se validó con el script de la propia habilidad de visualización en vez de
+a ojo, y el resultado fue útil: dos azules de marca que parecían distintos están
+a ΔE 4.8 —indistinguibles para un daltónico—, así que **todos los gráficos usan
+un solo tono** y las diferencias se marcan con posición y etiqueta. Los colores
+de estado siempre llevan texto al lado, nunca color a secas.
+
+### 4. El cuestionario en el portal
+
+Sin esto el alumno no puede generar el dato que alimenta su propio dashboard.
+
+`<fieldset>` + `<legend>` con radio y casillas **nativos**: traen gratis la
+navegación por teclado, el anuncio correcto en un lector de pantalla y el
+agrupado por `name`. Un componente propio a base de `div` con `onClick` tendría
+que reimplementar las tres cosas y normalmente reimplementa mal las tres.
+
+**Funciona sin JavaScript**: `useActionState` sobre `<form action>` degrada a un
+envío normal del navegador. En un laboratorio con equipos viejos o una conexión
+que corta el bundle a mitad, el alumno sigue pudiendo entregar.
+
+Ningún tipo del cliente incluye `correctOptionIds` ni `explanation`, así que
+intentar pintar la clave **rompe la compilación** en vez de filtrarse en
+silencio. Está comprobado sobre el HTML servido, no sobre la intención.
+
+El intento se abre al cargar la página —el límite de tiempo empieza cuando el
+alumno ve las preguntas— y recargar devuelve **el mismo** intento.
+
+**No hay cronómetro en pantalla, a propósito.** El tiempo lo cuenta el reloj del
+servidor; un contador en el cliente daría a entender que ese es el que manda,
+además de meterle prisa a un niño con un número rojo bajando.
+
+### 5. La bandeja de corrección
+
+La corrección automática solo cubre lo de marcar. Todo lo abierto —una respuesta
+escrita, una foto del robot montado, el enlace al vídeo de la expo— quedaba en
+`submitted` sin aparecer en ninguna pantalla: el docente tendría que acordarse de
+mirar alumno por alumno.
+
+- **`assessment` gana su propia proyección `classroom_directory`**, alimentada por
+  los eventos de salón. La alternativa era llamar a instituciones en cada
+  apertura de la bandeja, que se abre constantemente durante una clase y ataría
+  la corrección a que el otro servicio esté arriba.
+- Los dos endpoints de corrección viven en un **controlador aparte**, porque sus
+  respuestas **sí** llevan la clave. Tenerlos separados hace visible de un
+  vistazo cuál es el controlador que puede filtrar un examen y cuál no.
+- **`institutions` gana `student_directory`**, gemelo del de docentes. Sin
+  nombres, la bandeja diría "a3f1-… entregó su examen". El nombre va en una
+  proyección y no en `enrollments` a propósito: no participa en ninguna regla del
+  salón, llega por evento y puede ir unos segundos desactualizado, mientras que
+  la matrícula tiene que ser exacta.
+- **`GET /classrooms/mine`**, autenticado y solo del propio actor. Un alumno no
+  tiene `CLASSROOM_READ` —no debe listar salones— pero necesita saber en cuál
+  está: el intento se abre con su salón, y sin salón la entrega no llega a la
+  bandeja de nadie. Es el mismo criterio que `MEDIA_READ`: el guard dice "es un
+  usuario", el caso de uso decide qué recurso.
+
+### 6. El docente crea sus propias evaluaciones
+
+El backend ya sabía crear, ampliar, publicar y duplicar; `/docentes/evaluaciones`
+era un enlace muerto en la barra.
+
+- **`GET /assessments/:id` nuevo**: no había forma de leer una evaluación con sus
+  preguntas. La clave se incluye **solo si quien pregunta puede editar**. Un
+  docente mirando el banco de GLEXCO —para decidir si lo duplica— recibe las
+  preguntas sin las respuestas, porque son las mismas que van a responder sus
+  alumnos. Está comprobado.
+- **`GET /catalog/kits`**: un índice de lo publicado, para elegir el kit sin
+  teclear un identificador. Ver el contenido sigue exigiendo el derecho.
+- El banco se presenta en **dos bloques** y no en una tabla con columna "origen":
+  son dos cosas que se operan distinto —duplicar frente a editar y publicar— y
+  mezclarlas obliga a leer la fila para saber qué botón esperar.
+- Las opciones correctas se envían **por posición**, y la posición es la de la
+  opción **ya filtrada**: con el índice de la fila del formulario, dejar un hueco
+  en blanco desplazaría la respuesta correcta a otra opción sin que nadie lo note.
+- Con entregas hechas se explica **el motivo y la salida** —archivar y duplicar—,
+  no solo que no se puede. Un botón deshabilitado sin motivo se lee como un fallo
+  de la aplicación.
+
+### Errores reales encontrados y corregidos
+
+1. **La entrega guardaba la institución de la EVALUACIÓN, no la del ALUMNO.** Una
+   evaluación de GLEXCO no pertenece a ninguna institución, así que todos los
+   resultados del banco común quedaban sin institución: el panel del director
+   salía con cero alumnos medidos. Migración `assessment/0002` y la institución
+   tomada del token del actor. Es el fallo más grave de la sesión, porque no daba
+   ningún error: solo un dashboard vacío que parecía "todavía no hay datos".
+
+2. **La restricción `CHECK` de `kind` aceptaba `('quiz','task','exam')`**, tres
+   valores que no existen en `ASSESSMENT_TYPES`. Zod aceptaba `'project'`, el
+   agregado también, y la inserción moría contra la base: **un 500 en vez de un
+   422**, sin ninguna pista de que el problema era el valor de un campo. Solo se
+   podía crear un cuestionario de marcar, es decir, justo lo que **no** llega a la
+   bandeja de corrección. Migración `assessment/0004`.
+
+3. **Un intento abierto antes de que la matrícula estuviera proyectada quedaba
+   sin salón para siempre**, porque recargar devuelve el mismo intento y la
+   entrega ya no aparecía en la bandeja de nadie. `Submission.attachClassroom`
+   rellena el hueco y **nunca** cambia uno ya asignado: permitirlo dejaría mover
+   una entrega de un docente a otro sin rastro.
+
+4. `min(uuid)` no existe en PostgreSQL. Se usa `(array_agg(...))[1]`.
+
+5. **`/auth/me` era inútil**: devolvía los claims del token que el cliente ya
+   tenía. Reescrito como `GetMyProfileUseCase`, que lee la base y recalcula los
+   permisos desde los roles.
+
+6. **`next dev` y `next build` compartían `.next`**, así que un `pnpm build` del
+   monorepo mientras corría el servidor de desarrollo lo rompía con `Cannot find
+   module './735.js'`. Carpetas separadas con `distDir`.
+
+7. **Un módulo `'use server'` no puede exportar funciones sincronas.** `portalPath`
+   se movió a `lib/portal.ts`.
+
+8. Dos comprobaciones del portal fallaban **aunque la pantalla estuviera bien**:
+   React parte el texto de un JSX interpolado con separadores de comentario, así
+   que buscar `"1 pregunta"` en el HTML servido falla. Se añadieron anclas
+   estables (`data-chart`, `data-pending`).
+
+9. Una prueba de humo estaba **mal escrita, no el código**: reutilizar el refresh
+   token 50 ms después es exactamente para lo que existe la ventana de gracia de
+   10 s. Reescrita para comprobar las dos mitades.
+
+### Estado al cerrar
+
+| Comprobación | Resultado |
+|---|---|
+| `pnpm build` | 13/13 |
+| `pnpm test` | **155 pruebas** en memoria |
+| `pnpm smoke` | **95 comprobaciones** de punta a punta |
+| `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
+| `pnpm smoke:web` | **70 comprobaciones** del portal |
+
+Las 37 pruebas nuevas son del dominio de evaluación, **que no tenía ninguna**:
+cubren que la clave no sale por ningún campo, que un docente no toca el banco de
+GLEXCO, el todo-o-nada de las preguntas de varias respuestas, el minuto de
+gracia del límite de tiempo, y que el evento de nota lleva lo que la analítica
+necesita.
+
+### Qué falta
+
+Lo siguiente, en orden de valor:
+
+1. **Registro de alumno y activación de código desde el portal.** Hoy el alta se
+   hace por API; es la última pieza para que un colegio pueda usar la plataforma
+   sin que nadie de GLEXCO toque nada.
+2. **Biblioteca del kit con reproductor y descargas por URL prefirmada.** El
+   backend de medios está completo; falta la pantalla.
+3. **Panel de GLEXCO en el portal.** El endpoint por institución existe, la
+   pantalla no.
+4. **`learning-service` (Fase 6)**: progreso por lección, retos, XP, medallas y
+   certificados. Hoy el progreso se mide **solo** con evaluaciones, que es la
+   fuente que cuenta; el consumo de contenido añadiría la señal de "quién se
+   descolgó".
+5. **`engagement-service` (Fase 7)**: anuncios de salón, correo real —hoy
+   identidad emite el token y el evento, y no hay quien los consuma—, mesa de
+   ayuda.
+6. Rúbricas de corrección, exportación a PDF/Excel/CSV, i18n con next-intl y la
+   auditoría de accesibilidad pantalla a pantalla.
+
+Sin bloqueos abiertos.
+
+---
+
 ## Sesión 8 — 2026-09-03 — Enlaces externos y arranque de la Fase 5
 
 ### Dos aclaraciones del cliente

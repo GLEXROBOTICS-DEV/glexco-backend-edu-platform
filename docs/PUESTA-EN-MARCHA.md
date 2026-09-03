@@ -36,7 +36,7 @@ cd glexco-backend-edu-platform
 pnpm install
 pnpm setup          # genera .env con secretos criptográficos reales
 pnpm build          # deben compilar 9 paquetes y servicios
-pnpm test           # deben pasar 118 pruebas
+pnpm test           # deben pasar 155 pruebas
 ```
 
 Si `pnpm install` avisa de `Ignored build scripts`, ejecuta `pnpm rebuild esbuild`.
@@ -83,7 +83,7 @@ pnpm seed           # kit, lote de codigos, institucion y salon
 pnpm smoke          # 95 comprobaciones de punta a punta
 pnpm smoke:direct   # las mismas contra identity, saltándose el gateway
 pnpm concurrency    # las cuatro comprobaciones de la seccion 3
-pnpm smoke:web      # 34 comprobaciones del portal (necesita el portal en marcha)
+pnpm smoke:web      # 70 comprobaciones del portal (necesita el portal en marcha)
 ```
 
 `pnpm seed` hace falta porque identidad habla con el catálogo **real**: un código

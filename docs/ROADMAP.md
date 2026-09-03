@@ -189,6 +189,8 @@ frontend o clientes reales:
 - [ ] Contratar el proveedor de video real y configurarlo (`VIDEO_PROVIDER_URL`).
 - [ ] Endpoints de alta y edición de contenido (hoy se siembra por SQL; el
       cambio de estado de publicación sí está).
+- [x] `GET /catalog/kits`: índice de kits publicados, para elegir uno al crear
+      una evaluación.
 
 ## 🔄 Fase 4 — Portales de alumno (Discover y Academy)
 
@@ -220,6 +222,8 @@ frontend o clientes reales:
       certificaciones, portafolio, perfil.
 - [ ] Biblioteca multimedia con reproductor y descargas por URL prefirmada.
 - [ ] Registro de alumno y activación de código desde el portal.
+- [x] El alumno responde los cuestionarios desde el portal, sin JavaScript si
+      hace falta, y ve su nota al instante.
 - [ ] i18n es/en con next-intl (hoy los textos están en español en el código).
 - [ ] Auditoría de accesibilidad WCAG 2.1 AA completa y navegación por teclado
       verificada pantalla a pantalla.
@@ -247,8 +251,12 @@ frontend o clientes reales:
 - [ ] Rúbricas de corrección (`Rubric`): hoy la corrección manual es por puntos
       libres sobre cada pregunta.
 - [x] Panel del docente en el portal, con el dashboard de su salón.
-- [ ] Bandeja de corrección (`listPendingForClassroom` ya existe; falta la
-      interfaz para puntuar).
+- [x] **Bandeja de corrección** por salón, con el nombre real del alumno y la
+      pantalla de puntuación. Ordenada por lo que hay que hacer: lo abierto
+      primero, lo que corrigió la máquina plegado como referencia.
+- [x] **El docente crea, amplía, publica y duplica sus evaluaciones** desde el
+      portal. El banco se presenta en dos bloques —las del kit y las suyas—
+      porque se operan distinto.
 - [ ] Portal docente completo: gestión de cursos y estudiantes, recursos
       pedagógicos, capacitación docente.
 - [ ] Tipos de pregunta `ordering` y `matching`: están en el vocabulario pero su

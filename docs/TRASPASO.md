@@ -28,7 +28,7 @@ npm i -g pnpm          # pnpm 11; corepack falla por permisos en Windows
 pnpm install
 pnpm setup             # genera .env con secretos nuevos
 pnpm build             # deben compilar 12 paquetes, servicios y el portal
-pnpm test              # 118 pruebas en memoria, sin Docker
+pnpm test              # 155 pruebas en memoria, sin Docker
 ```
 
 **El puerto de Postgres.** En la máquina de origen el 5432 estaba ocupado por
@@ -69,9 +69,9 @@ Y la verificación:
 
 ```bash
 pnpm seed          # kit, curso, lote de codigos, institucion y salon
-pnpm smoke         # 73 comprobaciones de punta a punta
+pnpm smoke         # 95 comprobaciones de punta a punta
 pnpm concurrency   # 14 comprobaciones de concurrencia real
-pnpm smoke:web     # 17 comprobaciones del portal
+pnpm smoke:web     # 70 comprobaciones del portal
 ```
 
 **Si algo de eso no da el número indicado, algo se rompió en el traslado.** Esos
