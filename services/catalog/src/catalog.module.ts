@@ -8,6 +8,7 @@ import type { CacheStore, Clock, SecureRandom, UnitOfWork } from '@glexco/kernel
 import {
   authEnvSchema,
   baseEnvSchema,
+  bool,
   loadEnv,
   optionalEnv,
   storageEnvSchema,
@@ -113,6 +114,21 @@ const catalogEnvSchema = baseEnvSchema
      *  propio, igual que en media y con el mismo aviso -no vale para
      *  produccion, donde el ancho de banda lo paga la factura de salida-. */
     VIDEO_PROVIDER_URL: optionalEnv(z.string().url()),
+    /**
+     * Permite servir el video desde nuestro propio bucket en produccion.
+     *
+     * **Es una valvula explicita y acotada a UNA cosa.** La alternativa que se
+     * probo primero -bajar el servicio a un NODE_ENV distinto- relaja ademas las
+     * comprobaciones de cookies seguras y el formato de los registros, en
+     * silencio y sin que nadie lo haya decidido: una variable que dice
+     * exactamente que permite es auditable, y "el entorno no es produccion" no.
+     *
+     * Sirve para un despliegue que todavia no atiende a alumnos reales, mientras
+     * se contrata el proveedor. Dejarla puesta con trafico de verdad significa
+     * servir cientos de megas por video desde nuestro ancho de banda, que es
+     * justo lo que el corte existe para impedir.
+     */
+    ALLOW_BUCKET_VIDEO: bool.default('false'),
   });
 
 export type CatalogConfig = z.infer<typeof catalogEnvSchema>;
@@ -124,7 +140,7 @@ export function loadCatalogConfig(): CatalogConfig {
   // video, catalogo serviria los tutoriales del kit desde nuestro propio bucket.
   // Un video de clase son cientos de megas y lo abren aulas enteras a la vez;
   // el primer aviso de que se olvido configurarlo seria la factura de salida.
-  if (config.NODE_ENV === 'production' && !config.VIDEO_PROVIDER_URL) {
+  if (config.NODE_ENV === 'production' && !config.VIDEO_PROVIDER_URL && !config.ALLOW_BUCKET_VIDEO) {
     process.stderr.write(
       [
         '',

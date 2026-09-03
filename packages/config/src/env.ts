@@ -14,7 +14,9 @@ const duration = z
   .string()
   .regex(/^\d+(ms|s|m|h|d)$/, 'Duracion invalida. Ejemplos: 900s, 15m, 30d');
 
-const bool = z
+/** Booleano desde una variable de entorno, que siempre llega como cadena.
+ *  Exportado porque los servicios definen banderas propias en su esquema. */
+export const bool = z
   .string()
   .transform((v) => v.toLowerCase())
   .pipe(z.enum(['true', 'false', '1', '0']))

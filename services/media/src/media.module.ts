@@ -6,6 +6,7 @@ import { z } from 'zod';
 import {
   baseEnvSchema,
   authEnvSchema,
+  bool,
   storageEnvSchema,
   loadEnv,
   optionalEnv,
@@ -91,6 +92,21 @@ const mediaEnvSchema = baseEnvSchema
      *  que es aceptable en desarrollo y ruinoso en produccion. */
     VIDEO_PROVIDER_URL: optionalEnv(z.string().url()),
     VIDEO_PROVIDER_API_KEY: optionalEnv(z.string().min(16)),
+    /**
+     * Permite servir el video desde nuestro propio bucket en produccion.
+     *
+     * **Es una valvula explicita y acotada a UNA cosa.** La alternativa que se
+     * probo primero -bajar el servicio a un NODE_ENV distinto- relaja ademas las
+     * comprobaciones de cookies seguras y el formato de los registros, en
+     * silencio y sin que nadie lo haya decidido: una variable que dice
+     * exactamente que permite es auditable, y "el entorno no es produccion" no.
+     *
+     * Sirve para un despliegue que todavia no atiende a alumnos reales, mientras
+     * se contrata el proveedor. Dejarla puesta con trafico de verdad significa
+     * servir cientos de megas por video desde nuestro ancho de banda, que es
+     * justo lo que el corte existe para impedir.
+     */
+    ALLOW_BUCKET_VIDEO: bool.default('false'),
   });
 
 export type MediaConfig = z.infer<typeof mediaEnvSchema>;
@@ -103,7 +119,7 @@ export function loadMediaConfig(): MediaConfig {
   // proveedor externo con restriccion de dominio. Sin esta comprobacion, un
   // despliegue al que se le olvidara la variable empezaria a servir gigabytes
   // desde nuestro ancho de banda y el primer aviso seria la factura.
-  if (config.NODE_ENV === 'production') {
+  if (config.NODE_ENV === 'production' && !config.ALLOW_BUCKET_VIDEO) {
     const missing: string[] = [];
     if (!config.VIDEO_PROVIDER_URL) missing.push('VIDEO_PROVIDER_URL');
     if (!config.VIDEO_PROVIDER_API_KEY) missing.push('VIDEO_PROVIDER_API_KEY');
