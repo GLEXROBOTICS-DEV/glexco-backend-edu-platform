@@ -23,6 +23,7 @@ apuntando al mismo repositorio.**
 | `redis` | Sesiones, límites, cerrojos, caché | Plugin de Railway |
 | `nats` | Bus de eventos con JetStream | Imagen `nats:2.10-alpine` + volumen |
 | Almacén de objetos | Material del kit, evidencias | **Cloudflare R2** (fuera de Railway) |
+| SMTP | Correo de verificación y recuperación | Resend, Postmark o SES (fuera de Railway) |
 
 **El almacén de objetos no va en Railway, y es deliberado.** Railway no tiene
 plugin de S3, así que la alternativa sería MinIO sobre un volumen: un único punto
@@ -50,7 +51,8 @@ cambia es la variable `SERVICE`.
 | `media` | 3108 | No |
 
 **Solo dos tienen dominio público.** Los otros ocho viven en la red privada de
-Railway y se alcanzan como `identity.railway.internal:3101`. No es una
+Railway y se alcanzan como `glexcoidentity.railway.internal:3101` —ojo al
+nombre, ver la sección 7—. No es una
 preferencia: la tabla de rutas del gateway es el único sitio donde se decide qué
 está expuesto a internet, y dar dominio a un microservicio la deja sin sentido.
 
@@ -108,9 +110,11 @@ servirían desde nuestro propio bucket, y un vídeo de clase son cientos de mega
 que abre un aula entera a la vez. El primer aviso de que se olvidó configurarlo
 sería la factura de salida.
 
-**Es un bloqueo real: hay que contratar el proveedor antes del primer despliegue
-a producción.** Si quieres levantar un entorno de pruebas ya, ponlo con
-`NODE_ENV=staging` en vez de `production` y el corte no se aplica.
+**Es un bloqueo real: hay que contratar el proveedor antes de servir tráfico de
+verdad.** Para levantar un entorno que todavía no atiende a alumnos, se pone
+`ALLOW_BUCKET_VIDEO=true` en `catalog` y `media`: permite exactamente eso y nada
+más. Dejarla puesta con tráfico real significa servir cientos de megas por vídeo
+desde nuestro ancho de banda, que es justo lo que el corte existe para impedir.
 
 ### 2.3 Los secretos se fijan una vez
 
@@ -282,6 +286,80 @@ límite de altas es de diez por IP y hora**, correcto contra un abuso desde
 internet, pero una clase de treinta alumnos detrás del NAT de su colegio lo agota
 en el minuto tres. Lo razonable es una excepción para las IP declaradas de una
 institución con licencia vigente.
+
+
+---
+
+## 7. Lo que se aprendió desplegando de verdad
+
+Esta sección se escribió **después** del primer despliegue. Varias cosas que
+parecían obvias no lo eran, y todas costaron una vuelta.
+
+### Railway crea un servicio por carpeta de aplicación
+
+Al importar el repositorio detectó el monorepo y creó **diez servicios**, uno por
+cada carpeta bajo `services/` más `apps/web`, con los nombres `@glexco/<x>`. No
+hay que crearlos a mano; lo que hay que hacer es **corregir lo que puso**.
+
+Lo bueno: el *Root Directory* queda en la raíz, así que el contexto de
+construcción es el repositorio entero y el `Dockerfile` de la raíz funciona. Lo
+que había que arreglar era otra cosa.
+
+### El nombre interno de red NO es el del servicio
+
+Un servicio llamado `@glexco/identity` recibe el dominio privado
+`glexcoidentity.railway.internal` — sin la barra y sin la arroba. Suponer
+`identity.railway.internal` deja todas las llamadas entre servicios sin
+resolver, y el fallo aparece tarde y disfrazado. **Léelo de la variable
+`RAILWAY_PRIVATE_DOMAIN` de cada servicio en vez de deducirlo.**
+
+### Railway genera comandos que anulan la imagen
+
+Al detectar el monorepo puso, en cada servicio,
+`startCommand = "pnpm --filter @glexco/<x> start"`. Ese comando **sustituye al
+`ENTRYPOINT` de la imagen**, y arranca pnpm en producción: su comprobación de
+dependencias intenta escribir en `/app` y muere con `EACCES` bajo el usuario sin
+privilegios. El síntoma es un contenedor que se para sin dejar rastro útil.
+
+Ponerlo a `null` **no lo borra**: Railway lo vuelve a derivar en el siguiente
+despliegue. Hay que fijarlo **explícitamente** a lo que de verdad se quiere
+ejecutar (`node dist/main.js`, o `/entrypoint.sh` para el portal).
+
+Y el `startCommand` **no pasa por un shell**: `--port $PORT` llega literal y Next
+lo rechaza. Por eso el portal arranca por el punto de entrada, que sí lo expande.
+
+### Las watch paths deciden si tu despliegue existe
+
+Railway las creó como `/services/<x>/**`. Con eso, un cambio en el `Dockerfile`,
+en `packages/` o en el lockfile **no dispara ninguna construcción**: el
+despliegue se salta con un discreto `no changes detected in watch paths` que
+parece un éxito. Tienen que incluir todo lo que afecta a la imagen.
+
+### El punto de entrada tiene que ser ejecutable
+
+En Windows, git registra el archivo como `100644`. En el contenedor llega sin
+permiso de ejecución y el resultado es «Starting Container» seguido de «Stopping
+Container» **sin una sola línea de registro**, porque falla antes de que haya
+nada que escribir. Se corrige en las dos puntas: el modo en git y un `chmod +x`
+en la imagen.
+
+### Otros dos detalles que costaron su vuelta
+
+- **`ALTER ROLE` no admite parámetros.** Es una sentencia de utilidad, no una
+  consulta: `ALTER ROLE x WITH PASSWORD $1` falla con `syntax error at or near
+  "$1"`. Hay que citar el literal.
+- **`NODE_ENV=staging` no existe** en el esquema de configuración. Para levantar
+  sin proveedor de vídeo se usa `ALLOW_BUCKET_VIDEO=true`, que permite
+  exactamente una cosa y lo dice en su nombre — a diferencia de cambiar de
+  entorno, que además relajaría en silencio la comprobación de cookies seguras.
+
+### Los `pnpm deploy` y las migraciones
+
+La imagen se construye con `pnpm deploy`, que deja el paquete del servicio como
+raíz. Dos consecuencias: las migraciones quedan en `<cwd>/migrations` y no en
+`services/<x>/migrations` —`migrate.mjs` prueba las dos disposiciones—, y los
+scripts de `infra/` hay que copiarlos explícitamente o el comando previo al
+despliegue no tiene nada que ejecutar.
 
 ---
 
