@@ -222,7 +222,11 @@ async function seedPeople(passwordHash) {
          (id, email, first_name, last_name, password_hash, roles, institution_id,
           status, account_type, email_verified, locale, birth_date, accepted_terms_at, version)
        VALUES ($1,$2,$3,$4,$5,$6,$7,'active','staff',true,'es',$8, now(),1)
-       ON CONFLICT (email) DO NOTHING`,
+       -- La contrasena SI se actualiza al resembrar. Con DO NOTHING, el
+       -- sembrador imprimia unas credenciales y la base guardaba otras: la
+       -- herramienta cuyo unico producto util son esas credenciales las
+       -- reportaba mal, que es la peor forma posible de fallar.
+       ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
       [
         id,
         email,
@@ -274,7 +278,7 @@ async function seedPeople(passwordHash) {
           status, account_type, email_verified, locale, birth_date, guardian_email,
           accepted_terms_at, version)
        VALUES ($1,$2,$3,$4,$5,ARRAY['student'],$6,'active','institutional',true,'es',$7,$8, now(),1)
-       ON CONFLICT (email) DO NOTHING`,
+       ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
       [
         student.id,
         student.email,
