@@ -535,3 +535,65 @@ textarea.field {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Impresión y "guardar como PDF"
+ * ---------------------------------------------------------------------------
+ *
+ * Es la exportación a PDF de los dashboards, y es deliberado que la haga el
+ * navegador. Generar el PDF en el servidor exigiría un motor de renderizado
+ * headless -decenas de megabytes en la imagen de despliegue, y un proceso más
+ * que vigilar- para producir una versión MÁS POBRE de lo que ya se ve: aquí los
+ * gráficos son SVG y se imprimen a la resolución de la impresora.
+ *
+ * Lo que esta hoja arregla es lo que estorba en papel: la barra lateral de
+ * navegación -que en un PDF son ocho enlaces que nadie puede pulsar-, los
+ * botones, y las tarjetas partidas por la mitad entre dos páginas.
+ */
+@media print {
+  /* La barra de marca y los controles no van al papel. La barra ocupa un cuarto
+     del ancho y en un PDF no lleva a ninguna parte. */
+  [data-sidebar],
+  [data-export],
+  .btn {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  /* El contenido recupera el ancho completo y pierde el alto de pantalla: sin
+     esto, el `min-height` del marco deja una página en blanco al final. */
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /* Una tarjeta partida entre dos páginas es ilegible: la cifra en una hoja y su
+     etiqueta en la siguiente. */
+  figure,
+  article,
+  section,
+  li {
+    break-inside: avoid;
+  }
+
+  /* Las tablas de datos SIEMPRE visibles al imprimir, estén desplegadas o no en
+     pantalla. Es la razón por la que existen -son la vía al dato- y en papel no
+     hay ningún botón que pulsar para abrirlas.
+     
+     Lo hace `print:block` en el propio componente; esto es el respaldo por si
+     alguien añade una tabla sin esa utilidad. */
+  [data-datos] {
+    display: block !important;
+  }
+
+  /* Los bordes claros de pantalla desaparecen en papel: se refuerzan para que se
+     siga viendo dónde acaba cada bloque. */
+  figure,
+  article {
+    border-color: #94a3b8 !important;
+    box-shadow: none !important;
+  }
+}

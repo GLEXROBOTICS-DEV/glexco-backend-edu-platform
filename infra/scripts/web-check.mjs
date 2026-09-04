@@ -364,6 +364,18 @@ async function main() {
     'Trae la tabla de datos, para lector de pantalla y para copiar',
     Boolean(progreso?.includes('Ver datos')),
   );
+
+  // La tabla viaja en el HTML incluso plegada, y es lo que hace que el PDF salga
+  // con las cifras y no solo con los graficos: si se renderizara al desplegar,
+  // la hoja de impresion no tendria nada que ensenar.
+  report(
+    'Y la tabla esta en el HTML aunque este plegada, para que se imprima',
+    Boolean(progreso?.includes('data-datos="1"')),
+  );
+  report(
+    'Ofrece descargar en CSV y guardar en PDF',
+    Boolean(progreso?.includes('data-export="1"')),
+  );
   report(
     'NO muestra la posicion del alumno frente a sus companeros',
     Boolean(progreso) && !/puesto|posici[oó]n|ranking|de 30/i.test(visible(progreso)),

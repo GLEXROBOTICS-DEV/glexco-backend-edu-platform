@@ -184,7 +184,22 @@ export function TimelineChart({
     >
       <figcaption className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-display text-base font-semibold">{title}</h3>
-        <TableToggle expanded={showTable} onToggle={() => setShowTable((v) => !v)} controls={tableId} />
+        <span className="flex items-center gap-1">
+          <TableToggle
+            expanded={showTable}
+            onToggle={() => setShowTable((v) => !v)}
+            controls={tableId}
+          />
+          <ExportButtons
+            title={title}
+            headers={['Evaluación', 'Resultado', 'Estado']}
+            rows={points.map((point) => [
+              point.label,
+              `${point.value}%`,
+              point.passed ? 'Aprobado' : 'No aprobado',
+            ])}
+          />
+        </span>
       </figcaption>
 
       <div className="relative overflow-x-auto">
@@ -277,13 +292,16 @@ export function TimelineChart({
         ) : null}
       </div>
 
-      {showTable ? (
-        <DataTable
-          id={tableId}
-          headers={['Evaluación', 'Resultado', 'Estado']}
-          rows={points.map((point) => [point.label, `${point.value}%`, point.passed ? 'Aprobado' : 'No aprobado'])}
-        />
-      ) : null}
+      {/* Se renderiza SIEMPRE y se oculta con CSS cuando esta plegada.
+          Renderizarla solo al desplegar la deja fuera del DOM, y entonces la
+          hoja de impresion no puede ensenarla: el PDF saldria con los graficos y
+          sin las cifras, que es justo lo que alguien quiere de un PDF. */}
+      <DataTable
+        id={tableId}
+        hidden={!showTable}
+        headers={['Evaluación', 'Resultado', 'Estado']}
+        rows={points.map((point) => [point.label, `${point.value}%`, point.passed ? 'Aprobado' : 'No aprobado'])}
+      />
     </figure>
   );
 }
@@ -339,7 +357,18 @@ export function BarList({
     >
       <figcaption className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-display text-base font-semibold">{title}</h3>
-        <TableToggle expanded={showTable} onToggle={() => setShowTable((v) => !v)} controls={tableId} />
+        <span className="flex items-center gap-1">
+          <TableToggle
+            expanded={showTable}
+            onToggle={() => setShowTable((v) => !v)}
+            controls={tableId}
+          />
+          <ExportButtons
+            title={title}
+            headers={['Concepto', `Valor (${unit})`, 'Detalle']}
+            rows={data.map((datum) => [datum.label, String(datum.value), datum.meta ?? '—'])}
+          />
+        </span>
       </figcaption>
 
       <ul className="space-y-3">
@@ -386,13 +415,12 @@ export function BarList({
         ))}
       </ul>
 
-      {showTable ? (
-        <DataTable
-          id={tableId}
-          headers={['Concepto', `Valor (${unit})`, 'Detalle']}
-          rows={data.map((datum) => [datum.label, String(datum.value), datum.meta ?? '—'])}
-        />
-      ) : null}
+      <DataTable
+        id={tableId}
+        hidden={!showTable}
+        headers={['Concepto', `Valor (${unit})`, 'Detalle']}
+        rows={data.map((datum) => [datum.label, String(datum.value), datum.meta ?? '—'])}
+      />
     </figure>
   );
 }
@@ -440,17 +468,117 @@ function TableToggle({
   );
 }
 
+/**
+ * Descargar los datos de un gráfico.
+ *
+ * **CSV y "imprimir o guardar en PDF", y NO un .xlsx ni un PDF generado.** Es
+ * una decisión, no una simplificación:
+ *
+ * - Un CSV con BOM lo abre Excel directamente, con los acentos bien y en la
+ *   columna correcta. Generar un `.xlsx` de verdad exige una librería de un
+ *   megabyte en el servidor para producir algo que el usuario abre igual.
+ * - El PDF lo hace el navegador con la hoja de estilos de impresión, y sale
+ *   MEJOR que uno generado: conserva los gráficos —son SVG— y la maquetación de
+ *   la pantalla. Un PDF hecho a mano en el servidor pediría un motor de
+ *   renderizado headless de decenas de megabytes en la imagen y produciría una
+ *   versión más pobre de lo que ya se ve.
+ *
+ * Se arma en el NAVEGADOR con lo que ya está en la página: no hay petición, no
+ * hay endpoint nuevo y no hay una segunda ocasión de que estos datos salgan del
+ * servidor —que en un dashboard de salón son notas de menores—.
+ *
+ * Sin JavaScript no aparece el botón, y la tabla de datos sigue ahí para
+ * copiarla. Se pierde la comodidad, no el acceso al dato.
+ */
+function ExportButtons({
+  title,
+  headers,
+  rows,
+}: {
+  title: string;
+  headers: string[];
+  rows: string[][];
+}) {
+  function descargarCsv(): void {
+    const escapar = (celda: string): string =>
+      // Comillas dobles y separador dentro de una celda: sin escaparlos, un
+      // nombre como `Perez, Ana` parte la fila en dos columnas.
+      /[",\n;]/.test(celda) ? `"${celda.replace(/"/g, '""')}"` : celda;
+
+    // `;` como separador y no `,`: es lo que espera Excel en la configuración
+    // regional de España y de Latinoamérica, y con coma abre todo en una sola
+    // columna. El BOM va delante para que los acentos no salgan roto.
+    const cuerpo = [headers, ...rows]
+      .map((fila) => fila.map(escapar).join(';'))
+      .join('\r\n');
+
+    const url = URL.createObjectURL(
+      new Blob([`\ufeff${cuerpo}\r\n`], { type: 'text/csv;charset=utf-8' }),
+    );
+
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = `${nombreDeArchivo(title)}.csv`;
+    enlace.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <span className="flex gap-1" data-export="1">
+      <button
+        type="button"
+        onClick={descargarCsv}
+        className="rounded px-2 py-1 text-xs font-medium text-brand-600 hover:bg-surface-100"
+      >
+        CSV
+      </button>
+      <button
+        type="button"
+        onClick={() => window.print()}
+        className="rounded px-2 py-1 text-xs font-medium text-brand-600 hover:bg-surface-100"
+      >
+        PDF
+      </button>
+    </span>
+  );
+}
+
+/** Un nombre de archivo que sobreviva a Windows, a macOS y a un correo. */
+function nombreDeArchivo(title: string): string {
+  const limpio = title
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
+
+  return `glexco-${limpio || 'datos'}-${new Date().toISOString().slice(0, 10)}`;
+}
+
 function DataTable({
   id,
   headers,
   rows,
+  hidden = false,
 }: {
   id: string;
   headers: string[];
   rows: string[][];
+  /**
+   * Plegada.
+   *
+   * `display: none` y no `visibility`: un lector de pantalla no debe anunciar
+   * una tabla que el usuario tiene cerrada, y eso es lo que `aria-expanded` del
+   * boton esta diciendo. En impresion la hoja de estilos lo revierte.
+   */
+  hidden?: boolean;
 }) {
   return (
-    <div id={id} className="mt-4 overflow-x-auto">
+    <div
+      id={id}
+      className={`mt-4 overflow-x-auto ${hidden ? 'hidden print:block' : ''}`}
+      data-datos="1"
+    >
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-line-200 text-left">

@@ -429,8 +429,33 @@ frontend o clientes reales:
       canal privado entre un adulto y un menor**, y todo queda a la vista del
       docente. Alumnos y docentes publican y responden; una pregunta no se puede
       fijar.
-- [ ] Portal Admin completo: panel ejecutivo, instituciones, usuarios, gestión
-      académica y de contenidos, certificaciones, comercial, configuración.
+- [x] **Portal Admin: instituciones, personal, códigos y contenidos.** Cuatro
+      capacidades que llevaban fases construidas en el backend —con sus permisos,
+      sus validaciones y sus eventos— y **ninguna tenía pantalla**: dar de alta un
+      colegio, concederle su licencia, crear una cuenta de personal y generar un
+      lote de códigos solo se podían hacer con `curl`.
+
+      Los enlaces se añaden **por permiso y uno a uno**: el equipo de contenidos
+      publica kits y no da de alta colegios, el comercial genera códigos y no
+      publica contenido. Y los roles del alta de personal salen de
+      `ROLE_CREATION_MATRIX`, la misma tabla que el backend usa para rechazar —se
+      importa, no se copia—.
+
+      Queda de este apartado: **certificaciones a nivel de plataforma** (hoy se
+      emiten por salón, desde el Teacher Center) y **configuración**, que no
+      tiene nada detrás todavía.
+- [x] **Exportación a CSV y a PDF de los dashboards**, desde el propio gráfico.
+
+      **CSV con BOM y separador `;`, y PDF por la hoja de impresión del
+      navegador.** Es una decisión: un `.xlsx` de verdad exige una librería de un
+      megabyte en el servidor para producir algo que el usuario abre igual, y un
+      PDF generado exigiría un motor headless de decenas de megabytes en la
+      imagen para producir una versión **más pobre** de lo que ya se ve —los
+      gráficos son SVG y se imprimen a la resolución de la impresora—.
+
+      Se arma en el navegador con lo que ya está en la página: sin petición, sin
+      endpoint nuevo y sin una segunda ocasión de que esos datos salgan del
+      servidor, que en un dashboard de salón son notas de menores.
 - [x] Progreso por consumo de contenido (`learning-service`, Fase 6).
 
 ## ⬜ Fase 8 — Endurecimiento y despliegue
