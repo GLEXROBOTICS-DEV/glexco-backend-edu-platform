@@ -522,10 +522,29 @@ async function dedupeDemo() {
     [INSTITUTION.id],
   );
 
-  const total = classrooms.rowCount + assessments.rowCount + announcements.rowCount;
+  // Filas de analitica de instituciones que ya no existen. La analitica no puede
+  // detectarlas sola -su rol de base de datos no ve el schema de instituciones,
+  // y esa es justamente la regla que sostiene el servicio-, asi que el panel de
+  // GLEXCO seguia listando colegios borrados. El sembrador si tiene acceso de
+  // administrador, y esta es la unica limpieza que puede hacer por el.
+  const stale = await admin.query(
+    `WITH gone AS (
+       SELECT r.institution_id FROM analytics.institution_rollups r
+        WHERE NOT EXISTS (SELECT 1 FROM institutions.institutions i WHERE i.id = r.institution_id)
+     ), a AS (
+       DELETE FROM analytics.institution_rollups WHERE institution_id IN (SELECT institution_id FROM gone)
+     ), b AS (
+       DELETE FROM analytics.institution_directory WHERE institution_id IN (SELECT institution_id FROM gone)
+     )
+     SELECT count(*)::int AS n FROM gone`,
+  );
+
+  const total = classrooms.rowCount + assessments.rowCount + announcements.rowCount +
+    (stale.rows[0]?.n ?? 0);
   if (total > 0) {
     console.log(
-      `  duplicados       ${classrooms.rowCount} salones y ${assessments.rowCount} evaluaciones archivados, ${announcements.rowCount} anuncios borrados`,
+      `  duplicados       ${classrooms.rowCount} salones y ${assessments.rowCount} evaluaciones archivados, ` +
+        `${announcements.rowCount} anuncios y ${stale.rows[0]?.n ?? 0} colegios fantasma borrados`,
     );
   }
 }
@@ -988,7 +1007,10 @@ async function seedCodes() {
        VALUES ($1,'catalog.activation_code.batch_generated.v1','CodeBatch',$2,1,$3,'{}'::jsonb)
        ON CONFLICT (event_id) DO NOTHING`,
       [
-        idFor('batch-event', kit.code),
+        // El identificador incluye la INSTITUCION: si el lote pasa a otra, hay
+        // que emitir un evento nuevo o el recuento se queda acreditado a la
+        // anterior, que es justo lo que dejo "0 emitidos" tras el reinicio.
+        idFor('batch-event', `${kit.code}:${INSTITUTION.id}`),
         batchId,
         JSON.stringify({
           batchId,
