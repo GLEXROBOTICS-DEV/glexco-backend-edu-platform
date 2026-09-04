@@ -51,6 +51,8 @@ export interface AnnouncementView {
   pinned: boolean;
   publishedAt: string;
   authorId: string;
+  /** `null` si el directorio todavia no tiene su nombre. */
+  authorName?: string | null;
   /** Vacio en la consulta del repositorio; lo rellena el caso de uso. */
   replies?: ReplyRecord[];
 }

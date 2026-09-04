@@ -108,10 +108,15 @@ export class PgAnnouncementRepository implements AnnouncementRepository {
 
     // Lectura pesada y de solo lectura: va al pool de replicas.
     const { rows } = await this.readPool.query(
-      `SELECT id, kind, classroom_id, author_id, title, body, pinned, published_at
-         FROM engagement.announcements
-        WHERE classroom_id = ANY($1::uuid[]) AND archived_at IS NULL
-        ORDER BY pinned DESC, published_at DESC
+      // El nombre viene EN la misma consulta. Resolverlo despues, llamando a
+      // otro servicio, es lo que hacia la primera version del muro y fallaba con
+      // "permisos insuficientes" para cualquier alumno.
+      `SELECT a.id, a.kind, a.classroom_id, a.author_id, a.title, a.body, a.pinned,
+              a.published_at, d.full_name AS author_name
+         FROM engagement.announcements a
+         LEFT JOIN engagement.author_directory d ON d.user_id = a.author_id
+        WHERE a.classroom_id = ANY($1::uuid[]) AND a.archived_at IS NULL
+        ORDER BY a.pinned DESC, a.published_at DESC
         LIMIT 100`,
       [classroomIds],
     );
@@ -125,6 +130,7 @@ export class PgAnnouncementRepository implements AnnouncementRepository {
       pinned: row.pinned,
       publishedAt: (row.published_at as Date).toISOString(),
       authorId: row.author_id,
+      authorName: row.author_name ?? null,
     }));
   }
 }
@@ -236,13 +242,16 @@ export class PgReplyRepository implements ReplyRepository {
       id: string;
       announcement_id: string;
       author_id: string;
+      author_name: string | null;
       body: string;
       created_at: Date;
     }>(
-      `SELECT id, announcement_id, author_id, body, created_at
-         FROM engagement.announcement_replies
-        WHERE announcement_id = ANY($1::uuid[]) AND archived_at IS NULL
-        ORDER BY created_at`,
+      `SELECT r.id, r.announcement_id, r.author_id, r.body, r.created_at,
+              d.full_name AS author_name
+         FROM engagement.announcement_replies r
+         LEFT JOIN engagement.author_directory d ON d.user_id = r.author_id
+        WHERE r.announcement_id = ANY($1::uuid[]) AND r.archived_at IS NULL
+        ORDER BY r.created_at`,
       [[...announcementIds]],
     );
 
@@ -250,6 +259,7 @@ export class PgReplyRepository implements ReplyRepository {
       id: row.id,
       announcementId: row.announcement_id,
       authorId: row.author_id,
+      authorName: row.author_name ?? null,
       body: row.body,
       createdAt: row.created_at.toISOString(),
     }));

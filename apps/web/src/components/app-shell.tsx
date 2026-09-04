@@ -54,6 +54,13 @@ export async function AppShell({
   children: React.ReactNode;
 }) {
   const t = await getTranslations('comun');
+  // El nombre puede venir vacio, y no es un caso raro: `getSession` sigue
+  // adelante con lo que da el token cuando identidad no responde -mejor el
+  // portal sin nombre que echar al alumno a la pantalla de ingreso-. Ese estado
+  // degradado dejaba el enlace de la cuenta SIN nombre accesible: un lector de
+  // pantalla anunciaba "enlace" y nada mas.
+  const fullName = `${session.firstName} ${session.lastName}`.trim();
+  const displayName = fullName || 'Mi cuenta';
   const initials =
     `${session.firstName.charAt(0)}${session.lastName.charAt(0)}`.toUpperCase() || 'GX';
 
@@ -98,6 +105,7 @@ export async function AppShell({
             muerta obliga a inventar otro destino para lo mismo. */}
         <a
           href={accountHref}
+          aria-label={`Mi cuenta: ${displayName}`}
           className="hidden items-center gap-2.5 rounded-[var(--nav-radius)] bg-white/[0.09] p-2.5 transition hover:bg-white/[0.16] lg:flex"
         >
           <span
@@ -108,7 +116,7 @@ export async function AppShell({
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[13px] font-medium text-white">
-              {session.firstName} {session.lastName}
+              {displayName}
             </span>
             <span className="block truncate text-[11px] text-onbrand-300">{subtitle}</span>
           </span>
@@ -141,8 +149,11 @@ export async function AppShell({
         {/* Cabecera solo de movil: la barra lateral se pliega y el nombre y la
             salida no caben en ella. */}
         <div className="flex items-center gap-3 border-b border-line-200 bg-white px-4 py-2 lg:hidden">
-          <a href={accountHref} className="min-w-0 flex-1 truncate text-sm text-ink-500 hover:text-brand-700">
-            {session.firstName} {session.lastName}
+          <a
+            href={accountHref}
+            className="min-w-0 flex-1 truncate text-sm text-ink-500 hover:text-brand-700"
+          >
+            {displayName}
           </a>
           <form action={onLogout}>
             <button

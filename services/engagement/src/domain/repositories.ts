@@ -40,6 +40,8 @@ export interface ReplyRecord {
   id: string;
   announcementId: string;
   authorId: string;
+  /** `null` si el directorio todavia no tiene su nombre. */
+  authorName?: string | null;
   body: string;
   createdAt: string;
 }

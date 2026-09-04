@@ -76,6 +76,8 @@ export function buildEngagementConsumer(deps: EngagementConsumerDeps): EventCons
       EVENTS.TEACHER_ASSIGNED,
       EVENTS.STUDENT_ENROLLED,
       EVENTS.STUDENT_WITHDRAWN,
+      EVENTS.USER_REGISTERED,
+      EVENTS.USER_PROFILE_UPDATED,
     ],
     logger: deps.natsLogger,
   });
@@ -159,5 +161,39 @@ export function buildEngagementConsumer(deps: EngagementConsumerDeps): EventCons
     );
   });
 
+  // -------------------------------------------------------------------------
+  // Quien escribe en el muro
+  // -------------------------------------------------------------------------
+  //
+  // El muro es una conversacion entre companeros: sin nombres no sirve. La
+  // primera version los pedia al listado de matricula de instituciones, que es
+  // de DOCENTES, asi que un alumno lo veia entero firmado por "un companero".
+  // Ahora engagement devuelve lo que muestra, sin depender de un permiso ajeno.
+  const rememberAuthor = async (tx: { client: unknown }, payload: UserNamePayload) => {
+    const fullName = `${payload.firstName ?? ''} ${payload.lastName ?? ''}`.trim();
+    if (!fullName) return;
+
+    await (tx.client as PoolClient).query(
+      `INSERT INTO engagement.author_directory (user_id, full_name)
+       VALUES ($1,$2)
+       ON CONFLICT (user_id) DO UPDATE SET full_name = EXCLUDED.full_name, updated_at = now()`,
+      [payload.userId, fullName],
+    );
+  };
+
+  consumer.on<UserNamePayload>(EVENTS.USER_REGISTERED, async (event, tx) => {
+    await rememberAuthor(tx, event.payload);
+  });
+
+  consumer.on<UserNamePayload>(EVENTS.USER_PROFILE_UPDATED, async (event, tx) => {
+    await rememberAuthor(tx, event.payload);
+  });
+
   return consumer;
+}
+
+interface UserNamePayload {
+  userId: string;
+  firstName: string;
+  lastName: string;
 }

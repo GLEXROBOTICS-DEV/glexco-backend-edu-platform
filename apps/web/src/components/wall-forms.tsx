@@ -39,21 +39,32 @@ export function AskForm({ classroomId }: { classroomId: string }) {
         </p>
       ) : null}
 
-      <input
-        type="text"
-        name="title"
-        required
-        maxLength={120}
-        placeholder="¿Qué quieres preguntar?"
-        className="field"
-      />
-      <textarea
-        name="body"
-        required
-        maxLength={4000}
-        placeholder="Cuenta un poco más: qué has intentado y dónde te has quedado."
-        className="field"
-      />
+      {/* Etiqueta de verdad y no solo un `placeholder`: el placeholder
+          desaparece al escribir -así que quien se distrae ya no sabe qué iba en
+          el campo- y varios lectores de pantalla no lo anuncian. Va en
+          `sr-only` porque el título del bloque ya explica de qué va. */}
+      <label>
+        <span className="sr-only">Tu pregunta, en una línea</span>
+        <input
+          type="text"
+          name="title"
+          required
+          maxLength={120}
+          placeholder="¿Qué quieres preguntar?"
+          className="field"
+        />
+      </label>
+
+      <label>
+        <span className="sr-only">Explica tu pregunta</span>
+        <textarea
+          name="body"
+          required
+          maxLength={4000}
+          placeholder="Cuenta un poco más: qué has intentado y dónde te has quedado."
+          className="field"
+        />
+      </label>
 
       <button type="submit" disabled={pending} className="btn btn-primary justify-self-start">
         {pending ? 'Publicando…' : 'Publicar'}

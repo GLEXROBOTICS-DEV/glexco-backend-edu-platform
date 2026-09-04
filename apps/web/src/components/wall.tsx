@@ -1,7 +1,6 @@
 import { AnnouncementIcon } from '@glexco/icons';
 import { fetchAnnouncements, relativeDate, type Announcement } from '../lib/announcements';
 import { fetchMyClassroom } from '../lib/classrooms';
-import { fetchRoster } from '../lib/grading';
 import { AskForm, ReplyForm } from './wall-forms';
 import { EmptyState, StatePill } from './ui';
 
@@ -42,19 +41,10 @@ export async function ClassroomWall({
   // suyos y no pregunta desde aquí, así que no se le pide.
   const classroomId = canAsk ? await fetchMyClassroom() : null;
 
-  // Los nombres salen de la matrícula. Sin ellos el muro sería una conversación
-  // entre identificadores, que es lo contrario de lo que se busca: que los
-  // alumnos se reconozcan y se contesten.
-  //
-  // Se piden los de TODOS los salones que aparecen en el muro, no solo los del
-  // propio: un docente con tres salones vería dos tercios de los mensajes
-  // firmados por "alguien de tu clase".
-  const classroomsInWall = [...new Set(items.map((post) => post.classroomId))];
-  const rosters = await Promise.all(classroomsInWall.map((id) => fetchRoster(id)));
-  const names = new Map<string, string>();
-  for (const roster of rosters) {
-    for (const [id, name] of roster.byId) names.set(id, name);
-  }
+  // Los nombres **vienen ya en la respuesta**. La primera versión los resolvía
+  // llamando al listado de matrícula, que es un endpoint de DOCENTES: cualquier
+  // alumno recibía «permisos insuficientes» y veía el muro entero firmado por
+  // «un compañero», que es justo lo contrario de lo que busca esta pantalla.
 
   return (
     <section aria-labelledby="muro" className="grid gap-[var(--portal-gap)]">
@@ -84,7 +74,7 @@ export async function ClassroomWall({
         <ul className="grid gap-[var(--portal-gap)]" data-wall={items.length}>
           {items.map((post) => (
             <li key={post.announcementId}>
-              <Post post={post} names={names} />
+              <Post post={post} />
             </li>
           ))}
         </ul>
@@ -93,7 +83,7 @@ export async function ClassroomWall({
   );
 }
 
-function Post({ post, names }: { post: Announcement; names: Map<string, string> }) {
+function Post({ post }: { post: Announcement }) {
   const question = post.kind === 'question';
   const replies = post.replies ?? [];
 
@@ -106,7 +96,7 @@ function Post({ post, names }: { post: Announcement; names: Map<string, string> 
         <div className="min-w-0">
           <h3 className="font-display text-lg font-semibold">{post.title}</h3>
           <p className="mt-0.5 text-xs text-ink-500">
-            {names.get(post.authorId) ?? (question ? 'Un compañero' : 'Tu docente')} ·{' '}
+            {post.authorName ?? (question ? 'Un compañero' : 'Tu docente')} ·{' '}
             {relativeDate(post.publishedAt)}
           </p>
         </div>
@@ -127,7 +117,7 @@ function Post({ post, names }: { post: Announcement; names: Map<string, string> 
           {replies.map((reply) => (
             <li key={reply.id} className="text-sm">
               <p className="text-xs font-medium text-ink-500">
-                {names.get(reply.authorId) ?? 'Alguien de tu clase'} ·{' '}
+                {reply.authorName ?? 'Alguien de tu clase'} ·{' '}
                 {relativeDate(reply.createdAt)}
               </p>
               <p className="mt-0.5 whitespace-pre-line text-ink-700">{reply.body}</p>

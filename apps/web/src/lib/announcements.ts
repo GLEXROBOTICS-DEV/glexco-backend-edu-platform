@@ -6,6 +6,8 @@ export interface Reply {
   id: string;
   announcementId: string;
   authorId: string;
+  /** Lo devuelve engagement: el portal NO lo resuelve por su cuenta. */
+  authorName?: string | null;
   body: string;
   createdAt: string;
 }
@@ -21,6 +23,7 @@ export interface Announcement {
   pinned: boolean;
   publishedAt: string;
   authorId: string;
+  authorName?: string | null;
   replies?: Reply[];
 }
 

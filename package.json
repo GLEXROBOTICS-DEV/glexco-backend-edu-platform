@@ -26,7 +26,8 @@
     "setup": "node infra/scripts/setup-env.mjs",
     "seed": "node --env-file-if-exists=.env infra/scripts/seed-dev.mjs",
     "concurrency": "node --env-file-if-exists=.env infra/scripts/concurrency-check.mjs",
-    "smoke:web": "node --env-file-if-exists=.env infra/scripts/web-check.mjs"
+    "smoke:web": "node --env-file-if-exists=.env infra/scripts/web-check.mjs",
+    "a11y": "node --env-file-if-exists=.env infra/scripts/a11y-check.mjs"
   },
   "devDependencies": {
     "@glexco/contracts": "workspace:*",
