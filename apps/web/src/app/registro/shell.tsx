@@ -28,6 +28,7 @@ export function RegistrationShell({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/glexco-marca.svg"
+            data-brand-mark=""
             alt="GLEXCO"
             width={168}
             height={34}

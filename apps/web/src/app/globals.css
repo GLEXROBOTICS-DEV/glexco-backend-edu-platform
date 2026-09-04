@@ -151,6 +151,147 @@
   --nav-icon: 15px;
 }
 
+/**
+ * Modo oscuro.
+ *
+ * Tres reglas del canvas, y ninguna es "invertir los colores":
+ *
+ * 1. **Nunca negro puro.** #12181F de fondo y las superficies un paso mas
+ *    claras. El negro absoluto junto a un panel blanco produce halo y cansa mas
+ *    en una sesion larga, que es justo cuando se usa el modo oscuro.
+ * 2. **La jerarquia la da la ELEVACION, no el borde.** En claro las tarjetas se
+ *    separan del fondo con una linea; en oscuro, siendo mas claras que el fondo.
+ *    Mantener los bordes ademas produce el efecto de rejilla.
+ * 3. **Los colores de marca se ACLARAN.** #2C53A0 sobre #12181F da 1,8:1 y es
+ *    ilegible. Su version clara, #7FB3E0, da 7,4:1. El verde agua #86C9BD ya
+ *    funciona tal cual, y por eso aqui manda el.
+ *
+ * Se aplica por `prefers-color-scheme` -que es lo que ya eligio el usuario en su
+ * sistema- y se puede forzar con `data-theme`. El atributo gana sobre el sistema
+ * a proposito: quien lo cambia a mano en la plataforma esta diciendo algo mas
+ * concreto que su preferencia general.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-ink-900: #e3e9ef;
+    --color-ink-700: #d5dee7;
+    --color-ink-500: #9aa8b6;
+    --color-ink-400: #8c9aa8;
+    --color-ink-300: #46525e;
+
+    --color-line-300: #2c3844;
+    --color-line-200: #232c36;
+    --color-surface-200: #1c2530;
+    --color-surface-100: #12181f;
+    --color-surface-50: #1a222b;
+
+    /* La marca, aclarada. El 600 es el que mas se usa como texto y como relleno
+       de boton, asi que es el que mas sube. */
+    --color-brand-900: #0e141a;
+    --color-brand-800: #1a222b;
+    --color-brand-700: #1c2530;
+    --color-brand-600: #7fb3e0;
+    --color-brand-400: #a8cdec;
+
+    --color-achievement: #f0b155;
+    --color-success: #5ccb9b;
+    --color-danger: #f27272;
+
+    --color-state-done-bg: #14372c;
+    --color-state-done-fg: #5ccb9b;
+    --color-state-doing-bg: #16303f;
+    --color-state-doing-fg: #a8cdec;
+    --color-state-warn-bg: #3a2c15;
+    --color-state-warn-fg: #f0b155;
+    --color-state-idle-bg: #1c2530;
+    --color-state-idle-fg: #9aa8b6;
+    --color-state-late-bg: #3a1d1d;
+    --color-state-late-fg: #f27272;
+
+    /* La barra lateral se OSCURECE en vez de aclararse: en modo oscuro, el azul
+       de marca a pantalla completa es lo mas brillante de la pantalla y se
+       convierte en lo que mas molesta. Se separa con una linea porque aqui si
+       hace falta: dos superficies oscuras contiguas no se distinguen solas. */
+    --sidebar-bg: #0e141a;
+    --sidebar-idle: #9aa8b6;
+    --sidebar-active-bg: #1c2530;
+    --sidebar-active-fg: #ffffff;
+  }
+}
+
+:root[data-theme='dark'] {
+  --color-ink-900: #e3e9ef;
+  --color-ink-700: #d5dee7;
+  --color-ink-500: #9aa8b6;
+  --color-ink-400: #8c9aa8;
+  --color-ink-300: #46525e;
+
+  --color-line-300: #2c3844;
+  --color-line-200: #232c36;
+  --color-surface-200: #1c2530;
+  --color-surface-100: #12181f;
+  --color-surface-50: #1a222b;
+
+  --color-brand-900: #0e141a;
+  --color-brand-800: #1a222b;
+  --color-brand-700: #1c2530;
+  --color-brand-600: #7fb3e0;
+  --color-brand-400: #a8cdec;
+
+  --color-achievement: #f0b155;
+  --color-success: #5ccb9b;
+  --color-danger: #f27272;
+
+  --color-state-done-bg: #14372c;
+  --color-state-done-fg: #5ccb9b;
+  --color-state-doing-bg: #16303f;
+  --color-state-doing-fg: #a8cdec;
+  --color-state-warn-bg: #3a2c15;
+  --color-state-warn-fg: #f0b155;
+  --color-state-idle-bg: #1c2530;
+  --color-state-idle-fg: #9aa8b6;
+  --color-state-late-bg: #3a1d1d;
+  --color-state-late-fg: #f27272;
+
+  --sidebar-bg: #0e141a;
+  --sidebar-idle: #9aa8b6;
+  --sidebar-active-bg: #1c2530;
+  --sidebar-active-fg: #ffffff;
+}
+
+/**
+ * Lo blanco escrito a mano.
+ *
+ * Medio portal usa `bg-white` para las tarjetas, que en oscuro es una pared
+ * blanca. Reasignar la utilidad de Tailwind resuelve las decenas de sitios de
+ * golpe, en vez de ir uno por uno cambiando `bg-white` por un token y dejandose
+ * la mitad. `--color-surface-50` es la superficie elevada del canvas.
+ */
+:root[data-theme='dark'] .bg-white,
+:root[data-theme='dark'] [class*=' bg-white'] {
+  background-color: var(--color-surface-50);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .bg-white,
+  :root:not([data-theme='light']) [class*=' bg-white'] {
+    background-color: var(--color-surface-50);
+  }
+}
+
+/* El logotipo es azul sobre fondo claro y desaparece sobre uno oscuro: sobre
+   #12181F, el #2C53A0 del degradado queda en 1,8:1. Se usa el blanco. */
+:root[data-theme='dark'] [data-brand-mark],
+:root:not([data-theme='light']) [data-brand-mark] {
+  filter: brightness(0) invert(1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) [data-brand-mark] {
+    filter: none;
+  }
+}
+
 html {
   /* Nada de scroll horizontal en un portatil escolar de 1366px. */
   overflow-x: hidden;

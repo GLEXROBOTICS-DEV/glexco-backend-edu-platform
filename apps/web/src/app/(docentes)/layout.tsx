@@ -9,6 +9,7 @@ import {
 import { PERMISSIONS } from '@glexco/contracts';
 import { getSession } from '../../lib/session';
 import { logout } from '../../lib/auth.actions';
+import { tourFor } from '../../lib/tour-steps';
 import { AppShell, type NavItem } from '../../components/app-shell';
 
 /**
@@ -70,6 +71,7 @@ export default async function DocentesLayout({ children }: { children: React.Rea
       session={session}
       subtitle={portal === 'admin' ? 'GLEXCO' : isAdmin ? 'Dirección' : 'Docente'}
       onLogout={logout}
+      tour={tourFor(portal)}
     >
       {children}
     </AppShell>

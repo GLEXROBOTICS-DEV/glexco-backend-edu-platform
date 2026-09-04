@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '../../lib/session';
 import { logout } from '../../lib/auth.actions';
+import { tourFor } from '../../lib/tour-steps';
 import { AppShell } from '../../components/app-shell';
 import { portalNavItems } from '../../components/portal-nav';
 
@@ -33,6 +34,7 @@ export default async function PortalesLayout({ children }: { children: React.Rea
       session={session}
       subtitle="Estudiante"
       onLogout={logout}
+      tour={tourFor(portal)}
     >
       {children}
     </AppShell>

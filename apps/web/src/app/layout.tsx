@@ -35,6 +35,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
+        {/*
+          Aplica el tema guardado ANTES de pintar.
+
+          Es la unica pieza de JavaScript en linea de toda la aplicacion, y esta
+          aqui porque no hay otra forma: si el tema se aplicara al hidratar, quien
+          eligio oscuro veria un destello blanco a pantalla completa en cada
+          navegacion. Es corto, no depende de nada y no bloquea: lee una clave y
+          pone un atributo.
+
+          Sin JavaScript no se ejecuta y manda `prefers-color-scheme`, que es el
+          comportamiento correcto: la preferencia del sistema.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('glexco:theme');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t);document.documentElement.style.colorScheme=t;}}catch(e){}})();`,
+          }}
+        />
         {/* Salto al contenido: quien navega con teclado no deberia recorrer la
             barra lateral entera en cada pagina para llegar a lo que importa. */}
         <a

@@ -1,5 +1,7 @@
 import type { SessionUser } from '../lib/session';
 import { SidebarNav, type NavItem } from './sidebar-nav';
+import { ThemeToggle } from './theme-toggle';
+import { Tour, type TourStep } from './tour';
 
 export type { NavItem };
 
@@ -31,6 +33,7 @@ export function AppShell({
   session,
   subtitle,
   onLogout,
+  tour,
   children,
 }: {
   /** Fija densidad, acento y color de la barra. Ver `globals.css`. */
@@ -45,6 +48,8 @@ export function AppShell({
   /** Segunda linea de la ficha de usuario. Su rol, no un dato inventado. */
   subtitle: string;
   onLogout: () => Promise<void>;
+  /** Pasos de la visita guiada de este portal. */
+  tour: TourStep[];
   children: React.ReactNode;
 }) {
   const initials =
@@ -107,9 +112,20 @@ export function AppShell({
           </span>
         </a>
 
+        {/* Tema y visita guiada, juntos y al final: son ajustes de COMO se usa la
+            plataforma, no destinos. Mezclarlos con la navegacion los pondria al
+            mismo nivel que "mis kits", que es lo que el alumno viene a abrir. */}
+        <div className="hidden lg:mt-3 lg:block">
+          <ThemeToggle />
+        </div>
+
+        <div className="hidden lg:mt-1.5 lg:block">
+          <Tour steps={tour} />
+        </div>
+
         {/* Salir vive dentro de la barra, no en una esquina de la cabecera: es
             donde esta el resto de lo que trata de "mi cuenta". */}
-        <form action={onLogout} className="hidden lg:mt-1.5 lg:block">
+        <form action={onLogout} className="hidden lg:mt-0.5 lg:block">
           <button
             type="submit"
             className="w-full rounded-[var(--nav-radius)] px-3 py-2 text-left text-[13px] font-medium text-onbrand-300 transition hover:bg-white/10 hover:text-white"
