@@ -1244,6 +1244,29 @@ async function redeemCodes(people, codes) {
     }
   }
 
+  // Reparacion del kit en la matricula.
+  //
+  // A partir de ahora lo hace el evento `catalog.entitlement.granted`, que
+  // institutions ya consume. Pero JetStream no reproduce hacia atras lo que se
+  // publico antes de que ese consumidor existiera, asi que los canjes ya hechos
+  // se quedarian con la matricula en blanco para siempre y la lista de clase
+  // seguiria diciendo "sin activar" para todos.
+  //
+  // Se rellena desde los derechos reales, que son la verdad: no se inventa nada
+  // ni se asume que el canje fue bien.
+  const repaired = await admin.query(
+    `UPDATE institutions.enrollments e
+        SET kit_id = c.kit_id
+       FROM catalog.entitlements c
+      WHERE c.student_id = e.student_id
+        AND c.active
+        AND e.status = 'active'
+        AND e.kit_id IS NULL`,
+  );
+  if (repaired.rowCount > 0) {
+    console.log(`  matriculas       ${repaired.rowCount} con su kit anotado`);
+  }
+
   console.log(`  canjes           ${count}/${people.students.length}`);
 }
 
