@@ -24,6 +24,7 @@ const CATALOG = process.env.CATALOG_URL ?? 'http://localhost:3103';
 const ANALYTICS = process.env.ANALYTICS_URL ?? 'http://localhost:3107';
 const ENGAGEMENT = process.env.ENGAGEMENT_URL ?? 'http://localhost:3106';
 const LEARNING = process.env.LEARNING_URL ?? 'http://localhost:3104';
+const MEDIA = process.env.MEDIA_URL ?? 'http://localhost:3108';
 /** Mailpit: un SMTP real que acepta cualquier cosa y no la entrega a nadie. Es
  *  lo que permite comprobar el correo de punta a punta sin escribirle a una
  *  direccion de verdad, que ademas serian datos de un menor. */
@@ -848,6 +849,144 @@ async function main() {
   report(
     'Trae el campo de puntos con el maximo de la pregunta',
     correccion.html.includes('name="points:') && correccion.html.includes('max="20"'),
+  );
+
+  // ------------------------------------------------------------------
+  section('7b. Evidencia de un reto: el alumno entrega, el docente la ve');
+  // ------------------------------------------------------------------
+  //
+  // En su propia evaluacion, como la de ordenar: anadir una pregunta a la tarea
+  // de arriba cambiaria su total de puntos y obligaria al docente a puntuar dos
+  // preguntas antes de cerrar la nota, rompiendo las afirmaciones anteriores.
+  const reto = await postJson(`${ASSESSMENT}/api/v1/assessments`, glexcoToken, {
+    kitId: dashKit.kitId,
+    kind: 'practical',
+    title: 'Monta el brazo y ensenalo',
+    passingScore: 60,
+  });
+
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${reto.body?.assessmentId}/questions`,
+    glexcoToken,
+    {
+      type: 'file_upload',
+      prompt: 'Sube una foto de tu montaje o el enlace a tu video.',
+      points: 15,
+    },
+  );
+
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${reto.body?.assessmentId}/publish`,
+    glexcoToken,
+    {},
+  );
+
+  // --- El video NO se sube: se enlaza. Decision del cliente. ---
+  const videoSubido = await postJson(`${MEDIA}/api/v1/media/uploads`, inboxToken, {
+    scope: 'evidence',
+    mimeType: 'video/mp4',
+    filename: 'montaje.mp4',
+    sizeBytes: 1_048_576,
+  });
+  report(
+    'El video NO se puede subir como evidencia: su sitio es el enlace',
+    videoSubido.status === 400 || videoSubido.status === 422,
+    `status=${videoSubido.status}`,
+  );
+
+  // Una foto SI: es lo que pesa poco y demuestra que esta hecho.
+  const fotoPedida = await postJson(`${MEDIA}/api/v1/media/uploads`, inboxToken, {
+    scope: 'evidence',
+    mimeType: 'image/jpeg',
+    filename: 'montaje.jpg',
+    sizeBytes: 240_000,
+  });
+  report(
+    'Una foto si se admite, y con su URL prefirmada',
+    fotoPedida.status === 201 && Boolean(fotoPedida.body?.url),
+    `status=${fotoPedida.status}`,
+  );
+
+  // --- El enlace, que es la via del caso a distancia ---
+  const enlace = await postJson(`${MEDIA}/api/v1/media/links`, inboxToken, {
+    scope: 'evidence',
+    url: 'https://drive.google.com/file/d/ejemplo-de-montaje/view',
+    title: 'Video de mi montaje',
+  });
+  report(
+    'El alumno comparte el enlace a su video',
+    enlace.status === 201 && Boolean(enlace.body?.mediaAssetId),
+    `status=${enlace.status} ${JSON.stringify(enlace.body).slice(0, 120)}`,
+  );
+
+  const acortador = await postJson(`${MEDIA}/api/v1/media/links`, inboxToken, {
+    scope: 'evidence',
+    url: 'https://bit.ly/mi-video',
+    title: 'Atajo',
+  });
+  report(
+    'Un acortador se rechaza: convertiria la lista blanca en decoracion',
+    acortador.status === 400 || acortador.status === 422,
+    `status=${acortador.status}`,
+  );
+
+  // --- El alumno entrega la evidencia ---
+  const retoAttempt = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${reto.body?.assessmentId}/attempts`,
+    inboxToken,
+    { classroomId: classroom.body?.classroomId },
+  );
+
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${retoAttempt.body?.submissionId}/answers`,
+    inboxToken,
+    {
+      questionId: retoAttempt.body?.questions?.[0]?.id,
+      mediaAssetId: enlace.body?.mediaAssetId,
+    },
+  );
+
+  const retoEntregado = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${retoAttempt.body?.submissionId}/submit`,
+    inboxToken,
+    {},
+  );
+
+  report(
+    'La entrega con evidencia va a la bandeja, no se autocorrige',
+    retoEntregado.body?.status === 'submitted',
+    `estado=${retoEntregado.body?.status}`,
+  );
+
+  // --- Y LO QUE IMPORTA: el docente la VE ---
+  const conEvidencia = await fetchHtml(
+    `${WEB}/docentes/salones/${classroom.body?.classroomId}/correccion/${retoAttempt.body?.submissionId}`,
+    teacherJar,
+  );
+
+  report(
+    'El docente abre la correccion del reto',
+    conEvidencia.status === 200,
+    `status=${conEvidencia.status}`,
+  );
+
+  // Antes esta pantalla decia "Entrego un archivo o un enlace" y ahi acababa:
+  // habia que puntuar un montaje sin haberlo visto.
+  report(
+    'La evidencia se MUESTRA, no se anuncia',
+    conEvidencia.html.includes('data-evidence='),
+  );
+  report(
+    'El enlace externo se abre fuera, con noopener, y no se incrusta',
+    conEvidencia.html.includes('drive.google.com') &&
+      conEvidencia.html.includes('noopener') &&
+      !conEvidencia.html.includes('<iframe'),
+  );
+
+  // La evidencia es OPCIONAL: lo normal es que el docente revise en clase.
+  report(
+    'Y se puede puntuar sin evidencia: el campo de puntos esta igual',
+    conEvidencia.html.includes('name="points:') && conEvidencia.html.includes('max="15"'),
   );
 
   // Aislamiento: la bandeja es del salon, y el salon tiene dueno.
