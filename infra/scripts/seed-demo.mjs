@@ -210,6 +210,47 @@ async function main() {
 // Escritura directa: personas, institucion y catalogo
 // ---------------------------------------------------------------------------
 
+/**
+ * Crea la institucion POR LA API.
+ *
+ * Es lo unico que emite `institution.created`, y de ese evento cuelga el
+ * directorio de analitica: sin el, el panel de GLEXCO lista la cartera de
+ * clientes por identificador en vez de por nombre.
+ *
+ * Va DESPUES del administrador de plataforma -que hace falta para firmar el
+ * token- y ANTES del resto del personal, que se crea ya con el id real del
+ * colegio. Al reves, todos quedarian apuntando a una institucion que no existe.
+ */
+async function createInstitution(glexco) {
+  const created = await api('/institutions', {
+    method: 'POST',
+    body: {
+      code: INSTITUTION.code,
+      name: INSTITUTION.name,
+      shortName: INSTITUTION.shortName,
+      educationLevels: ['primary', 'secondary'],
+      responsibleName: 'Carmen Delgado',
+      contactEmail: 'direccion@demo.glexco.pe',
+      city: INSTITUTION.city,
+    },
+    as: token(glexco.id, ['platform_owner'], null),
+  });
+
+  if (created.status === 201) {
+    INSTITUTION.id = created.body.institutionId;
+    return;
+  }
+
+  // Ya existia: se adopta su identificador. Suponer el nuestro dejaria a todo lo
+  // que cuelga de el apuntando a una fila que no esta.
+  const existing = await admin.query(
+    'SELECT id FROM institutions.institutions WHERE code = $1',
+    [INSTITUTION.code],
+  );
+  if (existing.rows[0]) INSTITUTION.id = existing.rows[0].id;
+  else console.log(`  ! institucion: ${created.status} ${JSON.stringify(created.body).slice(0, 120)}`);
+}
+
 async function seedPeople(passwordHash) {
   const people = { staff: {}, students: [] };
 
@@ -249,6 +290,10 @@ async function seedPeople(passwordHash) {
 
     people.staff[person.key] = { id: realId, email, ...person };
     console.log(`  ${person.role.padEnd(18)} ${email}`);
+
+    // En cuanto existe el administrador de plataforma se crea el colegio: el
+    // resto del personal se da de alta ya con su identificador real.
+    if (person.key === 'glexco') await createInstitution(people.staff.glexco);
   }
 
   // Los alumnos se reparten entre los tres salones.
@@ -303,33 +348,8 @@ async function seedPeople(passwordHash) {
 }
 
 async function seedInstitution(people) {
-  await admin.query(
-    `INSERT INTO institutions.institutions
-       (id, code, name, short_name, education_levels, responsible_name, contact_email, city)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-     ON CONFLICT (code) DO NOTHING`,
-    [
-      INSTITUTION.id,
-      INSTITUTION.code,
-      INSTITUTION.name,
-      INSTITUTION.shortName,
-      ['primary', 'secondary'],
-      'Carmen Delgado',
-      'direccion@demo.glexco.pe',
-      INSTITUTION.city,
-    ],
-  );
-
-  // Si la institucion ya existia -de una siembra anterior, o creada a mano- se
-  // adopta SU identificador en vez de suponer el nuestro. Sin esto, un `ON
-  // CONFLICT DO NOTHING` salta la insercion y todo lo que cuelga de ella falla
-  // tres tablas mas adelante, con un error de clave foranea que no dice nada de
-  // la causa.
-  const existing = await admin.query(
-    'SELECT id FROM institutions.institutions WHERE code = $1',
-    [INSTITUTION.code],
-  );
-  if (existing.rows[0]) INSTITUTION.id = existing.rows[0].id;
+  // La institucion ya la creo `createInstitution` por la API. Aqui queda lo que
+  // no tiene endpoint propio: la licencia y el directorio de docentes.
 
   await admin.query(
     `INSERT INTO institutions.licenses (id, institution_id, seats, starts_at, expires_at, granted_by)
