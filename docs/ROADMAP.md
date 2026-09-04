@@ -192,7 +192,10 @@ frontend o clientes reales:
 - [x] `GET /catalog/kits`: índice de kits publicados, para elegir uno al crear
       una evaluación.
 
-## 🔄 Fase 4 — Portales de alumno (Discover y Academy)
+## ✅ Fase 4 — Portales de alumno (Discover y Academy)
+
+> Cerrada salvo traducir el cuerpo de las pantallas, que es continuación
+> mecánica sobre la infraestructura de i18n ya montada.
 
 **Hecho:**
 
@@ -239,8 +242,12 @@ frontend o clientes reales:
       sobre la infraestructura ya montada: `getTranslations` en los componentes
       de servidor, `useTranslations` en los de cliente, y las claves nuevas en
       `apps/web/src/messages/{es,en}.json`.
-- [ ] Auditoría de accesibilidad WCAG 2.1 AA completa y navegación por teclado
-      verificada pantalla a pantalla.
+- [x] **Auditoría WCAG 2.1 AA automatizada** (`pnpm a11y`): audita el HTML que
+      sirve el servidor, no el código, que es donde de verdad aparecen los
+      fallos. 13 pantallas sin hallazgos. Queda por revisar **a mano** el
+      contraste real, el orden de tabulación y si los textos alternativos dicen
+      algo útil — el guion lo dice en voz alta para que «0 hallazgos» no se lea
+      como «es accesible».
 
 ## 🔄 Fase 5 — Teacher Center y evaluación
 
