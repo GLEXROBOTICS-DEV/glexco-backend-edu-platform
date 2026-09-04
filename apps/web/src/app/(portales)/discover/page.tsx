@@ -10,7 +10,7 @@ import {
 } from '../../../components/continue-learning';
 import { RecentBadges, UpcomingActivities } from '../../../components/upcoming';
 import { NoKitNotice } from '../../../components/no-kit-notice';
-import { ActionSkeleton, AnnouncementsAction } from '../../../components/page-header';
+import { ActionSkeleton, ClassroomActions } from '../../../components/page-header';
 
 export const metadata: Metadata = { title: 'Discover' };
 
@@ -38,8 +38,11 @@ export default async function DiscoverHome() {
           </Suspense>
         }
         action={
-          <Suspense fallback={<ActionSkeleton onBrand />}>
-            <AnnouncementsAction portal="discover" onBrand />
+          <Suspense fallback={<>
+              <ActionSkeleton onBrand />
+              <ActionSkeleton onBrand />
+            </>}>
+            <ClassroomActions portal="discover" onBrand />
           </Suspense>
         }
         figures={

@@ -17,12 +17,12 @@ export default function Anuncios() {
   return (
     <>
       <PageHeader
-        title="El muro de tu clase"
-        subtitle="Los avisos de tu docente y las preguntas de tu clase. Si tú tienes la duda, seguramente alguien más también."
+        title="Anuncios de tu salón"
+        subtitle="Lo que ha publicado tu docente. Los fijados van siempre arriba."
       />
 
       <Suspense fallback={<CardSkeleton />}>
-        <ClassroomWall />
+        <ClassroomWall only="announcement" canAsk={false} />
       </Suspense>
     </>
   );

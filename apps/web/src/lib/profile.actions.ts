@@ -108,3 +108,39 @@ export async function revokeSessions(
   revalidatePath('/');
   return { revoked: result.data?.revoked ?? 0 };
 }
+
+export interface LanguageState {
+  error?: string;
+  done?: boolean;
+}
+
+/**
+ * Cambia el idioma de la CUENTA.
+ *
+ * Escribe en el perfil y no en una cookie, al reves que el selector de la
+ * pantalla de ingreso. La diferencia importa: el idioma del perfil es el que
+ * deciden los correos -verificacion, recuperacion, avisos-, asi que con cookie
+ * un alumno lo pondria en ingles y seguiria recibiendolos en espanol sin
+ * entender por que.
+ */
+export async function changeLanguage(
+  _previous: LanguageState,
+  formData: FormData,
+): Promise<LanguageState> {
+  const locale = String(formData.get('locale') ?? '');
+  if (locale !== 'es' && locale !== 'en') {
+    return { error: 'Ese idioma no está disponible.' };
+  }
+
+  const result = await api('/account/locale', { method: 'POST', body: { locale } });
+
+  if (!result.ok) {
+    return { error: 'No pudimos cambiar tu idioma. Vuelve a intentarlo en un momento.' };
+  }
+
+  // El idioma sale de la sesion, que se relee en cada peticion: hay que
+  // revalidar el layout entero o la barra lateral se queda en el idioma viejo
+  // hasta la siguiente navegacion completa.
+  revalidatePath('/', 'layout');
+  return { done: true };
+}

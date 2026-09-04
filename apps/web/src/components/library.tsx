@@ -101,9 +101,13 @@ export async function KitLibrary({
             description="Estamos preparándolo. Vuelve en unos días o pregúntale a tu docente."
           />
         ) : (
-          <ul className="grid gap-[var(--portal-gap)] sm:grid-cols-2">
+          // `items-stretch` mas `h-full` en la tarjeta: las dos columnas de una
+          // fila miden lo mismo. Por defecto cada tarjeta mide lo que mide su
+          // texto, asi que la de descripcion larga estiraba su celda y la de al
+          // lado se quedaba corta.
+          <ul className="grid items-stretch gap-[var(--portal-gap)] sm:grid-cols-2">
             {items.map((item) => (
-              <li key={item.id}>
+              <li key={item.id} className="h-full">
                 <LibraryCard portal={portal} item={item} />
               </li>
             ))}
@@ -119,10 +123,10 @@ function LibraryCard({ portal, item }: { portal: 'discover' | 'academy'; item: L
   const size = sizeLabel(item.sizeBytes);
 
   return (
-    <Card>
+    <Card className="flex h-full flex-col">
       <a
         href={`/${portal}/biblioteca/${item.id}`}
-        className="group block focus:outline-none"
+        className="group flex h-full flex-col focus:outline-none"
         data-delivery={item.delivery}
       >
         <div className="flex items-start gap-3">
@@ -142,9 +146,13 @@ function LibraryCard({ portal, item }: { portal: 'discover' | 'academy'; item: L
             <p className="mt-0.5 text-sm text-ink-500">
               {[contentTypeLabel(item.type), duration, size].filter(Boolean).join(' · ')}
             </p>
-            {item.description ? (
-              <p className="mt-2 line-clamp-2 text-sm text-ink-700">{item.description}</p>
-            ) : null}
+            {/* Dos lineas SIEMPRE, tenga descripcion o no. Igualar el alto de la
+                tarjeta no basta: sin reservar el hueco, una sin descripcion deja
+                el texto de arriba flotando y las dos columnas se ven
+                desalineadas por dentro aunque midan lo mismo por fuera. */}
+            <p className="mt-2 line-clamp-2 min-h-[2.5rem] text-sm text-ink-700">
+              {item.description}
+            </p>
           </div>
         </div>
       </a>

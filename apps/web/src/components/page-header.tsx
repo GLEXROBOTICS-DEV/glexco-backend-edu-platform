@@ -1,4 +1,4 @@
-import { AnnouncementIcon } from '@glexco/icons';
+import { AnnouncementIcon, WallIcon } from '@glexco/icons';
 import { fetchAnnouncements } from '../lib/announcements';
 
 /**
@@ -34,58 +34,95 @@ export function PageHeader({
 }
 
 /**
- * Acceso a los anuncios del salon, con su contador.
+ * Los dos accesos de la cabecera: anuncios y muro.
  *
- * **Vive en la cabecera y no en el cuerpo de la portada.** Antes la portada
- * terminaba con la lista entera de anuncios, y eso invierte la prioridad de la
- * pantalla: lo que el docente publico -que se lee una vez- ocupaba mas espacio
- * que el curso a medias, que se abre cada dia.
+ * **Dos botones y no uno.** Son dos cosas que se leen de forma distinta: un
+ * aviso del docente hay que verlo hoy, y una conversación se sigue a lo largo de
+ * la semana. Con un solo destino, el aviso importante quedaba enterrado entre
+ * las preguntas de la clase.
  *
- * Es un ENLACE y no un desplegable: un desplegable exige JavaScript para algo
- * que aqui tiene que funcionar sin el, y ademas obliga a leer los anuncios en
- * una caja de 300 px cuando algunos traen adjuntos.
+ * Los iconos lo dicen: la bocina anuncia -va en una direccion- y el bocadillo
+ * conversa. **Nada de un sobre**, que en cualquier interfaz significa correo
+ * privado, y aquí no hay nada privado: lo del muro lo ve la clase entera.
  *
- * El contador no distingue leidos de no leidos porque todavia no se guarda esa
- * marca. Decir "3 anuncios" es cierto; poner un punto rojo de "no leido" sobre
- * un dato que no existe seria inventarselo, y ademas no se apagaria nunca.
+ * Son ENLACES y no desplegables: un desplegable exige JavaScript para algo que
+ * aquí tiene que funcionar sin él, y obliga a leer en una caja de 300 px lo que
+ * a veces trae adjuntos.
  */
-export async function AnnouncementsAction({
+export async function ClassroomActions({
   portal,
   onBrand = false,
 }: {
   portal: 'discover' | 'academy';
-  /** Sobre la banda azul de Discover. El boton blanco sobre #25478A da un
-   *  contraste tan alto que se lleva la mirada antes que el saludo. */
+  /** Sobre la banda azul de Discover. */
   onBrand?: boolean;
 }) {
   const items = await fetchAnnouncements();
+  const avisos = items.filter((post) => post.kind !== 'question').length;
+  const preguntas = items.filter((post) => post.kind === 'question').length;
 
   return (
+    <>
+      <HeaderAction
+        href={`/${portal}/anuncios`}
+        count={avisos}
+        onBrand={onBrand}
+        label={avisos === 0 ? 'Anuncios: no hay ninguno' : `Anuncios: ${avisos}`}
+      >
+        <AnnouncementIcon size={17} />
+      </HeaderAction>
+
+      <HeaderAction
+        href={`/${portal}/muro`}
+        count={preguntas}
+        onBrand={onBrand}
+        label={
+          preguntas === 0
+            ? 'El muro de tu clase: no hay preguntas'
+            : `El muro de tu clase: ${preguntas} preguntas`
+        }
+      >
+        <WallIcon size={17} />
+      </HeaderAction>
+    </>
+  );
+}
+
+function HeaderAction({
+  href,
+  count,
+  onBrand,
+  label,
+  children,
+}: {
+  href: string;
+  count: number;
+  onBrand: boolean;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
     <a
-      href={`/${portal}/anuncios`}
+      href={href}
       className={`relative grid size-9 place-items-center rounded-[var(--nav-radius)] border transition ${
         onBrand
           ? 'border-white/25 bg-white/10 text-white hover:bg-white/20'
           : 'border-line-200 bg-white text-ink-500 hover:border-brand-400 hover:text-brand-700'
       }`}
-      data-announcement-count={items.length}
+      data-count={count}
     >
-      <AnnouncementIcon size={17} />
-      {items.length > 0 ? (
+      {children}
+      {count > 0 ? (
         <span
           className="absolute -right-1.5 -top-1.5 grid min-w-5 place-items-center rounded-full bg-[var(--portal-accent)] px-1 text-[11px] font-semibold text-brand-700"
           aria-hidden="true"
         >
-          {items.length}
+          {count}
         </span>
       ) : null}
       {/* El nombre accesible lleva la cifra: un lector de pantalla no ve la
-          pastilla naranja, y "anuncios" a secas no dice si hay algo nuevo. */}
-      <span className="sr-only">
-        {items.length === 0
-          ? 'El muro de tu clase: no hay nada nuevo'
-          : `El muro de tu clase: ${items.length} publicaciones`}
-      </span>
+          pastilla, y "anuncios" a secas no dice si hay algo nuevo. */}
+      <span className="sr-only">{label}</span>
     </a>
   );
 }

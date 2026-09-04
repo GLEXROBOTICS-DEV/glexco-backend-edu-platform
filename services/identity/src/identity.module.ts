@@ -59,6 +59,7 @@ import {
   RequestPasswordResetUseCase,
 } from './application/password-reset.usecase';
 import { ChangePasswordUseCase } from './application/change-password.usecase';
+import { UpdatePreferencesUseCase } from './application/update-preferences.usecase';
 import { CreateStaffUserUseCase } from './application/create-staff-user.usecase';
 import {
   ListSessionsUseCase,
@@ -375,6 +376,12 @@ export {
     },
 
     {
+      provide: UpdatePreferencesUseCase,
+      useFactory: (...args: ConstructorParameters<typeof UpdatePreferencesUseCase>) =>
+        new UpdatePreferencesUseCase(...args),
+      inject: [USER_REPOSITORY, UNIT_OF_WORK, CLOCK],
+    },
+    {
       provide: ChangePasswordUseCase,
       useFactory: (...args: ConstructorParameters<typeof ChangePasswordUseCase>) =>
         new ChangePasswordUseCase(...args),
@@ -433,7 +440,12 @@ export {
       provide: AccountController,
       useFactory: (...args: ConstructorParameters<typeof AccountController>) =>
         new AccountController(...args),
-      inject: [ChangePasswordUseCase, ListSessionsUseCase, RevokeSessionUseCase],
+      inject: [
+        ChangePasswordUseCase,
+        ListSessionsUseCase,
+        RevokeSessionUseCase,
+        UpdatePreferencesUseCase,
+      ],
     },
     {
       provide: UsersController,

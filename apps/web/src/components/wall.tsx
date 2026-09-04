@@ -20,12 +20,23 @@ import { EmptyState, StatePill } from './ui';
 export async function ClassroomWall({
   canAsk = true,
   title = 'El muro de tu clase',
+  only,
 }: {
   /** El docente publica avisos desde su panel, no preguntas desde aquí. */
   canAsk?: boolean;
   title?: string;
+  /**
+   * Filtra por tipo de publicación.
+   *
+   * **Anuncios y muro son dos pantallas distintas y no dos pestañas de la
+   * misma.** Son dos cosas que se leen de forma distinta: un aviso del docente
+   * hay que verlo hoy, y una conversación se sigue a lo largo de la semana.
+   * Mezclarlas hacía que un aviso importante quedara enterrado entre preguntas.
+   */
+  only?: 'announcement' | 'question';
 }) {
-  const items = await fetchAnnouncements();
+  const all = await fetchAnnouncements();
+  const items = only ? all.filter((post) => post.kind === only) : all;
 
   // El salón solo hace falta para PREGUNTAR: el docente ve el muro de todos los
   // suyos y no pregunta desde aquí, así que no se le pide.
@@ -56,11 +67,17 @@ export async function ClassroomWall({
       {items.length === 0 ? (
         <EmptyState
           icon={<AnnouncementIcon size={32} />}
-          title="Todavía no hay nada en el muro"
+          title={
+            only === 'announcement'
+              ? 'No hay anuncios todavía'
+              : 'Todavía no hay preguntas'
+          }
           description={
-            canAsk
-              ? 'Sé el primero en preguntar. Tu docente y tus compañeros lo verán.'
-              : 'Cuando tu docente publique algo, aparecerá aquí.'
+            only === 'announcement'
+              ? 'Cuando tu docente publique un aviso, aparecerá aquí.'
+              : canAsk
+                ? 'Sé el primero en preguntar. Tu docente y tus compañeros lo verán.'
+                : 'Cuando alguien de tus salones pregunte, aparecerá aquí.'
           }
         />
       ) : (

@@ -2,8 +2,10 @@
 
 import { useActionState } from 'react';
 import {
+  changeLanguage,
   changePassword,
   revokeSessions,
+  type LanguageState,
   type PasswordState,
   type SessionsState,
 } from '../lib/profile.actions';
@@ -180,4 +182,52 @@ function relative(iso: string): string {
 
   const days = Math.round(hours / 24);
   return `hace ${days} ${days === 1 ? 'día' : 'días'}`;
+}
+
+/**
+ * Idioma de la cuenta.
+ *
+ * Dos botones y no un desplegable: son dos opciones, y un desplegable con dos
+ * valores esconde la mitad de la eleccion detras de un clic. Funciona sin
+ * JavaScript, como el resto de formularios del portal.
+ */
+export function LanguageChoice({ current }: { current: 'es' | 'en' }) {
+  const [state, formAction, pending] = useActionState<LanguageState, FormData>(
+    changeLanguage,
+    {},
+  );
+
+  const options: Array<{ value: 'es' | 'en'; label: string }> = [
+    { value: 'es', label: 'Español' },
+    { value: 'en', label: 'English' },
+  ];
+
+  return (
+    <form action={formAction} className="grid gap-3">
+      {state.error ? (
+        <p role="alert" className="text-sm text-danger">
+          {state.error}
+        </p>
+      ) : null}
+
+      <fieldset className="flex flex-wrap gap-2">
+        <legend className="sr-only">Idioma de la cuenta</legend>
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="submit"
+            name="locale"
+            value={option.value}
+            disabled={pending}
+            aria-pressed={current === option.value}
+            className={`btn btn-sm ${
+              current === option.value ? 'btn-primary' : 'btn-secondary'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </fieldset>
+    </form>
+  );
 }

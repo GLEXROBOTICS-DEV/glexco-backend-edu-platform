@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { requireSession } from '../../../lib/session';
 import { fetchLearningProgress } from '../../../lib/learning';
 import { CardSkeleton, Stat } from '../../../components/ui';
-import { ActionSkeleton, AnnouncementsAction, PageHeader } from '../../../components/page-header';
+import { ActionSkeleton, ClassroomActions, PageHeader } from '../../../components/page-header';
 import { ContinueLearning } from '../../../components/continue-learning';
 import { LearningPath } from '../../../components/learning-path';
 import { RecentBadges, UpcomingActivities } from '../../../components/upcoming';
@@ -31,8 +31,11 @@ export default async function AcademyHome() {
         title="Mi formación"
         subtitle={`${session.firstName} ${session.lastName}`}
         actions={
-          <Suspense fallback={<ActionSkeleton />}>
-            <AnnouncementsAction portal="academy" />
+          <Suspense fallback={<>
+              <ActionSkeleton />
+              <ActionSkeleton />
+            </>}>
+            <ClassroomActions portal="academy" />
           </Suspense>
         }
       />

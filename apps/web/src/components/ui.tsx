@@ -7,10 +7,24 @@
  * nadie se olvidara de pasarla, y alguien se olvida siempre.
  */
 
-export function Card({ children }: { children: React.ReactNode }) {
+export function Card({
+  children,
+  className = '',
+}: {
+  children: React.ReactNode;
+  /**
+   * Para que la tarjeta ocupe todo el alto de su celda (`h-full`).
+   *
+   * Sin esto, en una rejilla cada tarjeta mide lo que mide su texto y dos
+   * columnas contiguas salen de alturas distintas: la de la izquierda con
+   * descripcion larga se estira y la de la derecha se queda corta, y la rejilla
+   * parece descuadrada aunque este bien alineada.
+   */
+  className?: string;
+}) {
   return (
     <div
-      className="border border-line-200 bg-white shadow-[0_1px_2px_rgba(27,42,56,0.04)]"
+      className={`border border-line-200 bg-white shadow-[0_1px_2px_rgba(27,42,56,0.04)] ${className}`}
       style={{ borderRadius: 'var(--portal-radius)', padding: 'var(--portal-card-padding)' }}
     >
       {children}

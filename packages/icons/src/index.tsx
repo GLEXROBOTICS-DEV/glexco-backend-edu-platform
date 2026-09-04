@@ -244,3 +244,20 @@ export function AnnouncementIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/**
+ * Muro del salon: conversacion.
+ *
+ * Un bocadillo de dialogo y no un sobre. El sobre significa correo privado en
+ * todas las interfaces del mundo, y aqui NO hay mensajes privados: lo que se
+ * escribe en el muro lo ve la clase entera. Un icono que promete privacidad
+ * donde no la hay es peor que no tener icono.
+ */
+export function WallIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v7a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5z" />
+      <path d="M8 7.5h8M8 11h5" />
+    </Icon>
+  );
+}

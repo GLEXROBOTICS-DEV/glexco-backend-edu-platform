@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
+import { z } from 'zod';
 import {
   changePasswordRequestSchema,
   createStaffUserSchema,
@@ -15,7 +16,16 @@ import {
   ListSessionsUseCase,
   RevokeSessionUseCase,
 } from '../../application/manage-sessions.usecase';
+import { UpdatePreferencesUseCase } from '../../application/update-preferences.usecase';
 import { contextFrom } from './auth.controller';
+
+/**
+ * Solo el idioma, y validado contra los dos que existen.
+ *
+ * Se comprueba aqui y no solo en el objeto de valor porque un valor invalido
+ * tiene que responder 422 con el campo, no un error de dominio generico.
+ */
+const updateLocaleSchema = z.object({ locale: z.enum(['es', 'en']) });
 
 /**
  * Operaciones sobre la propia cuenta y alta de usuarios de personal.
@@ -31,6 +41,7 @@ export class AccountController {
     private readonly changePassword: ChangePasswordUseCase,
     private readonly listSessions: ListSessionsUseCase,
     private readonly revokeSession: RevokeSessionUseCase,
+    private readonly updatePreferences: UpdatePreferencesUseCase,
   ) {}
 
   @Post('password')
@@ -43,6 +54,22 @@ export class AccountController {
   }
 
   /** Sesiones activas del usuario, para "cerrar sesion en otros dispositivos". */
+  /**
+   * Cambia el idioma de la cuenta.
+   *
+   * En el PERFIL y no en una cookie: es el idioma que deciden los correos, asi
+   * que con cookie un alumno lo pondria en ingles y seguiria recibiendo los
+   * avisos en espanol sin entender por que.
+   */
+  @Post('locale')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async locale(
+    @Body(zodBody(updateLocaleSchema)) input: { locale: string },
+    @Req() request: Request,
+  ): Promise<void> {
+    await this.updatePreferences.execute(input, contextFrom(request));
+  }
+
   @Get('sessions')
   async sessions(@Req() request: Request) {
     return this.listSessions.execute(undefined, contextFrom(request));
