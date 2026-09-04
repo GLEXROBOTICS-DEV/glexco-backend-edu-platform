@@ -708,6 +708,321 @@ async function main() {
   );
 
   // ------------------------------------------------------------------
+  section('6d. Emparejar dos columnas');
+  // ------------------------------------------------------------------
+  // Tambien en su propia evaluacion, por lo mismo que la de ordenar: sumarle una
+  // pregunta cambiaria el total de puntos del escenario anterior.
+  const parQuiz = await postJson(`${ASSESSMENT}/api/v1/assessments`, glexcoToken, {
+    kitId: dashKit.kitId,
+    kind: 'quiz',
+    title: 'Reconoce los kits',
+    passingScore: 60,
+  });
+
+  const parPregunta = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${parQuiz.body?.assessmentId}/questions`,
+    glexcoToken,
+    {
+      type: 'matching',
+      prompt: 'Empareja cada kit con lo que es.',
+      options: [{ text: 'Yanshee' }, { text: 'uKit' }, { text: 'Dobot' }],
+      matches: [
+        { text: 'Robot humanoide' },
+        { text: 'Kit de bloques' },
+        { text: 'Brazo robotico' },
+      ],
+      matchPairs: [
+        { option: 0, match: 0 },
+        { option: 1, match: 1 },
+        { option: 2, match: 2 },
+      ],
+      points: 9,
+    },
+  );
+
+  report(
+    'Se puede crear una pregunta de emparejar',
+    parPregunta.status === 201 || parPregunta.status === 200,
+    `status=${parPregunta.status} ${JSON.stringify(parPregunta.body).slice(0, 120)}`,
+  );
+
+  // El mismo error de captura que en ordenar: se publica una pregunta que NO se
+  // puede acertar y no se descubre hasta que la hizo el salon entero.
+  const paresAMedias = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${parQuiz.body?.assessmentId}/questions`,
+    glexcoToken,
+    {
+      type: 'matching',
+      prompt: 'Empareja mal.',
+      options: [{ text: 'Uno' }, { text: 'Dos' }, { text: 'Tres' }],
+      matches: [{ text: 'A' }, { text: 'B' }, { text: 'C' }],
+      matchPairs: [{ option: 0, match: 0 }],
+      points: 6,
+    },
+  );
+  report(
+    'Se rechaza una pregunta de emparejar con parejas a medias',
+    paresAMedias.status === 400 || paresAMedias.status === 422,
+    `status=${paresAMedias.status}`,
+  );
+
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${parQuiz.body?.assessmentId}/publish`,
+    glexcoToken,
+    {},
+  );
+
+  const parRespuesta = await fetchHtml(
+    `${WEB}/${pupilPortal}/evaluaciones/${parQuiz.body?.assessmentId}/responder`,
+    pupilJar,
+  );
+  const parPage = parRespuesta.status === 200 ? parRespuesta.html : null;
+
+  report(
+    'El alumno abre la pregunta de emparejar',
+    Boolean(parPage?.includes('Empareja cada kit con lo que es')),
+    `status=${parRespuesta.status}`,
+  );
+  report(
+    'Se responde con un desplegable por fila, no arrastrando',
+    Boolean(parPage?.includes('name="pareja:')) && Boolean(parPage?.includes('<select')),
+  );
+  report(
+    'Cada fila lleva su elemento en la etiqueta, no "pareja 1"',
+    Boolean(parPage?.includes('Pareja de: Yanshee')),
+  );
+  report(
+    'La clave de emparejar NO llega al HTML del alumno',
+    Boolean(parPage) && !parPage.includes('matchPairs') && !/"pairs"/.test(parPage),
+  );
+
+  // Se corrige por la API, que es la via que usa el portal al entregar.
+  const parAttempt = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${parQuiz.body?.assessmentId}/attempts`,
+    pupilToken,
+    { classroomId: classroom.body?.classroomId },
+  );
+  const parPreguntaAlumno = parAttempt.body?.questions?.[0];
+  const izquierda = (parPreguntaAlumno?.options ?? []).map((o) => o.id);
+  const derecha = parPreguntaAlumno?.matches ?? [];
+
+  report(
+    'La columna derecha viaja al alumno, y con su texto',
+    derecha.length === 3 && derecha.every((m) => typeof m.text === 'string' && m.text.length > 0),
+    `${derecha.length} elementos`,
+  );
+
+  // El hueco mas facil de dejar abierto: si la derecha sale en el orden de
+  // captura, emparejar el primero con el primero acierta todo sin saber nada.
+  //
+  // Se comprueba que viene ORDENADA POR IDENTIFICADOR, que es el mecanismo, y no
+  // que "salga distinta del orden de captura": con tres elementos, una de cada
+  // seis permutaciones coincide con el original por azar y la comprobacion
+  // fallaria sin que nada estuviera roto. Ordenar por UUID es desordenar
+  // -su orden no guarda relacion con el de captura- y ademas es determinista,
+  // asi que recargar no baila.
+  const idsDerecha = derecha.map((m) => m.id);
+  report(
+    'La derecha llega ordenada por identificador, no por orden de captura',
+    JSON.stringify(idsDerecha) === JSON.stringify([...idsDerecha].sort()),
+    derecha.map((m) => m.text).join(' | '),
+  );
+
+  const porTexto = new Map(derecha.map((m) => [m.text, m.id]));
+
+  // Dos bien y una cruzada: 2 de 3 sobre 9 puntos = 6.
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${parAttempt.body?.submissionId}/answers`,
+    pupilToken,
+    {
+      questionId: parPreguntaAlumno?.id,
+      pairs: [
+        { optionId: izquierda[0], matchId: porTexto.get('Robot humanoide') },
+        { optionId: izquierda[1], matchId: porTexto.get('Kit de bloques') },
+        { optionId: izquierda[2], matchId: porTexto.get('Kit de bloques') },
+      ],
+    },
+  );
+
+  const parEntregado = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${parAttempt.body?.submissionId}/submit`,
+    pupilToken,
+    {},
+  );
+
+  report(
+    'La maquina la corrige sola: no espera a un docente',
+    parEntregado.body?.status === 'graded',
+    `status=${parEntregado.status} estado=${parEntregado.body?.status}`,
+  );
+  report(
+    'La nota es PARCIAL: dos parejas de tres valen 6 de 9',
+    parEntregado.body?.score === 6,
+    `score=${parEntregado.body?.score} de ${parEntregado.body?.maxScore}`,
+  );
+
+  // ------------------------------------------------------------------
+  section('6e. Rubricas de correccion');
+  // ------------------------------------------------------------------
+  const rubQuiz = await postJson(`${ASSESSMENT}/api/v1/assessments`, glexcoToken, {
+    kitId: dashKit.kitId,
+    kind: 'practical',
+    title: 'Monta y explica',
+    passingScore: 50,
+  });
+
+  // El maximo de la rubrica TIENE que coincidir con los puntos de la pregunta:
+  // si diera menos, la pregunta seria imposible de sacar entera; si diera mas,
+  // el docente puntuaria todo y no podria cerrar la nota.
+  const rubDesajustada = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${rubQuiz.body?.assessmentId}/questions`,
+    glexcoToken,
+    {
+      type: 'short_answer',
+      prompt: 'No cuadra.',
+      points: 10,
+      rubric: {
+        criteria: [
+          {
+            id: 'c1',
+            label: 'Montaje',
+            levels: [
+              { label: 'Logrado', points: 4 },
+              { label: 'No logrado', points: 0 },
+            ],
+          },
+        ],
+      },
+    },
+  );
+  report(
+    'Se rechaza una rubrica cuyo maximo no cuadra con los puntos',
+    rubDesajustada.status === 400 || rubDesajustada.status === 422,
+    `status=${rubDesajustada.status}`,
+  );
+
+  const rubPregunta = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${rubQuiz.body?.assessmentId}/questions`,
+    glexcoToken,
+    {
+      type: 'file_upload',
+      prompt: 'Monta el brazo y explica que hiciste.',
+      points: 10,
+      rubric: {
+        criteria: [
+          {
+            id: 'c1',
+            label: 'Montaje',
+            levels: [
+              { label: 'Logrado', points: 6, description: 'Todas las piezas y sin holgura.' },
+              { label: 'Parcial', points: 3 },
+              { label: 'No logrado', points: 0 },
+            ],
+          },
+          {
+            id: 'c2',
+            label: 'Explicacion',
+            levels: [
+              { label: 'Logrado', points: 4 },
+              { label: 'Parcial', points: 2 },
+              { label: 'No logrado', points: 0 },
+            ],
+          },
+        ],
+      },
+    },
+  );
+  report(
+    'Se puede crear una pregunta con rubrica que cuadra',
+    rubPregunta.status === 201 || rubPregunta.status === 200,
+    `status=${rubPregunta.status} ${JSON.stringify(rubPregunta.body).slice(0, 120)}`,
+  );
+
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${rubQuiz.body?.assessmentId}/publish`,
+    glexcoToken,
+    {},
+  );
+
+  // La rubrica SI viaja al alumno, y a proposito: no es la clave, es el
+  // enunciado de como se le va a evaluar. Saberlo de antemano es lo que hace
+  // que una rubrica sirva para aprender y no solo para calificar.
+  const rubPagina = await fetchHtml(
+    `${WEB}/${pupilPortal}/evaluaciones/${rubQuiz.body?.assessmentId}/responder`,
+    pupilJar,
+  );
+  report(
+    'El alumno abre la pregunta con rubrica',
+    rubPagina.status === 200 && rubPagina.html.includes('Monta el brazo y explica'),
+    `status=${rubPagina.status}`,
+  );
+
+  const rubAttempt = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${rubQuiz.body?.assessmentId}/attempts`,
+    pupilToken,
+    { classroomId: classroom.body?.classroomId },
+  );
+  const rubPreguntaAlumno = rubAttempt.body?.questions?.[0];
+
+  report(
+    'La rubrica viaja al alumno: es el enunciado de como se evalua',
+    (rubPreguntaAlumno?.rubric?.criteria ?? []).length === 2,
+    JSON.stringify(rubPreguntaAlumno?.rubric ?? null).slice(0, 90),
+  );
+
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${rubAttempt.body?.submissionId}/answers`,
+    pupilToken,
+    { questionId: rubPreguntaAlumno?.id, text: 'Monte el brazo con ayuda.' },
+  );
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${rubAttempt.body?.submissionId}/submit`,
+    pupilToken,
+    {},
+  );
+
+  // LA comprobacion que sostiene la rubrica entera: se manda un total inflado
+  // junto a los niveles, y la nota tiene que salir de los NIVELES.
+  const rubCorregida = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${rubAttempt.body?.submissionId}/grade`,
+    teacherToken,
+    {
+      grades: [
+        {
+          questionId: rubPreguntaAlumno?.id,
+          // Un total manipulado: cabe en el maximo de la pregunta, asi que la
+          // comprobacion de rango no lo notaria.
+          points: 10,
+          rubric: [
+            { criterionId: 'c1', levelIndex: 1 },
+            { criterionId: 'c2', levelIndex: 2 },
+          ],
+        },
+      ],
+    },
+  );
+
+  report(
+    'La nota la calcula el DOMINIO: un total inflado no otorga nada',
+    rubCorregida.body?.score === 3,
+    `status=${rubCorregida.status} score=${rubCorregida.body?.score} ` +
+      `(esperado 3: parcial 3 + no logrado 0) ${JSON.stringify(rubCorregida.body).slice(0, 140)}`,
+  );
+
+  // Y el alumno ve POR QUE, que es la razon por la que existen las rubricas.
+  const rubResultado = await fetchHtml(
+    `${WEB}/${pupilPortal}/evaluaciones/${rubQuiz.body?.assessmentId}`,
+    pupilJar,
+  );
+  report(
+    'El alumno ve el desglose por criterio, no solo un numero',
+    rubResultado.status === 200 &&
+      visible(rubResultado.html).includes('Montaje') &&
+      visible(rubResultado.html).includes('Explicacion'),
+    `status=${rubResultado.status}`,
+  );
+
+  // ------------------------------------------------------------------
   section('6c. Misiones semanales');
   // ------------------------------------------------------------------
   //
