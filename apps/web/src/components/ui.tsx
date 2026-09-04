@@ -89,7 +89,7 @@ export function EmptyState({
       {action ? (
         <a
           href={action.href}
-          className="mt-6 inline-flex rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+          className="mt-6 inline-flex h-[2.875rem] items-center rounded-[var(--nav-radius)] bg-brand-600 px-6 font-display text-[15px] font-medium text-white transition hover:bg-brand-700"
         >
           {action.label}
         </a>
@@ -104,8 +104,47 @@ export function Stat({ value, label }: { value: string; label: string }) {
       className="border border-line-200 bg-white"
       style={{ borderRadius: 'var(--portal-radius)', padding: 'var(--portal-card-padding)' }}
     >
-      <p className="font-display text-2xl font-semibold text-brand-700">{value}</p>
-      <p className="mt-1 text-sm text-ink-500">{label}</p>
+      {/* La etiqueta va ENCIMA de la cifra, como en el canvas. Debajo hay que
+          leer el numero antes de saber de que es, y en una fila de cuatro
+          tarjetas eso obliga a recorrerla dos veces. */}
+      <p className="eyebrow mb-2">{label}</p>
+      <p className="font-display text-[1.75rem] font-semibold leading-none text-ink-900">
+        {value}
+      </p>
     </div>
+  );
+}
+
+/**
+ * Etiqueta de estado.
+ *
+ * Los cinco pares fondo/texto salen del canvas y van emparejados: cada texto
+ * esta comprobado sobre SU fondo, y cruzarlos rompe el contraste.
+ *
+ * Nunca comunica solo con color. El par verde/ambar queda en 6,9 de diferencia
+ * para protanopia -indistinguibles-, asi que el texto de dentro es la parte que
+ * de verdad informa; el color solo acelera la lectura de quien lo distingue.
+ */
+export function StatePill({
+  state,
+  children,
+}: {
+  state: 'done' | 'doing' | 'warn' | 'idle' | 'late';
+  children: React.ReactNode;
+}) {
+  const tone = {
+    done: 'bg-state-done-bg text-state-done-fg',
+    doing: 'bg-state-doing-bg text-state-doing-fg',
+    warn: 'bg-state-warn-bg text-state-warn-fg',
+    idle: 'bg-state-idle-bg text-state-idle-fg',
+    late: 'bg-state-late-bg text-state-late-fg',
+  }[state];
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-[12.5px] font-medium ${tone}`}
+    >
+      {children}
+    </span>
   );
 }

@@ -5,6 +5,8 @@ import { requireSession } from '../../../lib/session';
 import { fetchMyKits, gradeLabel } from '../../../lib/catalog';
 import { Card, CardSkeleton, EmptyState, SectionTitle } from '../../../components/ui';
 import { AnnouncementList } from '../../../components/announcements';
+import { HeroFigureSkeleton, PortalHero } from '../../../components/portal-hero';
+import { ContinueLearning, HeroLearningFigures } from '../../../components/continue-learning';
 
 export const metadata: Metadata = { title: 'Discover' };
 
@@ -13,12 +15,30 @@ export default async function DiscoverHome() {
 
   return (
     <>
-      <section>
-        <p className="text-sm font-medium text-ink-500">Hola, {session.firstName}</p>
-        <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="font-semibold">
-          Continúa tu aventura
-        </h1>
-      </section>
+      {/* El saludo se pinta ya, con el nombre que trae la sesion; solo las tres
+          cifras esperan al servicio de aprendizaje, y lo hacen sobre un hueco de
+          su misma altura para que la banda no cambie de tamano al llegar. */}
+      <PortalHero
+        greeting={`¡Hola, ${session.firstName}!`}
+        subtitle="Continúa tu aventura donde la dejaste."
+        figures={
+          <Suspense
+            fallback={
+              <>
+                <HeroFigureSkeleton label="cursos" />
+                <HeroFigureSkeleton label="insignias" />
+                <HeroFigureSkeleton label="puntos" />
+              </>
+            }
+          >
+            <HeroLearningFigures portal="discover" />
+          </Suspense>
+        }
+      />
+
+      <Suspense fallback={<CardSkeleton />}>
+        <ContinueLearning portal="discover" />
+      </Suspense>
 
       {/* Suspense con un esqueleto con la FORMA del contenido, no un spinner
           generico: el alumno ve enseguida cuantas tarjetas vienen y la pagina no
@@ -68,7 +88,7 @@ async function MisKits() {
         {kits.map((kit) => (
           <Card key={kit.kitId}>
             <div className="flex items-start gap-4">
-              <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-brand-600/10 text-brand-600">
+              <span className="grid size-12 shrink-0 place-items-center rounded-[calc(var(--portal-radius)*0.75)] bg-brand-200/25 text-brand-600">
                 <RobotIcon size={26} />
               </span>
               <div className="min-w-0">
@@ -79,7 +99,7 @@ async function MisKits() {
                     {kit.robotPlatforms.map((platform) => (
                       <li
                         key={platform}
-                        className="rounded-full bg-surface-200 px-2.5 py-1 text-xs font-medium uppercase tracking-wide text-ink-700"
+                        className="rounded-full bg-state-warn-bg px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-state-warn-fg"
                       >
                         {platform}
                       </li>
@@ -91,7 +111,7 @@ async function MisKits() {
 
             <a
               href={`/discover/biblioteca?kit=${kit.kitId}`}
-              className="mt-5 inline-flex rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+              className="mt-5 inline-flex h-[2.875rem] items-center rounded-[var(--nav-radius)] bg-brand-600 px-5 font-display text-[15px] font-medium text-white transition hover:bg-brand-700"
             >
               Continuar aprendiendo
             </a>

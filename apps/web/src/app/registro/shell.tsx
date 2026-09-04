@@ -1,10 +1,12 @@
+import { BrandPanel } from '../../components/brand-panel';
+
 /**
  * Marco de las pantallas de registro.
  *
- * Reproduce el panel de marca de `/ingresar` para que registrarse e ingresar se
- * reconozcan como la misma puerta. Se oculta en movil por lo mismo que alli: en
- * una pantalla pequena, media altura de decoracion empuja el formulario fuera de
- * la vista.
+ * Reutiliza el MISMO panel de marca de `/ingresar` -el componente, no una copia
+ * de su maquetacion- para que registrarse e ingresar se reconozcan como la misma
+ * puerta. Cuando eran dos bloques calcados, cualquier retoque en uno dejaba al
+ * otro atras y las dos mitades de la misma puerta acababan sin parecerse.
  */
 export function RegistrationShell({
   step,
@@ -16,24 +18,21 @@ export function RegistrationShell({
 }) {
   return (
     <main id="contenido" className="flex min-h-dvh flex-col lg:flex-row">
-      <section
-        className="hidden bg-gradient-to-br from-brand-900 via-brand-600 to-brand-400 p-12 lg:flex lg:w-[45%] lg:flex-col lg:justify-between"
-        aria-hidden="true"
-      >
-        <div className="font-display text-3xl font-bold text-white">GLEXCO</div>
-        <div>
-          <p className="font-display text-4xl font-semibold leading-tight text-white">
-            Tu libro abre tu kit.
-          </p>
-          <p className="mt-4 max-w-md text-lg text-brand-200">
-            Crea tu cuenta con el código que viene dentro y empieza a construir.
-          </p>
-        </div>
-        <div className="text-sm text-brand-200">Robótica educativa · UBTECH</div>
-      </section>
+      <BrandPanel
+        headline="Tu libro abre tu kit"
+        description="Crea tu cuenta con el código que viene dentro y empieza a construir con uKit, uGoT, Yanshee y toda la línea GLEXCO – UBTECH."
+      />
 
       <section className="flex flex-1 items-center justify-center bg-surface-50 px-6 py-12">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-[26.5rem]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/glexco-marca.svg"
+            alt="GLEXCO"
+            width={168}
+            height={34}
+            className="mb-8 block w-[10.5rem] lg:hidden"
+          />
           {step === 1 || step === 2 ? <Pasos current={step} /> : null}
           {children}
         </div>

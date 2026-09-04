@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { api } from './api';
 
 export interface CourseProgress {
@@ -49,6 +50,12 @@ const EMPTY: LearningProgress = {
 /**
  * El progreso propio por consumo de contenido.
  *
+ * Envuelto en `cache()` de React: la portada lo necesita en DOS sitios -las
+ * cifras de la cabecera y la tarjeta de "continuar"-, y sin esto serian dos
+ * llamadas identicas al servicio de aprendizaje en cada carga de la pantalla
+ * que mas se abre. `cache()` lo resuelve una vez POR PETICION, no entre
+ * peticiones: el progreso de un alumno no se sirve nunca al siguiente.
+ *
  * El alcance lo decide el token en el backend, no un parametro: aceptar un
  * `studentId` permitiria leer el progreso de cualquier alumno.
  *
@@ -56,7 +63,7 @@ const EMPTY: LearningProgress = {
  * tiene que pintarse igualmente. Un alumno de ocho anos que ve una pantalla de
  * error completa asume que rompio algo.
  */
-export async function fetchLearningProgress(): Promise<{
+export const fetchLearningProgress = cache(async function fetchLearningProgress(): Promise<{
   data: LearningProgress;
   failed: boolean;
 }> {
@@ -72,7 +79,7 @@ export async function fetchLearningProgress(): Promise<{
   }
 
   return { data: result.data, failed: false };
-}
+});
 
 /**
  * Quien del salon se ha descolgado.

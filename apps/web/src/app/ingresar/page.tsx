@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getSession } from '../../lib/session';
 import { portalPath } from '../../lib/portal';
+import { BrandPanel } from '../../components/brand-panel';
 import { LoginForm } from './login-form';
 
 export const metadata: Metadata = { title: 'Ingresar' };
@@ -28,30 +29,26 @@ export default async function IngresarPage({ searchParams }: PageProps) {
 
   return (
     <main id="contenido" className="flex min-h-dvh flex-col lg:flex-row">
-      {/* Panel de marca. Se oculta en movil: en una pantalla pequena, media
-          altura de decoracion empuja el formulario fuera de la vista. */}
-      <section
-        className="hidden bg-gradient-to-br from-brand-900 via-brand-600 to-brand-400 p-12 lg:flex lg:w-[45%] lg:flex-col lg:justify-between"
-        aria-hidden="true"
-      >
-        <div className="font-display text-3xl font-bold text-white">GLEXCO</div>
-        <div>
-          <p className="font-display text-4xl font-semibold leading-tight text-white">
-            La robótica que se aprende construyendo.
-          </p>
-          <p className="mt-4 max-w-md text-lg text-brand-200">
-            Activa el código de tu libro y entra al kit de tu grado.
-          </p>
-        </div>
-        <div className="text-sm text-brand-200">Robótica educativa · UBTECH</div>
-      </section>
+      <BrandPanel
+        headline="El aula donde la robótica se aprende haciendo"
+        description="Cursos, retos y proyectos para acompañar a docentes y alumnos con los kits uKit, uGoT, Yanshee y toda la línea GLEXCO – UBTECH."
+      />
 
       <section className="flex flex-1 items-center justify-center bg-surface-50 px-6 py-12">
-        <div className="w-full max-w-sm">
-          <h1 className="font-display text-2xl font-semibold">Ingresa a tu cuenta</h1>
-          <p className="mt-2 text-sm text-ink-500">
-            Usa el correo con el que te registraste.
-          </p>
+        <div className="w-full max-w-[26.5rem]">
+          {/* La marca tambien en movil, donde el panel no se ve: sin ella la
+              primera pantalla de la plataforma no dice de quien es. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/glexco-marca.svg"
+            alt="GLEXCO"
+            width={168}
+            height={34}
+            className="mb-8 block w-[10.5rem] lg:hidden"
+          />
+
+          <h1 className="font-display text-[1.875rem] font-semibold">Bienvenido de vuelta</h1>
+          <p className="mt-2 text-[15px] text-ink-500">Ingresa a tu cuenta para continuar.</p>
 
           {justReset ? (
             <p

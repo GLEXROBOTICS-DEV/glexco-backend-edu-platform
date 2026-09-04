@@ -151,3 +151,96 @@ export function LibraryIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/*
+ * Cromo de navegacion.
+ *
+ * Estos siete no son del dominio -una casa y unas barras no tienen nada de
+ * robotica- pero el canvas los dibuja con el mismo trazo que los demas, y
+ * mezclarlos con un set externo en la MISMA barra lateral es donde mas se nota
+ * una diferencia de peso o de terminacion. Viven aqui por eso, no por gusto.
+ */
+
+/** Inicio del portal. */
+export function HomeIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 10.5 12 3l9 7.5" />
+      <path d="M5 9.5V21h14V9.5" />
+    </Icon>
+  );
+}
+
+/** Panel principal: la vista de conjunto de docentes y administradores. */
+export function DashboardIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="3" width="7" height="9" rx="1.5" />
+      <rect x="14" y="3" width="7" height="5" rx="1.5" />
+      <rect x="14" y="12" width="7" height="9" rx="1.5" />
+      <rect x="3" y="16" width="7" height="5" rx="1.5" />
+    </Icon>
+  );
+}
+
+/** Curso: el libro que acompana al kit. */
+export function CourseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v18H6.5A2.5 2.5 0 0 1 4 18.5z" />
+      <path d="M8 3v18" />
+    </Icon>
+  );
+}
+
+/** Estudiantes de un salon. */
+export function StudentsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+      <path d="M17 11a3 3 0 0 0 0-6M18 20a6.4 6.4 0 0 0-2-4.6" />
+    </Icon>
+  );
+}
+
+/** Correccion: la bandeja de entregas del docente. */
+export function GradingIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M9 4H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3" />
+      <rect x="9" y="2.5" width="6" height="4" rx="1" />
+      <path d="m9 13 2 2 4-4" />
+    </Icon>
+  );
+}
+
+/** Reportes y analitica. */
+export function ReportIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 19V9M10 19V5M16 19v-7M22 19H2" />
+    </Icon>
+  );
+}
+
+/** Institucion: el colegio como entidad. */
+export function InstitutionIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 21h18M5 21V7l7-4 7 4v14" />
+      <path d="M9 21v-5h6v5" />
+    </Icon>
+  );
+}
+
+/** Anuncio del docente a su salon. */
+export function AnnouncementIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 10.5v3a1.5 1.5 0 0 0 1.5 1.5H7l5.5 4V5L7 9H4.5A1.5 1.5 0 0 0 3 10.5z" />
+      <path d="M17 9.2a4 4 0 0 1 0 5.6" />
+      <path d="M6.8 15v4.2a1.3 1.3 0 0 0 2.6 0V17" />
+    </Icon>
+  );
+}

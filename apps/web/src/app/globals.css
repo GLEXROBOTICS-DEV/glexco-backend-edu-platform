@@ -17,16 +17,38 @@
   --color-brand-400: #3e86c0;
   --color-brand-200: #86c9bd;
 
+  /* Tonos de texto SOBRE superficie de marca. No son la escala neutra
+     aclarada: sobre #25478A un gris frio se lee sucio, y estos tres verdosos
+     son los que el canvas usa para jerarquia dentro de la barra lateral. */
+  --color-onbrand-100: #bfe2dc;
+  --color-onbrand-200: #c9e3e6;
+  --color-onbrand-300: #9dc8d8;
+  --color-onbrand-400: #b4d6dd;
+
   /* --- Semanticos ------------------------------------------------------- */
   --color-achievement: #f0a93b;
   --color-success: #0a7d57;
   --color-danger: #a61b1b;
+
+  /* Pares fondo/texto de los estados. Van emparejados a proposito: cada uno
+     esta comprobado sobre su propio fondo, y mezclarlos rompe el contraste. */
+  --color-state-done-bg: #e4f6ef;
+  --color-state-done-fg: #08704e;
+  --color-state-doing-bg: #e1f1ee;
+  --color-state-doing-fg: #24437f;
+  --color-state-warn-bg: #fdf0dc;
+  --color-state-warn-fg: #8a5713;
+  --color-state-idle-bg: #edf1f5;
+  --color-state-idle-fg: #5a6b7c;
+  --color-state-late-bg: #fce9e9;
+  --color-state-late-fg: #a61b1b;
 
   /* --- Neutros ---------------------------------------------------------- */
   --color-ink-900: #1b2a38;
   --color-ink-700: #35475a;
   --color-ink-500: #5a6b7c;
   --color-ink-400: #64748b;
+  --color-ink-300: #8496a6;
   --color-line-300: #cbd5e1;
   --color-line-200: #e4eaf0;
   --color-surface-200: #edf1f5;
@@ -39,35 +61,91 @@
 }
 
 /**
- * Discover y Academy comparten sistema pero NO densidad.
+ * Los cuatro portales comparten sistema pero NO densidad ni acento.
  *
  * No es decoracion: un nino de seis anos necesita objetivos grandes y mucho
- * aire, y un estudiante de instituto necesita ver mas informacion por pantalla
- * sin que le hablen como a un nino. Un solo espaciado obligaria a elegir cual de
- * los dos sale perjudicado.
+ * aire, y un analista mirando el panel ejecutivo necesita ver el maximo de
+ * filas por pantalla. Un solo espaciado obligaria a elegir cual de los dos sale
+ * perjudicado.
  *
- * La densidad se declara aqui una vez, en el layout de cada portal, y no
- * salpicada por cada componente.
+ * Todo esto se declara aqui una vez y se aplica con `data-portal` en el layout,
+ * no salpicado por cada componente: la coherencia entre portales no puede
+ * depender de que nadie se olvide de pasar una variante, porque alguien se
+ * olvida siempre.
+ *
+ * Los valores son los del canvas, no aproximaciones: 6 px de radio en Academy,
+ * Teacher y Admin; 16 px en Discover. Altura de control 46 px en formularios y
+ * 36 px en barras de herramientas.
  */
 :root {
-  --portal-radius: 0.75rem;
+  --portal-accent: var(--color-brand-400);
+  --portal-radius: 0.375rem; /* 6px */
   --portal-gap: 1.25rem;
-  --portal-card-padding: 1.25rem;
+  --portal-card-padding: 1.375rem;
   --portal-title-size: 1.5rem;
+  --portal-max-width: 78rem;
+
+  /* Barra lateral */
+  --sidebar-width: 14rem; /* 224px */
+  --sidebar-bg: var(--color-brand-700);
+  --sidebar-label: var(--color-brand-200);
+  --sidebar-idle: var(--color-onbrand-200);
+  --sidebar-active-bg: rgba(255, 255, 255, 0.14);
+  --sidebar-active-fg: #ffffff;
+  --nav-height: 2.25rem; /* 36px */
+  --nav-size: 0.84375rem; /* 13.5px */
+  --nav-radius: 0.375rem;
+  --nav-icon: 16px;
 }
 
 [data-portal='discover'] {
-  --portal-radius: 1.25rem;
-  --portal-gap: 1.75rem;
-  --portal-card-padding: 1.75rem;
+  /* Ambar SOLO en Discover. Es la senal mas fuerte de que se esta en el portal
+     de primaria, y usarlo en Academy borraria esa distincion. */
+  --portal-accent: var(--color-achievement);
+  --portal-radius: 1rem; /* 16px */
+  --portal-gap: 1.375rem;
+  --portal-card-padding: 1.5rem;
   --portal-title-size: 1.875rem;
+  --portal-max-width: 72rem;
+
+  --sidebar-width: 14.75rem; /* 236px */
+  --sidebar-label: var(--color-achievement);
+  --sidebar-active-bg: var(--color-achievement);
+  --sidebar-active-fg: var(--color-brand-700);
+  --nav-height: 2.75rem; /* 44px */
+  --nav-size: 0.9375rem; /* 15px */
+  --nav-radius: 0.625rem; /* 10px */
+  --nav-icon: 19px;
 }
 
 [data-portal='academy'] {
-  --portal-radius: 0.625rem;
+  --portal-accent: var(--color-brand-400);
   --portal-gap: 1.25rem;
-  --portal-card-padding: 1.25rem;
   --portal-title-size: 1.5rem;
+
+  --sidebar-width: 14.75rem;
+  --sidebar-active-bg: var(--color-brand-400);
+  --sidebar-active-fg: var(--color-brand-900);
+  --nav-height: 2.375rem; /* 38px */
+  --nav-size: 0.875rem; /* 14px */
+  --nav-icon: 17px;
+}
+
+[data-portal='teacher'] {
+  --portal-accent: var(--color-brand-600);
+}
+
+/* El panel ejecutivo va sobre el azul profundo y no sobre el de marca: es el
+   unico portal interno de GLEXCO, y verlo distinto evita confundir "mi colegio"
+   con "todos los colegios" cuando alguien tiene los dos accesos. */
+[data-portal='admin'] {
+  --portal-accent: var(--color-brand-600);
+  --portal-gap: 1.125rem;
+  --portal-card-padding: 1.25rem;
+  --sidebar-bg: var(--color-brand-900);
+  --sidebar-idle: var(--color-onbrand-400);
+  --nav-size: 0.8125rem; /* 13px */
+  --nav-icon: 15px;
 }
 
 html {
@@ -90,6 +168,22 @@ h3 {
 }
 
 /**
+ * Etiqueta de seccion en versalitas.
+ *
+ * Aparece encima de casi todas las tarjetas del canvas y es lo que da el ritmo
+ * de la pagina. Va aqui y no como clase suelta de Tailwind porque son cinco
+ * propiedades que hay que repetir identicas cada vez, y en cuanto una se
+ * desvia, dos tarjetas contiguas dejan de alinear.
+ */
+.eyebrow {
+  font-size: 0.71875rem; /* 11.5px */
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
+  color: var(--color-ink-400);
+  font-weight: 500;
+}
+
+/**
  * Foco siempre visible.
  *
  * No se quita nunca. Esta plataforma la usan alumnos que navegan solo con
@@ -101,6 +195,12 @@ h3 {
   outline: 3px solid var(--color-brand-400);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+/* Dentro de la barra lateral el anillo celeste se pierde contra el azul de
+   marca: sobre #25478A da 1,9:1. El blanco es el unico que se ve en las dos. */
+[data-sidebar] :focus-visible {
+  outline-color: #ffffff;
 }
 
 /** Respeta a quien pidio menos movimiento: hay alumnos con trastornos
