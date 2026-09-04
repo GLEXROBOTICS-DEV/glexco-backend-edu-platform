@@ -887,6 +887,8 @@ async function seedProgress(people) {
   if (!(await waitForLessonDirectory(people))) return;
 
   let done = 0;
+  const problemas = [];
+
   for (const student of people.students) {
     const classroom = CLASSROOMS[student.classroom];
     const kit = KITS[classroom.kit];
@@ -900,7 +902,7 @@ async function seedProgress(people) {
     const howMany = Math.max(1, Math.round(kit.course.lessons.length * ratio));
 
     for (const lesson of kit.course.lessons.slice(0, howMany)) {
-      await api(`/learning/lessons/${lesson.id}/start`, {
+      const started = await api(`/learning/lessons/${lesson.id}/start`, {
         method: 'POST',
         body: { classroomId: classroom.id },
         as,
@@ -913,8 +915,14 @@ async function seedProgress(people) {
       // Solo cuenta lo que de verdad se completo por primera vez: contar los 200
       // a secas informaria de un progreso que no ocurrio.
       if (result.status === 200 && result.body?.firstCompletion) done += 1;
+      else if (problemas.length < 3) {
+        problemas.push(
+          `${student.email} ${lesson.id.slice(0, 8)}: inicio=${started.status} completar=${result.status} first=${result.body?.firstCompletion}`,
+        );
+      }
     }
   }
+  for (const problema of problemas) console.log(`  ! ${problema}`);
   console.log(`  progreso         ${done} lecciones completadas`);
 }
 
