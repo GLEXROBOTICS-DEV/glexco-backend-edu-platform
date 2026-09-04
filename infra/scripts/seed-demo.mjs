@@ -211,6 +211,8 @@ async function main() {
     parallelism: 1,
   });
 
+  await dedupeDemo();
+
   const people = await seedPeople(passwordHash);
   await seedInstitution(people);
   await seedCatalog();
@@ -272,6 +274,92 @@ async function createInstitution(glexco) {
   );
   if (existing.rows[0]) INSTITUTION.id = existing.rows[0].id;
   else console.log(`  ! institucion: ${created.status} ${JSON.stringify(created.body).slice(0, 120)}`);
+}
+
+/**
+ * Limpia lo que las siembras anteriores duplicaron.
+ *
+ * Hasta ahora este guion creaba salones, evaluaciones y anuncios por la API sin
+ * comprobar antes si ya existian, y la API no lo impide -y hace bien: dos "4.o
+ * A" de anos distintos son dos salones legitimos, y un docente puede querer dos
+ * versiones del mismo examen-. El resultado era que cada ejecucion anadia una
+ * copia: la demo acabo con veinte anuncios identicos en la portada del alumno y
+ * cuatro veces la misma evaluacion en "proximas actividades". Eso no se lee como
+ * "se sembro dos veces", se lee como que la plataforma esta rota.
+ *
+ * Las guardas nuevas evitan que vuelva a pasar; esto limpia lo que ya paso.
+ *
+ * Tres reglas para no perder nada real:
+ *
+ * - Solo toca la institucion de DEMOSTRACION y solo los titulos exactos que
+ *   este guion escribe. No es un deduplicador general.
+ * - Se queda con la copia que TIENE datos colgando -matriculas, entregas- y no
+ *   con la mas antigua. Al reves se archivaria justo la que el alumno usa.
+ * - Archiva en vez de borrar donde hay historial. Un anuncio duplicado si se
+ *   borra, porque no cuelga nada de el y su gemelo dice exactamente lo mismo.
+ */
+async function dedupeDemo() {
+  // Salones repetidos: se conserva el que mas alumnos matriculados tiene.
+  const classrooms = await admin.query(
+    `WITH ranked AS (
+       SELECT c.id, c.name,
+              row_number() OVER (
+                PARTITION BY c.name
+                ORDER BY (SELECT count(*) FROM institutions.enrollments e
+                           WHERE e.classroom_id = c.id AND e.status = 'active') DESC,
+                         c.created_at ASC
+              ) AS rn
+         FROM institutions.classrooms c
+        WHERE c.institution_id = $1 AND c.status = 'active'
+     )
+     UPDATE institutions.classrooms SET status = 'archived', updated_at = now()
+      WHERE id IN (SELECT id FROM ranked WHERE rn > 1)
+      RETURNING id`,
+    [INSTITUTION.id],
+  );
+
+  // Evaluaciones repetidas del banco de GLEXCO: se conserva la que mas entregas
+  // acumula, que es la que aparece en los dashboards.
+  const assessments = await admin.query(
+    `WITH ranked AS (
+       SELECT a.id,
+              row_number() OVER (
+                PARTITION BY a.kit_id, a.title
+                ORDER BY (SELECT count(*) FROM assessment.submissions s
+                           WHERE s.assessment_id = a.id) DESC,
+                         a.created_at ASC
+              ) AS rn
+         FROM assessment.assessments a
+        WHERE a.origin = 'glexco' AND a.title LIKE 'Evaluacion de %' AND a.status <> 'archived'
+     )
+     UPDATE assessment.assessments SET status = 'archived', updated_at = now()
+      WHERE id IN (SELECT id FROM ranked WHERE rn > 1)
+      RETURNING id`,
+  );
+
+  // Anuncios repetidos: aqui si se borra. No cuelga nada de un anuncio y su
+  // gemelo dice literalmente lo mismo, asi que archivarlo solo dejaria basura.
+  const announcements = await admin.query(
+    `WITH ranked AS (
+       SELECT id,
+              row_number() OVER (
+                PARTITION BY classroom_id, title ORDER BY created_at ASC
+              ) AS rn
+         FROM engagement.announcements
+        WHERE institution_id = $1
+     )
+     DELETE FROM engagement.announcements
+      WHERE id IN (SELECT id FROM ranked WHERE rn > 1)
+      RETURNING id`,
+    [INSTITUTION.id],
+  );
+
+  const total = classrooms.rowCount + assessments.rowCount + announcements.rowCount;
+  if (total > 0) {
+    console.log(
+      `  duplicados       ${classrooms.rowCount} salones y ${assessments.rowCount} evaluaciones archivados, ${announcements.rowCount} anuncios borrados`,
+    );
+  }
 }
 
 async function seedPeople(passwordHash) {
@@ -402,6 +490,20 @@ async function seedInstitution(people) {
     // que atribuye el progreso a un salon. Escribiendo la fila a mano, el salon
     // existe y a la vez no existe para media plataforma.
     const as = token(teacher.id, ['teacher'], INSTITUTION.id);
+
+    // Se comprueba ANTES de crear, y no despues del error. La API acepta dos
+    // salones con el mismo nombre -es legitimo: dos "4.o A" de anos distintos-,
+    // asi que cada siembra creaba uno nuevo y la demo acababa con la lista
+    // llena de salones identicos y los alumnos repartidos entre ellos.
+    const existing = await admin.query(
+      'SELECT id FROM institutions.classrooms WHERE institution_id = $1 AND name = $2 LIMIT 1',
+      [INSTITUTION.id, classroom.name],
+    );
+    if (existing.rows[0]) {
+      classroom.id = existing.rows[0].id;
+      continue;
+    }
+
     const created = await api('/classrooms', {
       method: 'POST',
       body: {
@@ -601,6 +703,36 @@ async function seedCodes() {
       [batchId, kit.id, kit.grade, '00000000-0000-4000-8000-000000000000', INSTITUTION.id],
     );
 
+    // El lote se escribe a mano -para que los codigos sean deterministas y la
+    // documentacion no caduque en cada siembra-, pero su EVENTO hay que
+    // encolarlo igual. Sin el, la analitica nunca suma los codigos emitidos y el
+    // panel de GLEXCO acaba diciendo "10 de 0 emitidos": cuenta los canjes, que
+    // si llegan por evento, contra un total que se quedo en cero.
+    //
+    // Es el mismo fallo que ya tenian la institucion y los salones, y por eso
+    // aquellos se crean por la API. Aqui no se puede, asi que se encola el
+    // evento en la outbox del catalogo y el relay lo publica como cualquier
+    // otro. Escribir en la outbox es exactamente lo que hace un caso de uso.
+    await admin.query(
+      `INSERT INTO catalog.outbox
+         (event_id, event_name, aggregate_type, aggregate_id, aggregate_version, payload, metadata)
+       VALUES ($1,'catalog.activation_code.batch_generated.v1','CodeBatch',$2,1,$3,'{}'::jsonb)
+       ON CONFLICT (event_id) DO NOTHING`,
+      [
+        idFor('batch-event', kit.code),
+        batchId,
+        JSON.stringify({
+          batchId,
+          kitId: kit.id,
+          grade: kit.grade,
+          total: 30,
+          distributedTo: INSTITUTION.id,
+          reference: 'demostracion',
+          expiresAt: null,
+        }),
+      ],
+    );
+
     codes[kit.id] = [];
     for (let i = 0; i < 30; i += 1) {
       const seed = createHash('sha256').update(`glexco-demo:code:${kit.code}:${i}`).digest();
@@ -778,11 +910,27 @@ async function seedAssessments(people) {
   const glexco = token(people.staff.glexco.id, ['platform_owner'], null);
 
   for (const kit of KITS) {
+    const title = `Evaluacion de ${kit.course.title}`;
+
+    // Igual que con los salones: la API no impide dos evaluaciones del mismo
+    // titulo -y hace bien, un docente puede querer dos versiones-, asi que sin
+    // esta comprobacion cada siembra anadia una copia y el alumno veia cuatro
+    // veces la misma evaluacion en "proximas actividades".
+    const already = await admin.query(
+      'SELECT id FROM assessment.assessments WHERE kit_id = $1 AND title = $2 LIMIT 1',
+      [kit.id, title],
+    );
+    if (already.rows[0]) {
+      created.push({ id: already.rows[0].id, kitId: kit.id });
+      console.log(`  evaluacion       ${kit.code} (ya existia)`);
+      continue;
+    }
+
     const assessment = await api('/assessments', {
       method: 'POST',
       body: {
         kitId: kit.id,
-        title: `Evaluacion de ${kit.course.title}`,
+        title,
         description: 'Evaluacion del banco de GLEXCO. Igual para todos los colegios.',
         kind: 'quiz',
         passingScore: 60,
@@ -1006,6 +1154,15 @@ async function seedAnnouncements(people) {
     const as = token(teacher.id, ['teacher'], INSTITUTION.id);
 
     for (const mensaje of mensajes) {
+      // Sin esto, cada siembra anadia dos anuncios mas por salon: la portada del
+      // alumno acabo con veinte copias del mismo aviso, que es justo lo que hace
+      // que una demo parezca rota.
+      const repeated = await admin.query(
+        'SELECT id FROM engagement.announcements WHERE classroom_id = $1 AND title = $2 LIMIT 1',
+        [classroom.id, mensaje.title],
+      );
+      if (repeated.rows[0]) continue;
+
       const result = await api('/announcements', {
         method: 'POST',
         body: { classroomId: classroom.id, ...mensaje },

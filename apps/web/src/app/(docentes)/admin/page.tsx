@@ -100,10 +100,19 @@ async function Plataforma() {
         <StatTile label="Instituciones con actividad" value={String(items.length)} />
         <StatTile label="Alumnos medidos" value={String(totals.students)} />
         <StatTile label="Salones" value={String(totals.classrooms)} />
+        {/* Con cero emitidos NO se dice "10 de 0": es una proporcion imposible y
+            quien la lee concluye que la cifra esta mal, no que falte el dato.
+            Pasa cuando hay canjes de lotes que nunca se marcaron como
+            distribuidos a un colegio, y entonces lo cierto es que no sabemos
+            cuantos se emitieron. */}
         <StatTile
           label="Códigos activados"
           value={activacion === null ? '—' : `${activacion}%`}
-          hint={`${totals.redeemed} de ${totals.issued} emitidos`}
+          hint={
+            totals.issued > 0
+              ? `${totals.redeemed} de ${totals.issued} emitidos`
+              : `${totals.redeemed} activados · sin lotes asignados a un colegio`
+          }
         />
       </div>
 
