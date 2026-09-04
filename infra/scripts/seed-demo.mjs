@@ -1001,16 +1001,25 @@ async function seedCodes() {
     // aquellos se crean por la API. Aqui no se puede, asi que se encola el
     // evento en la outbox del catalogo y el relay lo publica como cualquier
     // otro. Escribir en la outbox es exactamente lo que hace un caso de uso.
+    // El identificador incluye la INSTITUCION: si el lote pasa a otra, hay que
+    // emitir un evento nuevo o el recuento se queda acreditado a la anterior.
+    const eventId = idFor('batch-event', `${kit.code}:${INSTITUTION.id}`);
+    const eventName = 'catalog.activation_code.batch_generated.v1';
+
+    // `metadata` NO puede ir vacio: el consumidor enruta por `metadata.eventName`
+    // y deduplica por `metadata.eventId`. Con un objeto vacio el mensaje se
+    // publica, llega al bus, y se descarta sin manejador y SIN ERROR: el
+    // recuento de codigos emitidos se quedaba en cero para siempre sin que nada
+    // lo delatara. La columna `event_name` de la tabla sirve para el relay; la
+    // que el consumidor mira es la de dentro del JSON.
     await admin.query(
       `INSERT INTO catalog.outbox
          (event_id, event_name, aggregate_type, aggregate_id, aggregate_version, payload, metadata)
-       VALUES ($1,'catalog.activation_code.batch_generated.v1','CodeBatch',$2,1,$3,'{}'::jsonb)
+       VALUES ($1,$2,'CodeBatch',$3,1,$4,$5)
        ON CONFLICT (event_id) DO NOTHING`,
       [
-        // El identificador incluye la INSTITUCION: si el lote pasa a otra, hay
-        // que emitir un evento nuevo o el recuento se queda acreditado a la
-        // anterior, que es justo lo que dejo "0 emitidos" tras el reinicio.
-        idFor('batch-event', `${kit.code}:${INSTITUTION.id}`),
+        eventId,
+        eventName,
         batchId,
         JSON.stringify({
           batchId,
@@ -1020,6 +1029,14 @@ async function seedCodes() {
           distributedTo: INSTITUTION.id,
           reference: 'demostracion',
           expiresAt: null,
+        }),
+        JSON.stringify({
+          eventId,
+          eventName,
+          occurredAt: new Date().toISOString(),
+          aggregateId: batchId,
+          aggregateType: 'CodeBatch',
+          aggregateVersion: 1,
         }),
       ],
     );

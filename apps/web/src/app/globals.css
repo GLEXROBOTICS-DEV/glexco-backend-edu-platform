@@ -83,7 +83,8 @@
   --portal-gap: 1.25rem;
   --portal-card-padding: 1.375rem;
   --portal-title-size: 1.5rem;
-  --portal-max-width: 78rem;
+  /* En `rem`, asi que crece con la raiz en pantallas grandes. */
+  --portal-max-width: 82rem;
 
   /* Barra lateral */
   --sidebar-width: 14rem; /* 224px */
@@ -106,7 +107,9 @@
   --portal-gap: 1.375rem;
   --portal-card-padding: 1.5rem;
   --portal-title-size: 1.875rem;
-  --portal-max-width: 72rem;
+  /* Discover se queda mas estrecho a proposito: objetivos grandes y menos
+     cosas por fila es justo lo que necesita un nino de seis anos. */
+  --portal-max-width: 74rem;
 
   --sidebar-width: 14.75rem; /* 236px */
   --sidebar-label: var(--color-achievement);
@@ -151,6 +154,30 @@
 html {
   /* Nada de scroll horizontal en un portatil escolar de 1366px. */
   overflow-x: hidden;
+}
+
+/**
+ * La interfaz crece con la pantalla.
+ *
+ * El canvas se dibujo a 1440 px de ancho, y todo el sistema esta en `rem`. Con
+ * la raiz clavada en 16 px, un monitor de 27 pulgadas no ensena MAS cosas: ensena
+ * las mismas en el mismo tamano en pixeles, que a esa distancia se ven pequenas,
+ * flotando en una columna estrecha en mitad de la pantalla.
+ *
+ * Se escala la RAIZ y no cada medida: como todo esta en `rem`, suben a la vez la
+ * tipografia, los espaciados, los radios, la barra lateral y el ancho maximo,
+ * y las proporciones del canvas se conservan exactas. Ajustar solo el ancho
+ * dejaria las tarjetas mas anchas con la letra igual de pequena, que es
+ * justamente el efecto de "todo muy separado".
+ *
+ * Empieza en 1600 px y no antes: por debajo de eso el diseno esta a su tamano
+ * nativo y tocarlo solo lo alejaria del canvas. El techo de 20 px existe porque
+ * sin el, en un monitor de 4K la interfaz acaba pareciendo una maqueta ampliada.
+ */
+@media (min-width: 1600px) {
+  html {
+    font-size: clamp(16px, 0.95vw, 20px);
+  }
 }
 
 body {

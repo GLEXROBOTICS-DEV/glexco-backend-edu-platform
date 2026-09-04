@@ -584,8 +584,22 @@ export class User extends AggregateRoot<UserId> {
     return resolvePermissions(this.state.roles);
   }
 
-  /** Una sesion es critica si el usuario puede causar dano amplio. Estas si
-   *  consultan la lista de revocacion en Redis en cada peticion. */
+  /**
+   * Una sesion es critica si el usuario puede causar dano amplio.
+   *
+   * Solo estas consultan la lista de revocacion de Redis en cada peticion; las
+   * demas viven hasta que su token caduca, quince minutos como mucho. La
+   * asimetria es deliberada: los alumnos son la practica totalidad del trafico y
+   * una llamada de red por peticion multiplicada por millones no se sostiene.
+   *
+   * **El DOCENTE entra en la lista aunque solo opere sobre sus salones.** Ve
+   * nombres, notas y progreso de menores de edad, y es el perfil que mas rota:
+   * cambia de colegio, termina un contrato, se le pierde el portatil. Sin esto,
+   * "cerrar sesion en todos los dispositivos" tardaba hasta quince minutos en
+   * surtir efecto justo en el caso en que se pulsa por algo. Son unos miles de
+   * docentes frente a millones de alumnos, asi que el coste en llamadas a Redis
+   * es despreciable y el riesgo que cubre no lo es.
+   */
   get hasCriticalSession(): boolean {
     return this.state.roles.some(
       (role) =>
@@ -594,7 +608,8 @@ export class User extends AggregateRoot<UserId> {
         role === ROLES.CONTENT_MANAGER ||
         role === ROLES.SUPPORT_AGENT ||
         role === ROLES.COMMERCIAL_AGENT ||
-        role === ROLES.INSTITUTION_ADMIN,
+        role === ROLES.INSTITUTION_ADMIN ||
+        role === ROLES.TEACHER,
     );
   }
 
