@@ -494,3 +494,48 @@ export class ListMyClassroomsUseCase implements UseCase<void, { items: MyClassro
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Docentes de mi institucion
+// ---------------------------------------------------------------------------
+
+/**
+ * Los docentes del colegio, para elegir uno al crear un salon.
+ *
+ * El directorio ya existia y `listByInstitution` llevaba implementado desde el
+ * principio sin que lo llamara nadie: la direccion no podia crear un salon
+ * porque no habia forma de elegir a quien asignarselo, y escribir a mano el
+ * identificador de un docente no es una interfaz.
+ *
+ * **La institucion sale del TOKEN y no de un parametro.** Aceptarla convertiria
+ * esto en un directorio de docentes de cualquier colegio, que es exactamente el
+ * aislamiento entre instituciones que sostiene la plataforma.
+ */
+export class ListInstitutionTeachersUseCase
+  implements UseCase<void, { items: Array<{ userId: string; fullName: string }> }>
+{
+  constructor(private readonly teachers: TeacherDirectory) {}
+
+  async execute(
+    _input: void,
+    context: ExecutionContext,
+  ): Promise<{ items: Array<{ userId: string; fullName: string }> }> {
+    const actor = actorProfile(context);
+
+    if (!actor.permissions.includes(PERMISSIONS.TEACHER_CREATE)) {
+      throw new ForbiddenError(
+        'TEACHER_LIST_NOT_ALLOWED',
+        'Solo la direccion del colegio puede ver el listado de docentes.',
+      );
+    }
+
+    // Sin institucion no hay a quien listar. Le pasa al personal de GLEXCO, que
+    // no pertenece a ninguna: devolver el listado de "su" colegio seria devolver
+    // el de ninguno o el de todos, y las dos cosas estan mal.
+    if (!actor.institutionId) {
+      return { items: [] };
+    }
+
+    return { items: await this.teachers.listByInstitution(actor.institutionId) };
+  }
+}

@@ -49,6 +49,7 @@ import {
   CreateClassroomUseCase,
   ListClassroomRosterUseCase,
   ListClassroomsUseCase,
+  ListInstitutionTeachersUseCase,
   ListMyClassroomsUseCase,
   ListSelectableClassroomsUseCase,
   UpdateClassroomUseCase,
@@ -275,6 +276,12 @@ export {
       inject: [CLASSROOM_REPOSITORY, STUDENT_DIRECTORY],
     },
     {
+      provide: ListInstitutionTeachersUseCase,
+      useFactory: (...args: ConstructorParameters<typeof ListInstitutionTeachersUseCase>) =>
+        new ListInstitutionTeachersUseCase(...args),
+      inject: [TEACHER_DIRECTORY],
+    },
+    {
       provide: ListMyClassroomsUseCase,
       useFactory: (...args: ConstructorParameters<typeof ListMyClassroomsUseCase>) =>
         new ListMyClassroomsUseCase(...args),
@@ -308,6 +315,7 @@ export {
         EnrollStudentUseCase,
         ListClassroomRosterUseCase,
         ListMyClassroomsUseCase,
+        ListInstitutionTeachersUseCase,
       ],
     },
     {

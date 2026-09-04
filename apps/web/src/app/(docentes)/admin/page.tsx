@@ -217,11 +217,18 @@ async function KitsDebiles() {
   if (failed || items.length === 0) {
     return (
       <EmptyState
-        title="Todavía no hay suficientes datos por kit"
-        description="Los kits aparecen aquí cuando sus evaluaciones de GLEXCO acumulan entregas en varios colegios."
+        title="Todavía no hay entregas de evaluaciones GLEXCO"
+        description="Los kits aparecen aquí en cuanto un alumno entrega la primera evaluación del banco común."
       />
     );
   }
+
+  // Los que ya tienen muestra suficiente van arriba y son los unicos sobre los
+  // que se decide; los demas se listan aparte diciendo cuanto les falta. Antes
+  // se ocultaban, y con pocos colegios la pantalla salia vacia con un mensaje
+  // que no decia cuanto quedaba: un panel vacio se lee como roto.
+  const solidos = items.filter((kit) => kit.meaningful !== false);
+  const pocos = items.filter((kit) => kit.meaningful === false);
 
   return (
     <section aria-labelledby="kits-debiles" data-weak-kits={items.length}>
@@ -231,9 +238,17 @@ async function KitsDebiles() {
         únicas comparables. Un kit que va mal en todas partes es un problema de contenido.
       </p>
 
+      {solidos.length === 0 ? (
+        <p className="mb-4 rounded-[var(--portal-radius)] border border-line-200 bg-white px-4 py-3 text-sm text-ink-700">
+          Ningún kit tiene todavía muestra suficiente para comparar. Abajo está lo que hay
+          acumulado hasta ahora.
+        </p>
+      ) : null}
+
+      {solidos.length > 0 ? (
       <BarList
         title="Media por kit"
-        data={items.map((kit) => {
+        data={solidos.map((kit) => {
           const { tone, label } = scoreTone(kit.averagePercentage);
           return {
             label: `${kit.kitId.slice(0, 8)}… · ${kit.studentsMeasured} alumnos`,
@@ -246,6 +261,34 @@ async function KitsDebiles() {
         })}
         emptyMessage="Todavía no hay kits con datos suficientes."
       />
+      ) : null}
+
+      {pocos.length > 0 ? (
+        <div className="mt-4 rounded-[var(--portal-radius)] border border-line-200 bg-white p-[var(--portal-card-padding)]">
+          <p className="eyebrow mb-3">Todavía sin muestra suficiente</p>
+          <ul className="grid gap-2">
+            {pocos.map((kit) => (
+              <li
+                key={kit.kitId}
+                className="flex flex-wrap items-center justify-between gap-3 text-sm"
+              >
+                <span className="text-ink-700">{kit.kitId.slice(0, 8)}…</span>
+                <span className="tabular-nums text-ink-500">
+                  {kit.studentsMeasured} {kit.studentsMeasured === 1 ? 'alumno' : 'alumnos'} · faltan{' '}
+                  {Math.max(15 - kit.studentsMeasured, 0)} para poder compararlo
+                </span>
+              </li>
+            ))}
+          </ul>
+          {/* Se dice POR QUE no se usan, no solo que no se usan. Sin esto, quien
+              lo mire concluye que el panel esta a medias en vez de que la
+              muestra es corta. */}
+          <p className="mt-3 text-xs text-ink-500">
+            Con menos de 15 alumnos la media de un kit dice más del salón que le tocó que del
+            contenido, así que no se usa para decidir nada.
+          </p>
+        </div>
+      ) : null}
     </section>
   );
 }

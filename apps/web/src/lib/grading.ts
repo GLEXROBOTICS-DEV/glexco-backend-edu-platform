@@ -143,3 +143,28 @@ export async function fetchRoster(
 export function studentLabel(studentId: string, names: Map<string, string>): string {
   return names.get(studentId) ?? `Alumno ${studentId.slice(0, 8)}`;
 }
+
+/**
+ * La clase entera, con nombres.
+ *
+ * `fetchRoster` devuelve un mapa porque la bandeja de correccion solo necesita
+ * traducir identificador a nombre. La lista de alumnos necesita las filas: quien
+ * esta, desde cuando y si activo su kit.
+ */
+export async function fetchClassroomRoster(
+  classroomId: string,
+): Promise<{ items: RosterEntry[]; failed: boolean }> {
+  const result = await api<{ items: RosterEntry[] }>(`/classrooms/${classroomId}/roster`);
+
+  if (!result.ok) {
+    console.error('No se pudo leer la lista del salon', {
+      classroomId,
+      status: result.status,
+      code: result.error.code,
+      correlationId: result.error.correlationId,
+    });
+    return { items: [], failed: true };
+  }
+
+  return { items: result.data.items ?? [], failed: false };
+}

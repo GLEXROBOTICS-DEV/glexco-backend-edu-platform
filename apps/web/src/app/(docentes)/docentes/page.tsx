@@ -6,22 +6,33 @@ import { fetchMyClassrooms } from '../../../lib/classrooms';
 import { fetchPendingSubmissions } from '../../../lib/grading';
 import { gradeLabel } from '../../../lib/catalog';
 import { Card, CardSkeleton, EmptyState, SectionTitle, Stat } from '../../../components/ui';
+import { PageHeader } from '../../../components/page-header';
 
 export const metadata: Metadata = { title: 'Mis salones' };
 
 export default async function DocentesHome() {
   const session = await requireSession();
 
+  // Un director NO tiene salones: tiene los del colegio, y los ve todos. Decirle
+  // "mis salones" sobre una lista que incluye los de otros tres docentes es
+  // decirle algo falso, y ademas le hace dudar de si esta viendo lo que debe.
+  const manages = session.portal === 'institution' || session.portal === 'admin';
+
   return (
     <>
-      <section>
-        <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="font-display font-semibold">
-          Panel principal
-        </h1>
-        <p className="mt-1 text-sm text-ink-500">
-          {session.firstName} {session.lastName} · año académico {new Date().getFullYear()}
-        </p>
-      </section>
+      {/* El boton va en la cabecera y no solo en el estado vacio: quien ya
+          tiene salones tambien crea el del curso siguiente, y ahi el estado
+          vacio no aparece nunca. Antes solo se llegaba a crear un salon si no
+          tenias ninguno... y el enlace daba 404. */}
+      <PageHeader
+        title={manages ? 'Dirección' : 'Panel principal'}
+        subtitle={`${session.firstName} ${session.lastName} · año académico ${new Date().getFullYear()}`}
+        actions={
+          <a href="/docentes/salones/nuevo" className="btn btn-sm btn-primary">
+            Crear salón
+          </a>
+        }
+      />
 
       {/* La fila de cifras es lo que el canvas pone arriba del todo, y responde
           a las preguntas con las que el docente entra: cuantos alumnos tengo,
@@ -32,7 +43,7 @@ export default async function DocentesHome() {
       </Suspense>
 
       <Suspense fallback={<CardSkeleton />}>
-        <Classrooms />
+        <Classrooms manages={manages} />
       </Suspense>
     </>
   );
@@ -101,7 +112,7 @@ function CifrasSkeleton() {
   );
 }
 
-async function Classrooms() {
+async function Classrooms({ manages }: { manages: boolean }) {
   const { items, failed } = await fetchMyClassrooms();
 
   if (failed) {
@@ -117,8 +128,8 @@ async function Classrooms() {
     return (
       <EmptyState
         icon={<ClassroomIcon size={32} />}
-        title="Todavía no tienes salones"
-        description="Crea tu primer salón para que tus alumnos puedan registrarse en él."
+        title={manages ? 'El colegio aún no tiene salones' : 'Todavía no tienes salones'}
+        description="Crea el primer salón para que los alumnos puedan registrarse en él."
         action={{ href: '/docentes/salones/nuevo', label: 'Crear un salón' }}
       />
     );
@@ -126,7 +137,7 @@ async function Classrooms() {
 
   return (
     <section aria-labelledby="salones">
-      <SectionTitle id="salones">Mis salones</SectionTitle>
+      <SectionTitle id="salones">{manages ? 'Salones del colegio' : 'Mis salones'}</SectionTitle>
 
       <div className="grid gap-[var(--portal-gap)] sm:grid-cols-2">
         {items.map((classroom) => (
@@ -134,7 +145,10 @@ async function Classrooms() {
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <h3 className="truncate font-display text-lg font-semibold">{classroom.name}</h3>
-                <p className="mt-0.5 text-sm text-ink-500">{gradeLabel(classroom.grade)}</p>
+                <p className="mt-0.5 text-sm text-ink-500">
+                  {gradeLabel(classroom.grade)}
+                  {manages && classroom.teacherName ? ` · ${classroom.teacherName}` : ''}
+                </p>
               </div>
 
               {/*

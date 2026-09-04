@@ -70,3 +70,32 @@ export async function fetchMyClassroom(): Promise<string | null> {
 
   return result.data.items?.[0]?.classroomId ?? null;
 }
+
+/**
+ * Docentes del colegio, para asignarles un salon.
+ *
+ * Solo lo puede pedir la direccion; un docente recibe 403 y la pantalla se
+ * limita a crear el salon a su propio nombre, que es lo unico que puede hacer.
+ */
+export async function fetchInstitutionTeachers(): Promise<
+  Array<{ userId: string; fullName: string }>
+> {
+  const result = await api<{ items: Array<{ userId: string; fullName: string }> }>(
+    '/classrooms/teachers',
+  );
+
+  if (!result.ok) {
+    // Un 403 aqui es lo normal para un docente y no se registra como error: se
+    // devuelve la lista vacia y la pantalla se adapta.
+    if (result.status !== 403) {
+      console.error('No se pudo leer el listado de docentes', {
+        status: result.status,
+        code: result.error.code,
+        correlationId: result.error.correlationId,
+      });
+    }
+    return [];
+  }
+
+  return result.data.items ?? [];
+}

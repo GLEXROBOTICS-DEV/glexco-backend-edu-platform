@@ -165,6 +165,8 @@ export async function fetchTeachingReport(
 /** Un kit con mal resultado en TODAS partes: si falla en todos los colegios, el
  *  problema es del contenido y no de los alumnos. */
 export interface WeakKit {
+  /** `false` mientras la muestra sea demasiado pequena para concluir nada. */
+  meaningful?: boolean;
   kitId: string;
   studentsMeasured: number;
   averagePercentage: number | null;
@@ -231,4 +233,34 @@ export function scoreTone(
 /** Fecha corta y legible. El ISO completo en una tarjeta no lo lee nadie. */
 export function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
+}
+
+/**
+ * El dashboard de UN alumno, visto por su docente o por direccion.
+ *
+ * El backend comprueba dos cosas antes de responder: que el salon sea del actor
+ * -o de su institucion, si es direccion- y que el alumno este en ESE salon. Por
+ * eso hace falta el salon en la ruta y no basta con el alumno: sin el, el
+ * permiso de salon se comportaria como si fuera de institucion.
+ */
+export async function fetchStudentInClassroom(
+  classroomId: string,
+  studentId: string,
+): Promise<{ data: StudentDashboard | null; failed: boolean }> {
+  const result = await api<StudentDashboard>(
+    `/analytics/classrooms/${encodeURIComponent(classroomId)}/students/${encodeURIComponent(studentId)}`,
+  );
+
+  if (!result.ok) {
+    console.error('No se pudo leer el progreso del alumno', {
+      classroomId,
+      studentId,
+      status: result.status,
+      code: result.error.code,
+      correlationId: result.error.correlationId,
+    });
+    return { data: null, failed: true };
+  }
+
+  return { data: result.data, failed: false };
 }

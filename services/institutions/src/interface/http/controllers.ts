@@ -47,6 +47,7 @@ import {
 import {
   CreateClassroomUseCase,
   ListClassroomRosterUseCase,
+  ListInstitutionTeachersUseCase,
   ListMyClassroomsUseCase,
   ListClassroomsUseCase,
   ListSelectableClassroomsUseCase,
@@ -150,7 +151,21 @@ export class ClassroomsController {
     private readonly enrollStudent: EnrollStudentUseCase,
     private readonly listRoster: ListClassroomRosterUseCase,
     private readonly listMine: ListMyClassroomsUseCase,
+    private readonly listTeachers: ListInstitutionTeachersUseCase,
   ) {}
+
+  /**
+   * Docentes del colegio, para asignarles un salon.
+   *
+   * Va ANTES de `:classroomId` en el archivo, y no es cosmetico: Nest resuelve
+   * las rutas en orden, asi que declarada despues, "teachers" entraria como
+   * identificador de salon y esta ruta no existiria.
+   */
+  @Get('teachers')
+  @RequirePermissions(PERMISSIONS.TEACHER_CREATE)
+  async teachers(@Req() request: Request) {
+    return this.listTeachers.execute(undefined, contextFrom(request));
+  }
 
   /** Crear salon. Lo pueden hacer el docente y el administrador de institucion. */
   @Post()

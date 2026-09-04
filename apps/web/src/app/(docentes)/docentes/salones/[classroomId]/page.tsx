@@ -4,6 +4,7 @@ import { requireSession } from '../../../../../lib/session';
 import { fetchClassroomDashboard, scoreTone, shortDate } from '../../../../../lib/analytics';
 import { BarList, StatTile } from '../../../../../components/charts';
 import { CardSkeleton, EmptyState, SectionTitle } from '../../../../../components/ui';
+import { ClassroomRoster } from '../../../../../components/classroom-roster';
 
 export const metadata: Metadata = { title: 'Salón' };
 
@@ -39,6 +40,17 @@ export default async function ClassroomDashboardPage({
         </div>
       </section>
 
+      {/* La lista va ANTES de las cifras. La pregunta con la que un docente
+          entra es "quien necesita ayuda", y la media del grupo no la responde:
+          la responde una fila con un nombre. Las cifras explican al grupo, y eso
+          se mira despues. */}
+      <section aria-labelledby="clase">
+        <SectionTitle id="clase">Tu clase</SectionTitle>
+        <Suspense fallback={<CardSkeleton />}>
+          <ClassroomRoster classroomId={classroomId} />
+        </Suspense>
+      </section>
+
       <Suspense fallback={<CardSkeleton />}>
         <Dashboard classroomId={classroomId} />
       </Suspense>
@@ -66,9 +78,15 @@ async function Dashboard({ classroomId }: { classroomId: string }) {
 
   if (failed || !data) {
     return (
+      // Antes este mensaje decia "puede que no sea uno de tus salones", y
+      // mezclaba tres cosas distintas: que el salon no sea tuyo, que aun no haya
+      // datos, y que la llamada fallara. Al docente le decia que quiza estaba
+      // donde no debia cuando lo unico que pasaba era que la analitica no habia
+      // respondido. Ahora habla solo de lo que si sabemos, y la lista de arriba
+      // -que se pinta igual- ya le deja trabajar.
       <EmptyState
-        title="No pudimos cargar este salón"
-        description="Puede que no sea uno de tus salones, o que la analítica esté al día en unos segundos. Vuelve a intentarlo."
+        title="Las cifras del salón no están disponibles ahora mismo"
+        description="Vuelve a intentarlo en un momento. La lista de tu clase sí es correcta y puedes seguir trabajando con ella."
       />
     );
   }

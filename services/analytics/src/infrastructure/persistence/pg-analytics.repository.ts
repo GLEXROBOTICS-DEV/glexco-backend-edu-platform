@@ -423,22 +423,35 @@ export class PgAnalyticsQueryRepository implements AnalyticsQueryRepository {
     }));
   }
 
-  async weakestKits(
-    limit: number,
-  ): Promise<{ kitId: string; studentsMeasured: number; averagePercentage: number | null }[]> {
+  async weakestKits(limit: number): Promise<
+    {
+      kitId: string;
+      studentsMeasured: number;
+      averagePercentage: number | null;
+      /** `false` mientras la muestra sea demasiado pequena para concluir nada. */
+      meaningful: boolean;
+    }[]
+  > {
     const { rows } = await this.readPool.query<{
       kit_id: string;
       students: string;
       avg_percentage: string | null;
     }>(
+      // SIN `HAVING`: antes solo salian los kits que ya pasaban el umbral de
+      // muestra, asi que con pocos colegios la pantalla quedaba vacia con un
+      // "todavia no hay suficientes datos" que no decia cuanto faltaba. Un panel
+      // vacio se lee como roto. Ahora salen todos y cada fila dice si su muestra
+      // es suficiente; la que no lo es se pinta aparte y NO se usa para decidir.
+      //
+      // El umbral no se baja: bajarlo haria que el numero mintiera, que es peor
+      // que no tenerlo.
       `SELECT kit_id,
               count(DISTINCT student_id) AS students,
               round(avg(best_percentage), 2) AS avg_percentage
        FROM analytics.student_assessment_facts
        WHERE origin = 'glexco'
        GROUP BY kit_id
-       HAVING count(DISTINCT student_id) >= $2
-       ORDER BY avg_percentage ASC NULLS LAST
+       ORDER BY (count(DISTINCT student_id) >= $2) DESC, avg_percentage ASC NULLS LAST
        LIMIT $1`,
       [limit, MEANINGFUL_SAMPLE_SIZE],
     );
@@ -447,6 +460,7 @@ export class PgAnalyticsQueryRepository implements AnalyticsQueryRepository {
       kitId: row.kit_id,
       studentsMeasured: Number(row.students),
       averagePercentage: numberOrNull(row.avg_percentage),
+      meaningful: Number(row.students) >= MEANINGFUL_SAMPLE_SIZE,
     }));
   }
 

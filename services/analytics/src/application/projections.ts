@@ -174,7 +174,15 @@ export interface AnalyticsQueryRepository {
   /** Kits con peor resultado en TODOS los colegios: si un kit va mal en todas
    *  partes, el problema es del contenido y no de los alumnos. */
   weakestKits(limit: number): Promise<
-    { kitId: string; studentsMeasured: number; averagePercentage: number | null }[]
+    {
+      kitId: string;
+      studentsMeasured: number;
+      averagePercentage: number | null;
+      /** `false` mientras la muestra sea demasiado pequena para concluir nada.
+       *  Viaja CON el dato: si la pantalla tuviera que deducirlo del umbral,
+       *  cambiar el umbral obligaria a dos despliegues coordinados. */
+      meaningful: boolean;
+    }[]
   >;
   /** Todas las instituciones, para el panel de GLEXCO. */
   institutionsOverview(): Promise<InstitutionDashboard[]>;
