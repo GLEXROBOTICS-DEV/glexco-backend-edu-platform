@@ -7,6 +7,93 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 13 — 2026-09-03 — El portal adopta el canvas
+
+El cliente abrió la plataforma desplegada y dijo, con razón, que **no seguía el
+diseño**. Tenía razón: del canvas aprobado se había adoptado la paleta y las
+fuentes, y nada más.
+
+### Qué había pasado
+
+El canvas (`design/canvas/`, diez artboards) se aprobó en la sesión 3. Sus
+colores y tipografías entraron en `globals.css` esa misma sesión. **La
+estructura no entró nunca.** Cada sesión posterior perseguía una capacidad
+—registro, biblioteca, dashboards, despliegue— y ninguna tenía como objetivo
+«que el marco sea el del canvas», así que las pantallas se montaron desde las
+rutas hacia fuera con lo primero que funcionaba: barra superior blanca y una
+columna centrada. El diseño quedó reducido a una lista de colores.
+
+Nada avisaba de la deriva. Los artboards no se volvieron a abrir después de la
+sesión que los creó; `design/` está además en `.dockerignore`, así que ni
+siquiera viaja con la imagen.
+
+**La señal más clara: el SVG del logotipo no estaba en `apps/web`.** La
+plataforma escribía «GLEXCO» con la fuente de titulares porque la marca no
+existía dentro del proyecto web —vivía solo en `design/`—. Un producto de marca
+que no tiene su marca dentro es la prueba de que el diseño se trató como un
+documento y no como la fuente que es.
+
+### Qué se construyó
+
+- **`app-shell.tsx`** — el marco de los cuatro portales: barra lateral de marca
+  a la izquierda, contenido a la derecha. No es preferencia estética: con la
+  navegación arriba, los destinos compiten por el ancho y hay que esconderlos en
+  un menú en cuanto pasan de cinco; en vertical caben los ocho del panel de
+  administración sin abreviar ninguno. El azul ocupando una columna hace además
+  un trabajo que el texto no puede: quien tiene varios accesos sabe por el color
+  del lateral si mira su colegio o toda la plataforma.
+- **`sidebar-nav.tsx`** — único componente de cliente del marco, y solo porque
+  marcar la sección activa necesita la ruta. Se renderiza en el servidor: sin
+  JavaScript se pierde el resaltado, no la navegación.
+- **`brand-panel.tsx`** — la mitad izquierda de las pantallas de acceso, con la
+  retícula de circuito. Sustituye a un degradado de tres paradas que no salía
+  del logo —el logo tiene dos— y competía con la marca en vez de sostenerla.
+- **`portal-hero.tsx`** y **`continue-learning.tsx`** — la banda de bienvenida
+  de Discover y la tarjeta de «continuar», que ocupa dos tercios porque es lo
+  que el alumno viene a hacer nueve de cada diez veces.
+- **Tokens completos** en `globals.css`: acento por portal, radios del canvas
+  (6 px; 16 px en Discover), anchos y colores de la barra, y los cinco pares
+  fondo/texto de estado.
+- **`.btn` y `.field`** — había **doce** variantes del mismo botón primario, dos
+  de ellas en la misma pantalla. Ahora hay un control: 46 px en formularios,
+  36 px en barras de herramientas. 56 sustituciones sin tocar un solo elemento.
+
+**Academy no lleva banda de bienvenida a propósito**, y esto viene del canvas: a
+un estudiante de diecisiete años, una cabecera que le saluda por su nombre de
+pila le habla como a un niño. Sus tres cifras eran tres guiones fijos —que se
+leen como «no tienes ninguno», no como «esto no está hecho»— y ahora salen del
+progreso real. Lo mismo en el panel del docente, que abría con la lista de
+salones y ahora abre con las tres cifras con las que entra a trabajar.
+
+### Errores encontrados
+
+1. **Pasar los iconos como FUNCIÓN a un componente de cliente compila, pasa el
+   typecheck y revienta en ejecución**, dejando la pantalla entera en blanco
+   («Functions cannot be passed directly to Client Components»). Por esa
+   frontera pasan datos y elementos, no funciones. Lo detectó renderizar la
+   página de verdad, no compilarla: `pnpm build` daba éxito.
+2. **`.field` con `height` fija aplastaba los `textarea`** a una línea. Es el
+   riesgo de una clase de control compartida, y se resuelve con `min-height`.
+3. **Cuatro destinos de la barra llevan a un 404** desde que existe la
+   navegación: `/discover/kits`, `/discover/logros`, `/academy/cursos` y
+   `/academy/certificaciones`. Se dejan porque quitarlos sería quitar
+   funcionalidad prometida; hay que construir las pantallas.
+4. Dos hallazgos de datos, no de diseño: el panel de plataforma muestra
+   **«10 de 0 emitidos»** en códigos activados —la proyección cuenta canjes pero
+   no emisiones—, y el sembrador dejó **salones y anuncios duplicados**.
+
+### Qué falta del canvas
+
+- **Modo oscuro.** Hay un artboard entero (`ModoOscuro.dc.html`) y no está
+  implementado. Sus tres reglas no son «invertir los colores»: nunca negro puro
+  (#12181F), la jerarquía por elevación en vez de por borde, y los colores de
+  marca aclarados (#2C53A0 sobre el fondo oscuro da 1,8:1).
+- Las composiciones de detalle: el escalonado de la ruta tecnológica en Academy,
+  «Próximos retos» y «Logros recientes» en Discover —que dependen de pantallas
+  que aún no existen— y el selector de idioma, que espera a la i18n.
+
+---
+
 ## Sesión 12 — 2026-09-04 — Desplegado en Railway, con un colegio dentro
 
 La plataforma dejó de ser algo que corre en una máquina. **Los quince servicios

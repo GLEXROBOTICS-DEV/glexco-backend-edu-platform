@@ -185,6 +185,22 @@ pnpm smoke:web                             # 177 comprobaciones del portal
 
 ### En el frontend (`apps/web`)
 
+- **Antes de construir o tocar una pantalla, abre su artboard en
+  `design/canvas/`.** No es una recomendación: durante nueve sesiones se adoptó
+  del canvas solo la paleta, y los cuatro portales acabaron con una barra
+  superior blanca donde el diseño tiene una barra lateral de marca — hasta el
+  punto de que el logotipo no estaba ni copiado dentro de `apps/web`. El canvas
+  es la fuente, no una referencia. Los artboards son `Main` (acceso),
+  `Discover`, `Academy`, `TeacherCenter`, `Admin`, `Fundamentos` (tokens,
+  controles, estados de carga y vacío), `Iconografia` y `ModoOscuro`.
+- **El sistema vive en `globals.css`, no en cada JSX.** Los radios, la densidad,
+  el acento de cada portal y las alturas de control son variables y clases
+  (`.btn`, `.field`, `.eyebrow`). Escribir las utilidades a mano en cada
+  pantalla es exactamente lo que produjo doce variantes del mismo botón.
+- **El marco lo pone `AppShell`**, no cada layout. Un portal nuevo pasa sus
+  destinos y su etiqueta; el color, la densidad y el plegado en móvil vienen
+  dados.
+
 - **Server Components por defecto.** `'use client'` solo donde hace falta estado
   o eventos. El contenido educativo es estático por usuario y los equipos
   escolares son modestos: cuanto menos JavaScript llegue, mejor.
