@@ -27,16 +27,23 @@ export function QuizForm({
   questions,
   timeLimitMinutes,
   attemptsLeft,
+  resultHref,
 }: {
   submissionId: string;
   questions: StudentQuestion[];
   timeLimitMinutes: number | null;
   attemptsLeft: number;
+  /**
+   * Adonde ir tras entregar. Se pasa entero y no se construye con una ruta
+   * relativa: `../progreso` se resolvia contra la URL de la evaluacion y
+   * apuntaba a una pagina que no existe, y eso solo se ve pulsandolo.
+   */
+  resultHref: string;
 }) {
   const [state, formAction] = useActionState<SubmitState, FormData>(submitAttempt, {});
 
   if (state.status) {
-    return <Result state={state} attemptsLeft={attemptsLeft} />;
+    return <Result state={state} attemptsLeft={attemptsLeft} resultHref={resultHref} />;
   }
 
   return (
@@ -161,7 +168,15 @@ function SubmitButton() {
  * Cuando queda parte por corregir a mano, **no se dice si aprobó**. Decirle que
  * suspendió con la mitad de los puntos sin puntuar sería mentirle.
  */
-function Result({ state, attemptsLeft }: { state: SubmitState; attemptsLeft: number }) {
+function Result({
+  state,
+  attemptsLeft,
+  resultHref,
+}: {
+  state: SubmitState;
+  attemptsLeft: number;
+  resultHref: string;
+}) {
   const percentage =
     state.score !== null && state.score !== undefined && state.maxScore
       ? Math.round((state.score / state.maxScore) * 100)
@@ -214,11 +229,10 @@ function Result({ state, attemptsLeft }: { state: SubmitState; attemptsLeft: num
         </>
       )}
 
-      <a
-        href="../progreso"
-        className="btn btn-primary mt-6"
-      >
-        Ver mi progreso
+      {/* Al resultado, que es una pagina de verdad: esta tarjeta vive en el
+          estado del formulario y desaparece al recargar. */}
+      <a href={resultHref} className="btn btn-primary mt-6">
+        Ver el detalle
       </a>
     </div>
   );

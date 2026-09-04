@@ -53,6 +53,7 @@ import {
 import {
   GradeSubmissionUseCase,
   SaveAnswerUseCase,
+  MyResultUseCase,
   StartAttemptUseCase,
   SubmitAttemptUseCase,
 } from './application/take-assessment.usecase';
@@ -238,6 +239,12 @@ export const loadAssessmentConfig = (): AssessmentConfig =>
       ],
     },
     {
+      provide: MyResultUseCase,
+      useFactory: (...args: ConstructorParameters<typeof MyResultUseCase>) =>
+        new MyResultUseCase(...args),
+      inject: [ASSESSMENT_REPOSITORY, SUBMISSION_REPOSITORY],
+    },
+    {
       provide: SaveAnswerUseCase,
       useFactory: (...args: ConstructorParameters<typeof SaveAnswerUseCase>) =>
         new SaveAnswerUseCase(...args),
@@ -291,7 +298,13 @@ export const loadAssessmentConfig = (): AssessmentConfig =>
       provide: AttemptsController,
       useFactory: (...args: ConstructorParameters<typeof AttemptsController>) =>
         new AttemptsController(...args),
-      inject: [StartAttemptUseCase, SaveAnswerUseCase, SubmitAttemptUseCase, GradeSubmissionUseCase],
+      inject: [
+        StartAttemptUseCase,
+        SaveAnswerUseCase,
+        SubmitAttemptUseCase,
+        GradeSubmissionUseCase,
+        MyResultUseCase,
+      ],
     },
 
     {

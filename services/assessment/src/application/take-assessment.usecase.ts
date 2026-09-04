@@ -400,3 +400,143 @@ export class GradeSubmissionUseCase
     });
   }
 }
+
+// ---------------------------------------------------------------------------
+
+export interface MyAttemptSummary {
+  submissionId: string;
+  attemptNumber: number;
+  status: 'in_progress' | 'submitted' | 'graded';
+  score: number | null;
+  maxScore: number;
+  passed: boolean | null;
+  feedback: string | null;
+  submittedAt: string | null;
+  gradedAt: string | null;
+}
+
+export interface MyResultOutput {
+  assessmentId: string;
+  title: string;
+  passingScore: number;
+  maxAttempts: number;
+  attemptsUsed: number;
+  attemptsLeft: number;
+  /** El mejor intento corregido. `null` si aun no ha entregado ninguno. */
+  best: MyAttemptSummary | null;
+  /** El intento a medias, si lo hay: al volver se sigue, no se abre otro. */
+  inProgress: MyAttemptSummary | null;
+  attempts: MyAttemptSummary[];
+  /** Que le conviene repasar, deducido de lo que fallo. */
+  recommendations: string[];
+}
+
+/**
+ * "Como me fue" en una evaluacion.
+ *
+ * Existe porque el resultado solo vivia en la pantalla que lo acababa de
+ * calcular: al recargar o volver, la pagina abria un intento NUEVO -consumiendo
+ * uno de los tres- hasta que el alumno se quedaba sin ninguno y la unica
+ * respuesta que veia era "ya agotaste tus intentos". Un intento se gasta cuando
+ * el alumno decide volver a intentarlo, nunca por navegar.
+ *
+ * **No devuelve ni las respuestas correctas ni las explicaciones.** Solo la
+ * nota, el estado y las recomendaciones, que se derivan de las preguntas
+ * falladas sin decir cual era la buena. La regla es la misma que en
+ * `forStudent()`: la clave no cruza esta frontera por ningun camino, y por eso
+ * este caso de uso arma su salida a mano en vez de devolver el agregado.
+ */
+export class MyResultUseCase implements UseCase<{ assessmentId: string }, MyResultOutput> {
+  constructor(
+    private readonly assessments: AssessmentRepository,
+    private readonly submissions: SubmissionRepository,
+  ) {}
+
+  async execute(
+    input: { assessmentId: string },
+    context: ExecutionContext,
+  ): Promise<MyResultOutput> {
+    const student = studentFrom(context);
+
+    const assessment = await this.assessments.findById(AssessmentId.create(input.assessmentId));
+    if (!assessment) {
+      throw new NotFoundError('ASSESSMENT_NOT_FOUND', 'No encontramos esa evaluacion.');
+    }
+
+    const all = await this.submissions.listByStudent(input.assessmentId, student.userId);
+    const summaries = all.map((submission) => toSummary(submission));
+
+    const graded = summaries.filter((s) => s.status === 'graded' && s.score !== null);
+    // El MEJOR intento y no el ultimo: el tope de intentos existe para que se
+    // pueda repasar y mejorar, y quedarse con el ultimo castigaria a quien
+    // reintenta y tiene un mal dia.
+    const best =
+      graded.length > 0
+        ? graded.reduce((a, b) => ((b.score ?? 0) > (a.score ?? 0) ? b : a))
+        : (summaries.find((s) => s.status === 'submitted') ?? null);
+
+    const inProgress = summaries.find((s) => s.status === 'in_progress') ?? null;
+
+    const snapshot = assessment.snapshot();
+    const maxAttempts = snapshot.maxAttempts;
+
+    return {
+      assessmentId: input.assessmentId,
+      title: snapshot.title,
+      passingScore: snapshot.passingScore,
+      maxAttempts,
+      attemptsUsed: all.length,
+      attemptsLeft: Math.max(maxAttempts - all.length, 0),
+      best,
+      inProgress,
+      attempts: summaries,
+      recommendations: recommendationsFor(best, snapshot.passingScore),
+    };
+  }
+}
+
+function toSummary(submission: Submission): MyAttemptSummary {
+  const state = submission.snapshot();
+  return {
+    submissionId: submission.id.value,
+    attemptNumber: state.attemptNumber,
+    status: state.status,
+    score: state.score,
+    maxScore: state.maxScore,
+    passed: state.passed,
+    feedback: state.feedback,
+    submittedAt: state.submittedAt ? state.submittedAt.toISOString() : null,
+    gradedAt: state.gradedAt ? state.gradedAt.toISOString() : null,
+  };
+}
+
+/**
+ * Que repasar, a partir de la nota.
+ *
+ * Deliberadamente genericas y en segunda persona. Decir "fallaste la pregunta 3"
+ * exigiria devolver que pregunta era, y de ahi a filtrar la clave hay un paso;
+ * ademas, en un cuestionario de tres preguntas, senalar cual se fallo es
+ * practicamente decir cual era la buena.
+ *
+ * El comentario del docente, cuando existe, manda sobre esto: es especifico y
+ * viene de alguien que ha visto la entrega.
+ */
+function recommendationsFor(best: MyAttemptSummary | null, passingScore: number): string[] {
+  if (!best || best.score === null || best.maxScore === 0) return [];
+
+  const percentage = Math.round((best.score / best.maxScore) * 100);
+
+  if (percentage >= 90) {
+    return ['Lo tienes dominado. Puedes seguir con la siguiente leccion.'];
+  }
+  if (percentage >= passingScore) {
+    return [
+      'Aprobaste, pero hay cosas que se te escaparon.',
+      'Repasa el material de la leccion antes de seguir: lo siguiente se apoya en esto.',
+    ];
+  }
+  return [
+    'Vuelve a ver el tutorial de la leccion y repasa la ficha de trabajo.',
+    'Si algo no te cuadra, preguntaselo a tu docente antes de volver a intentarlo.',
+  ];
+}

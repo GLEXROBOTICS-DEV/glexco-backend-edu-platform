@@ -38,6 +38,7 @@ import {
 import {
   GradeSubmissionUseCase,
   SaveAnswerUseCase,
+  MyResultUseCase,
   StartAttemptUseCase,
   SubmitAttemptUseCase,
 } from '../../application/take-assessment.usecase';
@@ -183,7 +184,22 @@ export class AttemptsController {
     private readonly saveAnswer: SaveAnswerUseCase,
     private readonly submit: SubmitAttemptUseCase,
     private readonly grade: GradeSubmissionUseCase,
+    private readonly myResult: MyResultUseCase,
   ) {}
+
+  /**
+   * Como le fue al alumno en esta evaluacion.
+   *
+   * Es de LECTURA y no consume ningun intento, que es justo el motivo de que
+   * exista: la pantalla de resultados tenia que abrir un intento para saber la
+   * nota, asi que recargarla gastaba uno de los tres hasta dejar al alumno con
+   * "ya agotaste tus intentos" sin haber vuelto a responder nada.
+   */
+  @Get(':assessmentId/my-result')
+  @RequirePermissions(PERMISSIONS.ASSESSMENT_SUBMIT)
+  async myResultFor(@Param('assessmentId') assessmentId: string, @Req() request: Request) {
+    return this.myResult.execute({ assessmentId }, contextFrom(request));
+  }
 
   /** Abre un intento, o devuelve el que ya estaba abierto. */
   @Post(':assessmentId/attempts')

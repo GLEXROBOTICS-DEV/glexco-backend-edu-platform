@@ -110,3 +110,54 @@ export async function fetchUpcomingActivities(
 
   return { items, failed: results.every((r) => r.failed) };
 }
+
+export interface MyAttempt {
+  submissionId: string;
+  attemptNumber: number;
+  status: 'in_progress' | 'submitted' | 'graded';
+  score: number | null;
+  maxScore: number;
+  passed: boolean | null;
+  feedback: string | null;
+  submittedAt: string | null;
+  gradedAt: string | null;
+}
+
+export interface MyResult {
+  assessmentId: string;
+  title: string;
+  passingScore: number;
+  maxAttempts: number;
+  attemptsUsed: number;
+  attemptsLeft: number;
+  best: MyAttempt | null;
+  inProgress: MyAttempt | null;
+  attempts: MyAttempt[];
+  recommendations: string[];
+}
+
+/**
+ * Como le fue al alumno en una evaluacion.
+ *
+ * Es de LECTURA y no abre ningun intento. Esa es toda la razon de que exista:
+ * antes, para saber la nota habia que abrir un intento, asi que volver a la
+ * pantalla gastaba uno de los tres y el alumno acababa viendo "ya agotaste tus
+ * intentos" sin haber respondido nada mas.
+ */
+export async function fetchMyResult(assessmentId: string): Promise<MyResult | null> {
+  const result = await api<MyResult>(
+    `/assessments/${encodeURIComponent(assessmentId)}/my-result`,
+  );
+
+  if (!result.ok) {
+    console.error('No se pudo leer el resultado de la evaluacion', {
+      assessmentId,
+      status: result.status,
+      code: result.error.code,
+      correlationId: result.error.correlationId,
+    });
+    return null;
+  }
+
+  return result.data;
+}

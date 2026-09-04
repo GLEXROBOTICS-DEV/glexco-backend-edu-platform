@@ -87,11 +87,16 @@ export async function AssessmentList({ portal }: { portal: 'discover' | 'academy
                     </div>
                   </div>
 
+                  {/* "Abrir" y no "Empezar": este enlace lleva a la pantalla de
+                      resultado, que tambien es la de entrada, y desde alli se
+                      empieza con un boton aparte. La palabra importa porque un
+                      alumno que ya entrego pulsaria "Empezar" creyendo que va a
+                      ver su nota, y antes eso le costaba un intento. */}
                   <a
                     href={`/${portal}/evaluaciones/${assessment.assessmentId}`}
                     className="btn btn-primary mt-5"
                   >
-                    {portal === 'discover' ? 'Empezar' : 'Comenzar evaluacion'}
+                    {portal === 'discover' ? 'Abrir actividad' : 'Abrir evaluación'}
                   </a>
                 </Card>
               ))}
