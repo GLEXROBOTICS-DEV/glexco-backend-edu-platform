@@ -230,7 +230,7 @@ export function TimelineChart({
             <g key={index}>
               {/* El anillo del color de la superficie separa marcadores que se
                   solapan cuando dos evaluaciones caen casi en el mismo valor. */}
-              <circle cx={x(index)} cy={y(point.value)} r={5.5} fill={DATA} stroke="#FFFFFF" strokeWidth={2} />
+              <circle cx={x(index)} cy={y(point.value)} r={5.5} fill={DATA} stroke="var(--color-raised)" strokeWidth={2} />
               {/* Zona de contacto mucho mayor que el marcador: 5px de radio es
                   imposible de acertar con el dedo en una tableta. */}
               <circle

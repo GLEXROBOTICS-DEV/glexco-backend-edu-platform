@@ -201,7 +201,7 @@ function LevelRing({ level, percent }: { level: number; percent: number }) {
   return (
     <span className="relative grid size-[3.875rem] shrink-0 place-items-center">
       <svg width="62" height="62" viewBox="0 0 62 62" aria-hidden="true" className="absolute">
-        <circle cx="31" cy="31" r="26" fill="none" stroke="#EDF1F5" strokeWidth="7" />
+        <circle cx="31" cy="31" r="26" fill="none" stroke="var(--color-surface-200)" strokeWidth="7" />
         <circle
           cx="31"
           cy="31"

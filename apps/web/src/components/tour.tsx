@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface TourStep {
   /** Selector del elemento que se resalta. Si no aparece, el paso se salta. */
@@ -20,7 +20,7 @@ export interface TourStep {
  * primer dia.
  *
  * Los pasos apuntan a elementos REALES por selector, y un paso cuyo elemento no
- * esta en la pagina se salta en vez de senalar al vacio: la barra lateral de un
+ * esta en la pantalla se salta en vez de senalar al vacio: la barra de un
  * docente no tiene lo mismo que la de un alumno, y mantener una lista por rol
  * garantizaria que una de ellas se quedara desincronizada.
  */
@@ -28,10 +28,8 @@ export function Tour({ steps, label = 'Cómo funciona' }: { steps: TourStep[]; l
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
   const [box, setBox] = useState<DOMRect | null>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-
-  // Solo los pasos cuyo elemento existe de verdad en esta pantalla.
   const [visible, setVisible] = useState<TourStep[]>([]);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -41,37 +39,42 @@ export function Tour({ steps, label = 'Cómo funciona' }: { steps: TourStep[]; l
 
   const step = visible[index];
 
+  const measure = useCallback(() => {
+    if (!step) return;
+    const element = document.querySelector(step.target);
+    setBox(element ? element.getBoundingClientRect() : null);
+  }, [step]);
+
   useEffect(() => {
     if (!open || !step) return;
 
     const element = document.querySelector(step.target);
-    if (!element) return;
+    element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 
-    element.scrollIntoView({ block: 'center', behavior: 'smooth' });
-
-    // Se remide al desplazar y al cambiar de tamano: el recuadro esta en
-    // coordenadas de pantalla, y sin esto se queda clavado donde estaba.
-    const measure = () => setBox(element.getBoundingClientRect());
+    // Se remide al desplazar y al cambiar de tamano: el recuadro va en
+    // coordenadas de pantalla y sin esto se queda clavado donde estaba.
     measure();
+    const id = window.setTimeout(measure, 350); // tras el desplazamiento suave
     window.addEventListener('scroll', measure, true);
     window.addEventListener('resize', measure);
     return () => {
+      window.clearTimeout(id);
       window.removeEventListener('scroll', measure, true);
       window.removeEventListener('resize', measure);
     };
-  }, [open, step]);
+  }, [open, step, measure]);
 
-  // Escape cierra, y el foco entra en el dialogo: si no, el teclado se queda
-  // detras del velo pulsando cosas que no se ven.
   useEffect(() => {
     if (!open) return;
     closeRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'ArrowRight') setIndex((i) => Math.min(i + 1, visible.length - 1));
+      if (event.key === 'ArrowLeft') setIndex((i) => Math.max(i - 1, 0));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+  }, [open, visible.length]);
 
   if (!open) {
     return (
@@ -86,36 +89,49 @@ export function Tour({ steps, label = 'Cómo funciona' }: { steps: TourStep[]; l
   }
 
   const last = index >= visible.length - 1;
+  const place = placement(box);
 
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Visita guiada">
-      {/* El velo no tapa el elemento resaltado: se recorta un hueco con un
-          `box-shadow` gigante. Un tutorial que oscurece tambien aquello de lo
-          que habla no ensena nada. */}
-      <div className="absolute inset-0 bg-ink-900/60" onClick={() => setOpen(false)} />
+    <div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true" aria-label="Visita guiada">
+      {/* Un SOLO velo, con el hueco recortado por el `box-shadow` del recuadro.
+          Antes habia tambien un `<div>` oscuro a pantalla completa debajo, asi
+          que todo salia al doble de oscuro y el elemento resaltado tampoco se
+          libraba: se veia tan apagado como el resto. */}
+      <button
+        type="button"
+        aria-label="Cerrar la visita guiada"
+        onClick={() => setOpen(false)}
+        className={`absolute inset-0 h-full w-full cursor-default ${box ? '' : 'bg-ink-900/70'}`}
+      />
 
       {box ? (
         <div
-          className="pointer-events-none absolute rounded-lg ring-2 ring-[var(--portal-accent)]"
+          className="pointer-events-none absolute rounded-xl"
           style={{
-            top: box.top - 6,
-            left: box.left - 6,
-            width: box.width + 12,
-            height: box.height + 12,
-            boxShadow: '0 0 0 9999px rgba(27,42,56,0.60)',
+            top: box.top - 8,
+            left: box.left - 8,
+            width: box.width + 16,
+            height: box.height + 16,
+            // El hueco: la sombra gigante pinta todo MENOS este rectangulo, asi
+            // que lo de dentro se ve a plena luz. Un tutorial que oscurece
+            // tambien aquello de lo que habla no ensena nada.
+            boxShadow: '0 0 0 9999px rgba(12,24,36,0.72)',
+            // Doble aro: el interior claro despega el elemento del velo y el
+            // exterior en color de acento dice "es esto". Con un solo aro fino
+            // sobre un fondo oscuro no se distingue de un borde cualquiera.
+            outline: '3px solid var(--portal-accent, #F0A93B)',
+            outlineOffset: '0px',
+            border: '2px solid rgba(255,255,255,0.9)',
           }}
         />
       ) : null}
 
       <div
-        className="absolute left-1/2 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 rounded-[var(--portal-radius)] border border-line-200 bg-white p-5 shadow-xl"
-        style={{
-          // Debajo del elemento si cabe, encima si no. Con una posicion fija, la
-          // tarjeta acaba tapando justo lo que senala en media pantalla.
-          top: box && box.bottom + 200 < window.innerHeight ? box.bottom + 16 : undefined,
-          bottom: box && box.bottom + 200 >= window.innerHeight ? 24 : undefined,
-          ...(box ? {} : { top: '50%' }),
-        }}
+        // Por encima del recuadro y de su sombra. Sin un apilado explicito, la
+        // sombra de 9999px del recuadro se pintaba sobre la tarjeta y el texto
+        // de la pagina se colaba por encima.
+        className="absolute z-10 w-[min(23rem,calc(100vw-2rem))] rounded-[var(--portal-radius)] border border-line-200 bg-white p-5 shadow-2xl"
+        style={place}
       >
         {step ? (
           <>
@@ -166,4 +182,48 @@ export function Tour({ steps, label = 'Cómo funciona' }: { steps: TourStep[]; l
       </div>
     </div>
   );
+}
+
+/**
+ * Donde poner la tarjeta.
+ *
+ * **Al lado del elemento, no en el centro de la pantalla.** Antes iba siempre
+ * centrada en horizontal, asi que al senalar un destino de la barra lateral la
+ * explicacion aparecia en mitad del contenido, encima de otras cosas y a medio
+ * metro de la flecha: habia que buscar a que se referia.
+ *
+ * El orden de preferencia es: a la derecha si cabe -que es el caso de la barra
+ * lateral, el mas frecuente-, luego debajo, luego encima. Y siempre dentro de la
+ * pantalla, porque un panel que se sale por abajo no se puede leer ni cerrar.
+ */
+function placement(box: DOMRect | null): React.CSSProperties {
+  if (!box) {
+    return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+  }
+
+  const CARD = { width: 368, height: 230 };
+  const GAP = 16;
+  const margin = 12;
+  const { innerWidth: vw, innerHeight: vh } = window;
+
+  const clampTop = (value: number) =>
+    Math.max(margin, Math.min(value, vh - CARD.height - margin));
+  const clampLeft = (value: number) => Math.max(margin, Math.min(value, vw - CARD.width - margin));
+
+  // A la derecha: es donde cae la barra lateral, que es lo que mas se senala.
+  if (box.right + GAP + CARD.width + margin <= vw) {
+    return { top: clampTop(box.top - 8), left: box.right + GAP };
+  }
+
+  // A la izquierda.
+  if (box.left - GAP - CARD.width - margin >= 0) {
+    return { top: clampTop(box.top - 8), left: box.left - GAP - CARD.width };
+  }
+
+  // Debajo, y si no cabe, encima.
+  const below = box.bottom + GAP + CARD.height + margin <= vh;
+  return {
+    top: below ? box.bottom + GAP : clampTop(box.top - GAP - CARD.height),
+    left: clampLeft(box.left),
+  };
 }

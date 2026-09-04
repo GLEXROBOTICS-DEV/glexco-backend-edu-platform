@@ -54,6 +54,11 @@
   --color-surface-200: #edf1f5;
   --color-surface-100: #f7f9fb;
   --color-surface-50: #fbfcfd;
+  /* La superficie que en claro es blanca: tarjetas, campos y botones
+     secundarios. Existe porque escribir `#ffffff` a mano en cada uno los dejaba
+     blancos tambien en modo oscuro, y un campo de contrasena blanco con texto
+     claro encima no deja ni escribir. */
+  --color-raised: #ffffff;
 
   /* --- Tipografia ------------------------------------------------------- */
   --font-display: 'Outfit', 'Segoe UI', system-ui, sans-serif;
@@ -173,6 +178,7 @@
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
+    --color-raised: #1a222b;
     --color-ink-900: #e3e9ef;
     --color-ink-700: #d5dee7;
     --color-ink-500: #9aa8b6;
@@ -220,6 +226,7 @@
 }
 
 :root[data-theme='dark'] {
+  --color-raised: #1a222b;
   --color-ink-900: #e3e9ef;
   --color-ink-700: #d5dee7;
   --color-ink-500: #9aa8b6;
@@ -269,13 +276,13 @@
  */
 :root[data-theme='dark'] .bg-white,
 :root[data-theme='dark'] [class*=' bg-white'] {
-  background-color: var(--color-surface-50);
+  background-color: var(--color-raised);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .bg-white,
   :root:not([data-theme='light']) [class*=' bg-white'] {
-    background-color: var(--color-surface-50);
+    background-color: var(--color-raised);
   }
 }
 
@@ -402,7 +409,7 @@ h3 {
 }
 
 .btn-secondary {
-  background: #ffffff;
+  background: var(--color-raised);
   border: 1px solid var(--color-line-300);
   color: var(--color-ink-700);
 }
@@ -414,7 +421,7 @@ h3 {
 /* Destructivo: rojo solo en el BORDE y el texto. Un boton rojo macizo entre
    otros invita a pulsarlo por peso visual, y lo que hay detras no se deshace. */
 .btn-danger {
-  background: #ffffff;
+  background: var(--color-raised);
   border: 1px solid var(--color-danger);
   color: var(--color-danger);
 }
@@ -448,7 +455,10 @@ h3 {
   padding-inline: 0.875rem;
   border: 1px solid var(--color-line-300);
   border-radius: var(--portal-radius);
-  background: #ffffff;
+  /* NO `#ffffff`: en modo oscuro dejaba el campo blanco con el texto claro
+     encima, asi que no se veia lo que se escribia. Se noto primero en la
+     contrasena del ingreso, que es el peor sitio posible para no ver. */
+  background: var(--color-raised);
   font-size: 15px;
   color: var(--color-ink-900);
 }
