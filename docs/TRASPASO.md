@@ -223,22 +223,30 @@ tráfico real son cientos de megas por vídeo desde nuestro ancho de banda.
    Dos decisiones que conviene NO deshacer: el idioma sale del **perfil** del
    usuario y no de la URL (si no, la interfaz y los correos acabarían en idiomas
    distintos), y **las rutas no se traducen** (van en correos ya enviados).
-2. **Auditoría WCAG 2.1 AA** pantalla a pantalla, con navegación por teclado.
-   Es lo último que le queda a la Fase 4.
+2. **La parte manual de la accesibilidad.** `pnpm a11y` ya cubre lo automatizable
+   y sale limpio en 13 pantallas, pero **no puede comprobar tres cosas** y hay
+   que hacerlas a ojo: el contraste real sobre la pantalla, el orden de
+   tabulación, y si los textos alternativos dicen algo útil. No leas «0
+   hallazgos» como «es accesible».
 
 ### Después, por valor
+
+3. **El comando de reconstrucción de proyecciones. Empieza por aquí.**
+
+   JetStream no reproduce hacia atrás, así que cada consumidor nuevo nace sin el
+   pasado y hay que rellenarlo a mano desde el sembrador. En la sesión 14 hizo
+   falta **cuatro veces**: el nombre del colegio en aprendizaje, el nombre del
+   alumno en aprendizaje, el del autor en engagement, y el kit de la matrícula.
+
+   Con una vez es una chapuza puntual; con cuatro es una carga fija por cada
+   consumidor que se añada. Todo lo demás de esta lista añade consumidores.
 
 4. **`KIT_PUBLISHED` no lo emite nadie.** Está en el catálogo de eventos desde el
    principio, igual que le pasaba a `COURSE_PUBLISHED`. Por eso el panel de
    GLEXCO lista los kits por UUID en vez de por su nombre. Se arregla igual:
    emitirlo al publicar un kit y consumirlo en un `kit_directory` de analítica,
    como ya se hizo con las instituciones.
-5. **Comando de reconstrucción de proyecciones.** Sigue siendo la deuda de
-   fondo: JetStream no reproduce hacia atrás, así que cada consumidor nuevo nace
-   sin el pasado y hay que rellenarlo a mano desde el sembrador. Esta sesión hizo
-   ese rodeo **tres veces** (el nombre del colegio en aprendizaje, el nombre del
-   alumno, y el kit de la matrícula). Es la señal de que toca hacerlo.
-6. **Retos, misiones y portafolio** (Fase 6). Son los datos que faltan para que
+5. **Retos, misiones y portafolio** (Fase 6). Son los datos que faltan para que
    «Zona de retos» de Discover y «Proyectos y desafíos» de Academy dejen de estar
    fuera de la barra.
 7. **Rúbricas de corrección** y los tipos de pregunta `ordering` y `matching`,
@@ -265,6 +273,12 @@ tráfico real son cientos de megas por vídeo desde nuestro ancho de banda.
   verificarse. Cada certificado lleva impresa la huella de su clave justamente
   para poder rotar sin invalidar lo viejo, pero eso exige **conservar la pública
   antigua**.
+- **Ejecutar el sembrador en Railway tiene su procedimiento**, y está en
+  [ENTORNO-DEMO.md](ENTORNO-DEMO.md) §5 con sus dos trampas: el comando previo al
+  despliegue **no pasa por un intérprete** (encadenar con `&&` descarta el resto
+  en silencio) y el código de institución se guarda **normalizado sin guiones**.
+  Acuérdate de **borrar después las cuatro variables temporales**: la credencial
+  de administrador de PostgreSQL no debe vivir en un servicio de aplicación.
 
 La dirección visual está aprobada en `design/canvas/`, así que no hay que decidir
 nada de diseño antes de codificar. **Y hay que abrir el artboard antes de tocar

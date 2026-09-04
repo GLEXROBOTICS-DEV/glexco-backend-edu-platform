@@ -86,6 +86,96 @@ La interfaz **escala con la pantalla** a partir de 1600 px: el canvas se dibujó
 1440 y con la raíz clavada en 16 px un monitor de 27 pulgadas no enseñaba más
 cosas, enseñaba las mismas en una columna estrecha en medio.
 
+### 5. Evaluaciones: cierre y cronómetro
+
+La **fecha límite se guardaba desde el principio y no la comprobaba nadie**, ni
+había forma de ponerla: ninguna evaluación cerraba nunca. Ahora se configura al
+crearla y el servidor la hace cumplir. Corta **abrir** un intento nuevo, no
+terminar el que ya estaba abierto: cerrarle la puerta a quien está escribiendo,
+por haber empezado tres minutos antes del cierre, sería castigarle por algo que
+el propio sistema le dejó empezar.
+
+**Y ahora hay cronómetro.** Había un comentario diciendo que no lo había a
+propósito, para no meterle prisa a un niño con un número rojo bajando. El
+argumento no era malo, pero dejaba el peor final posible: el alumno seguía
+escribiendo tan tranquilo y lo perdía **todo** con un error al pulsar entregar.
+Cuenta contra un instante absoluto que da el servidor —contando desde que carga
+la página, recargar regalaría el tiempo entero, y es lo primero que prueba
+cualquiera— y **entrega sola** al llegar a cero.
+
+`datetime-local` da una hora SIN zona: se interpreta en la del navegador y se
+manda en UTC. Sin eso, «cierra a las 23:59» se aplicaría a las 23:59 UTC, que en
+Lima son las 18:59 del mismo día.
+
+### 6. El fallo de rutas entre portales
+
+El cliente acabó en rutas de Discover con una cuenta de Academy, y desde ahí todo
+rompía. Dos capas:
+
+- El enlace concreto: certificados enviaba a `/{portal}/cursos`, y en Discover se
+  llama «mis kits» → 404.
+- **Y lo de fondo: nada impedía estar en el portal ajeno.** El layout común solo
+  comprobaba que hubiera sesión, no que el segmento de la URL fuera el suyo.
+  Ahora cada segmento lo comprueba y **redirige**, que no da error: quien llega
+  ahí no ha hecho nada mal, ha pulsado un enlace que le dimos nosotros.
+
+### 7. El muro del salón
+
+El cliente precisó qué quería al hablar de «mensajería»: **no son mensajes
+privados**, es un tablón donde el alumno también pregunta y lo ven todos.
+
+Además de ser mejor pedagógicamente, **es la opción más segura**: no se abre
+ningún canal privado entre un adulto y un menor, y todo queda a la vista del
+docente. Se levanta sobre los anuncios que ya existían, porque es lo mismo con
+distinto autor.
+
+Reglas que sostienen el modelo: **una pregunta no se puede fijar** —si no, el
+muro sería una carrera por quedarse arriba—, **responde cualquiera del salón**
+—que un compañero conteste también enseña, y al que contesta el que más—, y
+preguntar exige estar **matriculado**, no solo tener el permiso.
+
+Después se separó del muro de los anuncios en dos pantallas: un aviso hay que
+verlo hoy y una conversación se sigue a lo largo de la semana; mezclados, el
+aviso importante quedaba enterrado.
+
+### 8. i18n, modo oscuro y visita guiada
+
+**i18n montado sin enrutado por idioma.** El montaje por defecto de next-intl
+antepone `/es/` y `/en/`; aquí el idioma ya era un atributo del usuario en
+identidad —viaja con su perfil y lo usan los correos—, así que sacarlo también de
+la URL daría dos fuentes para el mismo dato. Con sesión manda el perfil; sin
+ella, la cookie del selector. Se añadió `POST /account/locale`: el agregado ya
+sabía cambiarlo y no había forma de pedírselo.
+
+**El modo oscuro no estaba hecho**, pese al artboard del canvas. Sus tres reglas:
+nunca negro puro, jerarquía por elevación y no por borde, y la marca aclarada.
+**Visita guiada** que no arranca sola.
+
+### 9. La auditoría de accesibilidad (`pnpm a11y`)
+
+Audita **el HTML que sirve el servidor**, no el código. La diferencia importa:
+los fallos casi nunca están en el JSX que se lee. Destapó dos reales:
+
+1. **El muro pedía los nombres a un endpoint de DOCENTES**, así que cualquier
+   alumno veía el muro entero firmado por «un compañero» —lo contrario de lo que
+   busca esa pantalla—. Ahora engagement devuelve el nombre en la misma consulta.
+2. **El enlace a la cuenta se quedaba sin nombre accesible** cuando el nombre
+   venía vacío, que pasa cuando identidad no responde y la sesión sigue con lo
+   que da el token. **Los estados degradados son donde se rompe la
+   accesibilidad**, y no se ven revisando la pantalla feliz.
+
+El guion distingue una redirección de un fallo —auditar con un token caducado
+producía diez hallazgos falsos— y dice en voz alta lo que NO puede comprobar
+(contraste real, orden de tabulación, si el texto alternativo dice algo útil).
+
+### 10. La señal que se repitió tres veces
+
+Hizo falta un **directorio de nombres** en instituciones, en aprendizaje y en
+engagement, y las tres veces hubo que rellenarlo a mano desde el sembrador porque
+JetStream no reproduce hacia atrás. Con una vez es una chapuza puntual; con tres
+es la prueba de que **falta el comando de reconstrucción de proyecciones**, y de
+que va a costar otra chapuza por cada consumidor nuevo.
+
 ### Estado al cerrar
 
 | Comprobación | Resultado |
@@ -93,6 +183,10 @@ cosas, enseñaba las mismas en una columna estrecha en medio.
 | `pnpm build` | 15/15 |
 | `pnpm test` | **187** |
 | `pnpm typecheck` | 21/21 |
+| `pnpm a11y` | 13 pantallas, sin hallazgos |
+
+**Fase 4 cerrada** salvo traducir el cuerpo de las pantallas, que es continuación
+mecánica sobre la infraestructura de i18n ya montada.
 
 ### Qué falta
 
