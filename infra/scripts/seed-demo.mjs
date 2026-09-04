@@ -235,7 +235,7 @@ async function main() {
 
   const people = await seedPeople(passwordHash);
   await seedInstitution(people);
-  await archiveOrphanInstitutions(people);
+  await reconcileDemoInstitution(people);
   await seedCatalog();
   const codes = await seedCodes();
   await publishCourses(people);
@@ -480,55 +480,104 @@ async function seedPeople(passwordHash) {
 }
 
 /**
- * Archiva colegios de demostracion huerfanos.
+ * Deja UNA sola institucion de demostracion, y la correcta.
  *
- * Una siembra antigua creo la institucion con otro codigo, asi que ahora
- * conviven dos: el panel de GLEXCO lista dos colegios donde hay uno, y cada
- * docente ve su salon por duplicado. La institucion actual se adopta por CODIGO
- * -`DEMO-SMP`-, asi que la vieja se queda ahi para siempre sin que nada la
- * vuelva a tocar.
+ * En produccion habian quedado dos de siembras distintas, y ninguna estaba
+ * entera: en una vivian los alumnos y los canjes, y la otra tenia el codigo
+ * `DEMO-SMP` con el que se hace el alta. El panel de GLEXCO listaba dos colegios
+ * donde hay uno y cada docente veia su salon duplicado.
  *
- * El criterio es deliberadamente estrecho: solo se archiva una institucion si
- * **todos** sus salones son de los tres docentes de demostracion. Con "alguno"
- * bastaria para archivar un colegio real en el que uno de estos docentes diera
- * clase, y archivar el colegio de otro es un desastre, no un descuido.
+ * El primer intento de arreglarlo archivo la equivocada, porque decidia por el
+ * codigo -que estaba en la vacia- en vez de por donde estan los datos. De ahi la
+ * regla de aqui:
  *
- * Se archiva y no se borra: sus matriculas y entregas siguen siendo ciertas, y
- * borrarlas se llevaria por delante el historial de doce alumnos.
+ * **Manda donde estan los ALUMNOS.** Su `institution_id` es un dato del
+ * servicio de identidad y no una proyeccion, y de el cuelgan las matriculas, los
+ * canjes y las entregas. El codigo, en cambio, es una etiqueta que se puede
+ * mover sin romper nada, asi que se mueve el codigo a donde estan los alumnos y
+ * no al reves.
+ *
+ * Fuera del caso de demostracion no toca nada: solo considera instituciones
+ * donde viven los alumnos `alumnoN@demo.glexco.pe` o cuyos salones son TODOS de
+ * los tres docentes de demostracion.
  */
-async function archiveOrphanInstitutions(people) {
+async function reconcileDemoInstitution(people) {
   const teacherIds = [people.staff.docente1.id, people.staff.docente2.id, people.staff.docente3.id];
+  const studentIds = people.students.map((s) => s.id);
 
-  const orphans = await admin.query(
-    `SELECT i.id
-       FROM institutions.institutions i
-      WHERE i.id <> $1
-        AND i.status = 'active'
-        AND EXISTS (SELECT 1 FROM institutions.classrooms c
-                     WHERE c.institution_id = i.id AND c.teacher_id = ANY($2::uuid[]))
-        AND NOT EXISTS (SELECT 1 FROM institutions.classrooms c
-                         WHERE c.institution_id = i.id AND NOT (c.teacher_id = ANY($2::uuid[])))`,
-    [INSTITUTION.id, teacherIds],
+  // Donde estan de verdad los alumnos. Es la referencia.
+  const home = await admin.query(
+    `SELECT institution_id, count(*)::int AS n
+       FROM identity.users
+      WHERE id = ANY($1::uuid[]) AND institution_id IS NOT NULL
+      GROUP BY institution_id
+      ORDER BY n DESC
+      LIMIT 1`,
+    [studentIds],
   );
 
-  if (orphans.rowCount === 0) return;
+  const canonical = home.rows[0]?.institution_id ?? INSTITUTION.id;
+  if (!canonical) return;
 
-  const ids = orphans.rows.map((r) => r.id);
+  // Todas las candidatas de demostracion: donde viven los alumnos, o cuyos
+  // salones son integramente de los docentes de demostracion.
+  const candidates = await admin.query(
+    `SELECT id FROM institutions.institutions i
+      WHERE i.id = ANY($1::uuid[])
+         OR (EXISTS (SELECT 1 FROM institutions.classrooms c
+                      WHERE c.institution_id = i.id AND c.teacher_id = ANY($2::uuid[]))
+             AND NOT EXISTS (SELECT 1 FROM institutions.classrooms c
+                              WHERE c.institution_id = i.id
+                                AND NOT (c.teacher_id = ANY($2::uuid[]))))`,
+    [[canonical], teacherIds],
+  );
 
-  // Los salones tambien: si quedaran activos, el docente seguiria viendo su
-  // salon duplicado aunque el colegio ya no aparezca en ningun panel.
+  const others = candidates.rows.map((r) => r.id).filter((id) => id !== canonical);
+
+  // El codigo es unico, asi que hay que soltarlo antes de ponerlo en la buena.
+  // Se le anade un sufijo en vez de vaciarlo: la columna es obligatoria, y un
+  // codigo con sufijo dice a las claras que esa fila esta retirada.
   await admin.query(
-    `UPDATE institutions.classrooms SET status = 'archived', updated_at = now()
-      WHERE institution_id = ANY($1::uuid[]) AND status = 'active'`,
-    [ids],
-  );
-  await admin.query(
-    `UPDATE institutions.institutions SET status = 'archived', updated_at = now()
-      WHERE id = ANY($1::uuid[])`,
-    [ids],
+    `UPDATE institutions.institutions
+        SET code = code || '-OLD-' || left(id::text, 4), updated_at = now()
+      WHERE code = $1 AND id <> $2`,
+    [INSTITUTION.code, canonical],
   );
 
-  console.log(`  huerfanos        ${ids.length} institucion(es) de siembras anteriores archivadas`);
+  await admin.query(
+    `UPDATE institutions.institutions
+        SET code = $2, name = $3, short_name = $4, city = $5, status = 'active', updated_at = now()
+      WHERE id = $1`,
+    [canonical, INSTITUTION.code, INSTITUTION.name, INSTITUTION.shortName, INSTITUTION.city],
+  );
+
+  if (others.length > 0) {
+    // Los salones tambien, o el docente seguiria viendo el suyo duplicado
+    // aunque el colegio ya no salga en ningun panel.
+    await admin.query(
+      `UPDATE institutions.classrooms SET status = 'archived', updated_at = now()
+        WHERE institution_id = ANY($1::uuid[]) AND status = 'active'`,
+      [others],
+    );
+    await admin.query(
+      `UPDATE institutions.institutions SET status = 'archived', updated_at = now()
+        WHERE id = ANY($1::uuid[])`,
+      [others],
+    );
+  }
+
+  // Los salones de la buena vuelven a estar activos: el intento anterior los
+  // archivo por error y sin esto quedarian apagados para siempre.
+  await admin.query(
+    `UPDATE institutions.classrooms SET status = 'active', updated_at = now()
+      WHERE institution_id = $1 AND status = 'archived'`,
+    [canonical],
+  );
+
+  INSTITUTION.id = canonical;
+  console.log(
+    `  institucion      ${canonical} (canonica); ${others.length} de siembras anteriores archivadas`,
+  );
 }
 
 async function seedInstitution(people) {
