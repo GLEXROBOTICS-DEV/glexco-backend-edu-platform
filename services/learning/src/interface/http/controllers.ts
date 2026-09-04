@@ -14,7 +14,7 @@ import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { PERMISSIONS } from '@glexco/contracts';
-import { RequirePermissions, zodBody, type RequestActor } from '@glexco/nest-platform';
+import { Public, RequirePermissions, zodBody, type RequestActor } from '@glexco/nest-platform';
 import { getRequestContext } from '@glexco/observability';
 import type { ExecutionContext as UseCaseContext } from '@glexco/kernel';
 import {
@@ -179,6 +179,7 @@ export class CertificatesController {
    * falsificacion- de "existe pero se anulo", que es una decision del colegio.
    * Un 404 las confunde en una sola cosa.
    */
+  @Public()
   @Get('verify/:serial')
   async verifySerial(@Param('serial') serial: string) {
     if (!this.keys) {
@@ -198,6 +199,7 @@ export class CertificatesController {
    * negar despues haberlo emitido. Publicarla no debilita nada -para eso es
    * publica- y no publicarla convertiria la firma asimetrica en un HMAC caro.
    */
+  @Public()
   @Get('public-key')
   publicKey() {
     if (!this.keys) {
