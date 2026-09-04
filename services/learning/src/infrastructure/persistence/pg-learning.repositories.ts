@@ -481,9 +481,15 @@ export class PgCertificateRepository implements CertificateRepository {
       lesson_count: number;
     }>(
       `SELECT
-         (SELECT full_name FROM learning.classroom_members m
-           WHERE m.student_id = $1 AND m.active AND m.full_name <> ''
-           LIMIT 1)                                            AS student_name,
+         -- El directorio manda sobre la matricula: se alimenta de los eventos
+         -- de identidad y sigue los cambios de nombre, mientras que la matricula
+         -- se emite una sola vez. La matricula queda como respaldo.
+         COALESCE(
+           (SELECT sd.full_name FROM learning.student_directory sd WHERE sd.user_id = $1),
+           (SELECT m.full_name FROM learning.classroom_members m
+             WHERE m.student_id = $1 AND m.active AND m.full_name <> ''
+             LIMIT 1)
+         )                                                     AS student_name,
          d.title                                               AS course_title,
          d.kit_id                                              AS kit_id,
          (SELECT i.name FROM learning.institution_directory i
@@ -503,8 +509,9 @@ export class PgCertificateRepository implements CertificateRepository {
     if (!row) return null;
 
     return {
-      // Sin nombre no se emite nada: un certificado a nombre de nadie no sirve
-      // para lo unico que sirve un certificado, que es ensenarselo a alguien.
+      // Puede venir vacio, y el caso de uso lo RECHAZA. Aqui no se inventa un
+      // valor por defecto: hacerlo dejaria pasar el certificado a nombre de
+      // nadie, que es exactamente lo que se quiere impedir.
       studentName: row.student_name ?? '',
       courseTitle: row.course_title,
       kitId: row.kit_id,

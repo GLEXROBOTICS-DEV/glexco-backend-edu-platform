@@ -75,3 +75,21 @@ CREATE TABLE IF NOT EXISTS institution_directory (
   name           text NOT NULL,
   updated_at     timestamptz NOT NULL DEFAULT now()
 );
+
+-- ---------------------------------------------------------------------------
+-- Nombre del alumno
+-- ---------------------------------------------------------------------------
+--
+-- `classroom_members.full_name` se rellena desde el evento de matricula, y ese
+-- evento NO trae el nombre: llegaba siempre vacio. El sintoma fue un certificado
+-- emitido a nombre de nadie, que es exactamente lo unico que un certificado no
+-- puede ser.
+--
+-- Se alimenta de los eventos de identidad, igual que hace instituciones, y no de
+-- la matricula: un cambio de nombre ocurre despues de matricularse, y la
+-- matricula solo se emite una vez.
+CREATE TABLE IF NOT EXISTS student_directory (
+  user_id    uuid PRIMARY KEY,
+  full_name  text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);

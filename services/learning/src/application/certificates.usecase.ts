@@ -103,6 +103,18 @@ export class IssueCertificateUseCase
       throw new NotFoundError('COURSE_NOT_FOUND', 'No encontramos ese curso para este alumno.');
     }
 
+    // Sin nombre NO se emite. Un certificado a nombre de nadie no sirve para lo
+    // unico que sirve un certificado, que es ensenarselo a alguien; y una vez
+    // firmado no se puede corregir, hay que anularlo y emitir otro. Esto ya
+    // estaba escrito en un comentario y no se cumplia: el primero que se emitio
+    // en produccion salio con el nombre vacio.
+    if (!completion.studentName.trim()) {
+      throw new BusinessRuleError(
+        'STUDENT_NAME_UNKNOWN',
+        'Todavia no sabemos el nombre de este alumno. Intentalo en unos minutos.',
+      );
+    }
+
     if (completion.lessonsCompleted < completion.lessonCount || completion.lessonCount === 0) {
       throw new BusinessRuleError(
         'COURSE_NOT_COMPLETED',

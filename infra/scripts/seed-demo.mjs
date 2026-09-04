@@ -398,6 +398,10 @@ async function resetDemo() {
     `DELETE FROM learning.student_gamification WHERE student_id = ANY($1::uuid[])`, [userIds]);
   await admin.query(
     `DELETE FROM learning.classroom_members WHERE student_id = ANY($1::uuid[])`, [userIds]);
+  await admin.query(
+    `DELETE FROM learning.certificates WHERE student_id = ANY($1::uuid[])`, [userIds]);
+  await admin.query(
+    `DELETE FROM learning.student_directory WHERE user_id = ANY($1::uuid[])`, [userIds]);
 
   await admin.query(
     `DELETE FROM analytics.student_assessment_facts WHERE student_id = ANY($1::uuid[])`, [userIds]);
@@ -523,6 +527,17 @@ async function dedupeDemo() {
       RETURNING id`,
     [INSTITUTION.id],
   );
+
+  // Certificados emitidos a nombre de nadie. Uno se colo en produccion antes de
+  // que la emision comprobara el nombre, y no se puede corregir: el nombre esta
+  // DENTRO de lo que se firmo, asi que cambiarlo invalidaria la firma. Se borra
+  // y se vuelve a emitir bien, que es lo unico que se puede hacer.
+  const nameless = await admin.query(
+    `DELETE FROM learning.certificates WHERE btrim(student_name) = '' RETURNING id`,
+  );
+  if (nameless.rowCount > 0) {
+    console.log(`  certificados     ${nameless.rowCount} sin nombre borrados`);
+  }
 
   // Filas de analitica de instituciones que ya no existen. La analitica no puede
   // detectarlas sola -su rol de base de datos no ve el schema de instituciones,
@@ -773,6 +788,23 @@ async function seedInstitution(people) {
          full_name      = EXCLUDED.full_name,
          email          = EXCLUDED.email`,
       [student.id, INSTITUTION.id, `${student.first} ${student.last}`, student.email],
+    );
+  }
+
+  // Y el directorio de nombres de APRENDIZAJE, por lo mismo: lo alimentan los
+  // eventos de identidad, que este guion no dispara. Sin el, un certificado sale
+  // a nombre de nadie -paso en produccion con el primero que se emitio-.
+  for (const student of people.students) {
+    await admin.query(
+      `INSERT INTO learning.student_directory (user_id, full_name)
+       VALUES ($1,$2)
+       ON CONFLICT (user_id) DO UPDATE SET full_name = EXCLUDED.full_name, updated_at = now()`,
+      [student.id, `${student.first} ${student.last}`],
+    );
+    await admin.query(
+      `UPDATE learning.classroom_members SET full_name = $2, updated_at = now()
+        WHERE student_id = $1 AND full_name = ''`,
+      [student.id, `${student.first} ${student.last}`],
     );
   }
 

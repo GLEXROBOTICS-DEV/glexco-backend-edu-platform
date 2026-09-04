@@ -58,6 +58,12 @@ interface ClassroomCreatedPayload {
   teacherId: string;
 }
 
+interface UserNamePayload {
+  userId: string;
+  firstName: string;
+  lastName: string;
+}
+
 interface InstitutionCreatedPayload {
   institutionId: string;
   name: string;
@@ -84,6 +90,8 @@ export function buildLearningConsumer(deps: LearningConsumerDeps): EventConsumer
       EVENTS.STUDENT_ENROLLED,
       EVENTS.STUDENT_WITHDRAWN,
       EVENTS.INSTITUTION_CREATED,
+      EVENTS.USER_REGISTERED,
+      EVENTS.USER_PROFILE_UPDATED,
     ],
     logger: deps.natsLogger,
   });
@@ -244,6 +252,46 @@ export function buildLearningConsumer(deps: LearningConsumerDeps): EventConsumer
        ON CONFLICT (institution_id) DO UPDATE SET name = EXCLUDED.name, updated_at = now()`,
       [event.payload.institutionId, event.payload.name],
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // Nombre del alumno
+  // -------------------------------------------------------------------------
+  //
+  // `classroom_members.full_name` se rellena desde el evento de MATRICULA, y ese
+  // evento no trae el nombre: llegaba siempre vacio. Salio a la luz emitiendo un
+  // certificado a nombre de nadie, que es lo unico que un certificado no puede
+  // ser.
+  //
+  // Se toma de los eventos de identidad y no de la matricula porque un cambio de
+  // nombre ocurre DESPUES de matricularse, y la matricula solo se emite una vez.
+  const rememberName = async (tx: { client: unknown }, payload: UserNamePayload) => {
+    const fullName = `${payload.firstName} ${payload.lastName}`.trim();
+    if (!fullName) return;
+
+    const client = tx.client as PoolClient;
+    await client.query(
+      `INSERT INTO learning.student_directory (user_id, full_name)
+       VALUES ($1,$2)
+       ON CONFLICT (user_id) DO UPDATE SET full_name = EXCLUDED.full_name, updated_at = now()`,
+      [payload.userId, fullName],
+    );
+
+    // Y en las matriculas que ya existan, para que la lista del docente no
+    // tenga que esperar a la proxima.
+    await client.query(
+      `UPDATE learning.classroom_members SET full_name = $2, updated_at = now()
+        WHERE student_id = $1`,
+      [payload.userId, fullName],
+    );
+  };
+
+  consumer.on<UserNamePayload>(EVENTS.USER_REGISTERED, async (event, tx) => {
+    await rememberName(tx, event.payload);
+  });
+
+  consumer.on<UserNamePayload>(EVENTS.USER_PROFILE_UPDATED, async (event, tx) => {
+    await rememberName(tx, event.payload);
   });
 
   return consumer;
