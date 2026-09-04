@@ -216,10 +216,17 @@ frontend o clientes reales:
 
 - [x] **Mi progreso** en los dos portales: medias separadas de GLEXCO y del
       docente, cuánto ha mejorado, y la evolución en el tiempo.
-- [ ] Discover: laboratorio de robots, mis cursos, zona de retos, mis logros,
-      mi perfil.
-- [ ] Academy: laboratorio por niveles, cursos, proyectos y desafíos,
-      certificaciones, portafolio, perfil.
+- [x] Discover: **laboratorio de robots**, **mis kits**, **mis logros** y **mi
+      cuenta**. Falta la zona de retos, que depende de los retos de la Fase 6.
+- [x] Academy: **laboratorio de robots**, **cursos**, **ruta tecnológica** y **mi
+      cuenta**. Faltan proyectos y desafíos (Fase 6), certificaciones (Fase 6) y
+      el portafolio.
+- [x] **Mi cuenta** en los cuatro portales: cambio de contraseña exigiendo la
+      actual, y sesiones abiertas con cierre remoto.
+- [x] **Modo oscuro** con la paleta del canvas, en tres estados (claro, oscuro y
+      «como el sistema»), sin destello al cargar.
+- [x] **Visita guiada** que no arranca sola: se abre desde la barra lateral y se
+      puede reabrir siempre.
 - [x] Biblioteca multimedia con reproductor y descargas por URL prefirmada.
 - [x] Registro de alumno y activación de código desde el portal.
 - [x] El alumno responde los cuestionarios desde el portal, sin JavaScript si
@@ -257,12 +264,20 @@ frontend o clientes reales:
 - [x] **El docente crea, amplía, publica y duplica sus evaluaciones** desde el
       portal. El banco se presenta en dos bloques —las del kit y las suyas—
       porque se operan distinto.
-- [ ] Portal docente completo: gestión de cursos y estudiantes, recursos
-      pedagógicos, capacitación docente.
+- [x] **Crear salones desde el portal** (docente y dirección), con selector de
+      docente para la dirección. La pantalla no existía y el enlace daba 404.
+- [x] **Lista de alumnos del salón** con quién activó su kit y quién se
+      descolgó, y **ficha individual de cada alumno** con sus notas y su
+      evolución. La dirección ve las de todo su colegio.
+- [ ] Portal docente, lo que falta: recursos pedagógicos y capacitación docente.
 - [ ] Tipos de pregunta `ordering` y `matching`: están en el vocabulario pero su
       corrección automática no está escrita, así que se tratan como manuales.
 
 ## 🔄 Fase 6 — Progreso, gamificación y certificados
+
+> **En curso:** el dominio del certificado (firma Ed25519, serie legible y
+> verificación) está escrito y apartado en el borrador de la sesión; falta el
+> repositorio, el cableado HTTP y las pantallas.
 
 - [x] `learning-service`: progreso por lección y curso, con la señal de **quién
       se descolgó** antes del primer examen, que es lo que la evaluación sola no
@@ -307,6 +322,11 @@ frontend o clientes reales:
       ni en el stream.
 - [ ] `engagement-service`, lo que falta: notificaciones, mesa de ayuda y base
       de conocimiento.
+- [ ] **Mensajería docente↔alumno.** La decisión registrada en CLAUDE.md §6 era
+      *anuncios asíncronos, sin mensajería*; el cliente la ha reabierto. Es un
+      agregado nuevo con implicaciones de protección de menores —conversaciones
+      privadas entre un adulto y un menor exigen registro y visibilidad para la
+      dirección—, así que no es solo una pantalla más.
 - [ ] Portal Admin completo: panel ejecutivo, instituciones, usuarios, gestión
       académica y de contenidos, certificaciones, comercial, configuración.
 - [x] Progreso por consumo de contenido (`learning-service`, Fase 6).
