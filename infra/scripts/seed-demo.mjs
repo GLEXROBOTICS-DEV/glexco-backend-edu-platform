@@ -192,6 +192,7 @@ async function main() {
   await seedInstitution(people);
   await seedCatalog();
   const codes = await seedCodes();
+  await publishCourses(people);
 
   console.log('\nDatos base escritos. Ahora se usa la API real...\n');
 
@@ -234,7 +235,15 @@ async function seedPeople(passwordHash) {
       ],
     );
 
-    people.staff[person.key] = { id, email, ...person };
+    // Se adopta el id que ya exista. Sin esto, el sembrador calcula un id
+    // determinista, el INSERT lo salta por conflicto de correo, y a partir de
+    // ahi todas las llamadas se hacen en nombre de un usuario FANTASMA: el token
+    // es valido -lo firmamos nosotros- pero apunta a alguien que no esta en la
+    // base, asi que el progreso y las notas se guardan donde nadie las lee.
+    const existingUser = await admin.query('SELECT id FROM identity.users WHERE email = $1', [email]);
+    const realId = existingUser.rows[0]?.id ?? id;
+
+    people.staff[person.key] = { id: realId, email, ...person };
     console.log(`  ${person.role.padEnd(18)} ${email}`);
   }
 
@@ -278,6 +287,12 @@ async function seedPeople(passwordHash) {
       ],
     );
   }
+  // Mismo criterio que con el personal: el id real manda sobre el calculado.
+  for (const student of people.students) {
+    const row = await admin.query('SELECT id FROM identity.users WHERE email = $1', [student.email]);
+    if (row.rows[0]) student.id = row.rows[0].id;
+  }
+
   console.log(`  ${'alumnos'.padEnd(18)} ${people.students.length} cuentas`);
 
   return people;
@@ -378,14 +393,22 @@ async function seedCatalog() {
       [kit.id, kit.code, kit.name, kit.description, kit.program, kit.grade, kit.platforms],
     );
 
-    // Mismo criterio que con la institucion: se adopta el id que ya exista.
+    // Mismo criterio que con la institucion: se adopta el id que ya exista. Y
+    // se hace ANTES de insertar el curso: hacerlo despues crea un curso nuevo y
+    // luego adopta otro, con lo que cada siembra deja un duplicado mas.
     const found = await admin.query('SELECT id FROM catalog.kits WHERE code = $1', [kit.code]);
     if (found.rows[0]) kit.id = found.rows[0].id;
+
+    const foundCourse = await admin.query(
+      'SELECT id FROM catalog.courses WHERE kit_id = $1 ORDER BY order_index LIMIT 1',
+      [kit.id],
+    );
+    if (foundCourse.rows[0]) kit.course.id = foundCourse.rows[0].id;
 
     await admin.query(
       `INSERT INTO catalog.courses
          (id, kit_id, title, description, robot_platform, order_index, status, estimated_minutes)
-       VALUES ($1,$2,$3,'',$4,0,'published',$5)
+       VALUES ($1,$2,$3,'',$4,0,'in_review',$5)
        ON CONFLICT (id) DO NOTHING`,
       [
         kit.course.id,
@@ -395,12 +418,6 @@ async function seedCatalog() {
         kit.course.lessons.reduce((sum, l) => sum + l.minutes, 0),
       ],
     );
-
-    const foundCourse = await admin.query(
-      'SELECT id FROM catalog.courses WHERE kit_id = $1 ORDER BY order_index LIMIT 1',
-      [kit.id],
-    );
-    if (foundCourse.rows[0]) kit.course.id = foundCourse.rows[0].id;
 
     const moduleId = idFor('module', kit.code);
     await admin.query(
@@ -461,6 +478,33 @@ async function seedCatalog() {
 
     console.log(`  ${'kit'.padEnd(18)} ${kit.name}`);
   }
+}
+
+/**
+ * Publica los cursos POR LA API.
+ *
+ * Los cursos nacen en revision y se publican aqui, no con un `status` escrito a
+ * mano en la base. Es lo unico que emite `course.published`, y de ese evento
+ * cuelga el directorio de `learning`: sin el, su tabla de lecciones se queda
+ * vacia, el progreso por contenido no se puede registrar y el alumno nunca gana
+ * XP por completar una leccion. Escribir 'published' directamente deja el curso
+ * visible y a la vez invisible para el servicio que mide el progreso.
+ */
+async function publishCourses(people) {
+  const as = token(people.staff.glexco.id, ['platform_owner'], null);
+  let count = 0;
+
+  for (const kit of KITS) {
+    const result = await api(`/catalog/content/${kit.course.id}/status`, {
+      method: 'POST',
+      body: { target: 'course', status: 'published' },
+      as,
+    });
+    if (result.status === 200) count += 1;
+    else console.log(`  ! publicar ${kit.code}: ${result.status} ${JSON.stringify(result.body).slice(0, 120)}`);
+  }
+
+  console.log(`  ${'cursos publicados'.padEnd(18)} ${count}/${KITS.length}`);
 }
 
 /**
@@ -790,7 +834,38 @@ async function seedSubmissions(people, assessments) {
   console.log(`  entregas         ${graded}/${people.students.length} corregidas`);
 }
 
+/**
+ * Espera a que `learning` conozca las lecciones.
+ *
+ * El directorio se alimenta del evento `course.published`, que viaja por la
+ * outbox y NATS: cuando la publicacion responde, la proyeccion todavia no
+ * existe. Sin esperar aqui, los alumnos intentan completar lecciones que el
+ * servicio aun no conoce, la llamada responde 200 con `firstCompletion: false`
+ * -no es un error, simplemente no habia nada que completar- y el sembrador
+ * termina informando de un progreso que no se guardo en ningun sitio.
+ */
+async function waitForLessonDirectory(people) {
+  const student = people.students[0];
+  const lesson = KITS[CLASSROOMS[student.classroom].kit].course.lessons[0];
+  const as = token(student.id, ['student'], INSTITUTION.id);
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const result = await api(`/learning/lessons/${lesson.id}/start`, {
+      method: 'POST',
+      body: { classroomId: CLASSROOMS[student.classroom].id },
+      as,
+    });
+    if (result.status === 200) return true;
+    await sleep(1500);
+  }
+
+  console.log('  ! learning no proyecto las lecciones en 60 s');
+  return false;
+}
+
 async function seedProgress(people) {
+  if (!(await waitForLessonDirectory(people))) return;
+
   let done = 0;
   for (const student of people.students) {
     const classroom = CLASSROOMS[student.classroom];
@@ -798,8 +873,11 @@ async function seedProgress(people) {
     const as = token(student.id, ['student'], INSTITUTION.id);
 
     // No todos completan lo mismo: la lista de "quien se descolgo" solo sirve si
-    // hay alguien que efectivamente se quedo atras.
-    const howMany = Math.max(1, Math.round(kit.course.lessons.length * (0.3 + Math.random() * 0.7)));
+    // hay alguien que efectivamente se quedo atras. El reparto es determinista
+    // -por posicion- para que resembrar no cambie quien va bien y quien no.
+    const index = people.students.indexOf(student);
+    const ratio = [1, 0.67, 0.34, 1, 0.67, 0.34, 1, 0.34, 0.67, 1, 0.34, 0.67][index] ?? 0.5;
+    const howMany = Math.max(1, Math.round(kit.course.lessons.length * ratio));
 
     for (const lesson of kit.course.lessons.slice(0, howMany)) {
       await api(`/learning/lessons/${lesson.id}/start`, {
@@ -812,7 +890,9 @@ async function seedProgress(people) {
         body: { secondsSpent: lesson.minutes * 60 },
         as,
       });
-      if (result.status === 200) done += 1;
+      // Solo cuenta lo que de verdad se completo por primera vez: contar los 200
+      // a secas informaria de un progreso que no ocurrio.
+      if (result.status === 200 && result.body?.firstCompletion) done += 1;
     }
   }
   console.log(`  progreso         ${done} lecciones completadas`);

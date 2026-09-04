@@ -1,5 +1,6 @@
 import {
   BusinessRuleError,
+  DomainEvent,
   NotFoundError,
   type CacheStore,
   type Clock,
@@ -8,7 +9,7 @@ import {
   type UnitOfWork,
   type UseCase,
 } from '@glexco/kernel';
-import type { PublicationStatus } from '@glexco/contracts';
+import { EVENTS, type PublicationStatus } from '@glexco/contracts';
 import { CachedContentRepository } from '../infrastructure/persistence/cached-content.repository';
 import type { ContentRepository } from '../domain/repositories';
 
@@ -111,6 +112,17 @@ export class PublishContentUseCase implements UseCase<PublishContentInput, Publi
       );
     }
 
+    // Las lecciones se leen ANTES de la transaccion porque viajan en el evento.
+    // Van dentro y no como un evento por leccion a proposito: publicar un curso
+    // es UN hecho del negocio -"este curso ya se puede dar"- y trocearlo en
+    // quince eventos obliga a quien lo consuma a adivinar cuando termino la
+    // tanda. Ademas `learning` necesita el total de lecciones para decir "3 de
+    // 12", y con eventos sueltos ese numero esta mal hasta que llega el ultimo.
+    const lessons =
+      input.target === 'course' && input.status === 'published'
+        ? await this.content.listLessonsByCourse(input.id, true)
+        : [];
+
     await this.unitOfWork.run(async (tx) => {
       if (input.target === 'course') {
         await this.content.saveCourse(
@@ -121,6 +133,31 @@ export class PublishContentUseCase implements UseCase<PublishContentInput, Publi
         await this.content.saveAsset(
           { ...current, status: input.status, updatedAt: now.toISOString() } as never,
           tx,
+        );
+      }
+
+      // Publicar un curso SE ANUNCIA. Sin esto, `learning` nunca sabe que
+      // lecciones existen: su directorio se queda vacio, `locateLesson` no
+      // encuentra nada y el progreso por contenido no puede registrarse. El
+      // evento estaba en el catalogo desde el principio y no lo emitia nadie,
+      // asi que la funcion entera estaba muerta sin dar ningun error.
+      if (input.target === 'course' && input.status === 'published') {
+        (tx as { enqueue(...events: unknown[]): void }).enqueue(
+          new CoursePublished(
+            {
+              courseId: input.id,
+              kitId: current.kitId,
+              title: (current as { title?: string }).title ?? '',
+              lessonCount: lessons.length,
+              lessons: lessons.map((lesson, index) => ({
+                lessonId: lesson.id,
+                title: lesson.title,
+                orderIndex: lesson.orderIndex ?? index,
+              })),
+            },
+            1,
+            { correlationId: context.correlationId },
+          ),
         );
       }
     });
@@ -145,5 +182,28 @@ export class PublishContentUseCase implements UseCase<PublishContentInput, Publi
       previousStatus,
       status: input.status,
     };
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+interface CoursePublishedPayload {
+  courseId: string;
+  kitId: string;
+  title: string;
+  lessonCount: number;
+  lessons: { lessonId: string; title: string; orderIndex: number }[];
+}
+
+/**
+ * Un curso ya se puede dar.
+ *
+ * Lleva sus lecciones dentro. Ver la nota del caso de uso: un evento por leccion
+ * dejaria a quien lo consume sin saber cuando termino la tanda, y el total de
+ * lecciones -que es lo que permite decir "3 de 12"- estaria mal hasta el ultimo.
+ */
+class CoursePublished extends DomainEvent<CoursePublishedPayload> {
+  constructor(payload: CoursePublishedPayload, version: number, context?: { correlationId?: string }) {
+    super(EVENTS.COURSE_PUBLISHED, 'Course', payload.courseId, version, payload, context);
   }
 }

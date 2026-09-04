@@ -40,6 +40,8 @@ interface CoursePublishedPayload {
   kitId: string;
   title?: string;
   lessonCount?: number;
+  /** Las lecciones vienen DENTRO del evento del curso. Ver la nota del manejador. */
+  lessons?: { lessonId: string; title: string; orderIndex: number }[];
 }
 
 interface LessonPublishedPayload {
@@ -115,19 +117,37 @@ export function buildLearningConsumer(deps: LearningConsumerDeps): EventConsumer
   // la portada, que es la pantalla que mas se abre.
   consumer.on<CoursePublishedPayload>(EVENTS.COURSE_PUBLISHED, async (event, tx) => {
     const payload = event.payload;
-    await (tx.client as PoolClient).query(
+    const client = tx.client as PoolClient;
+    const lessons = payload.lessons ?? [];
+
+    await client.query(
       `INSERT INTO learning.course_directory (course_id, kit_id, title, lesson_count)
        VALUES ($1,$2,$3,$4)
        ON CONFLICT (course_id) DO UPDATE SET
          kit_id       = EXCLUDED.kit_id,
          title        = EXCLUDED.title,
-         -- El conteo solo se actualiza si el evento lo trae: un evento de
-         -- actualizacion sin ese campo no puede dejar el curso en cero
-         -- lecciones y hacer que todos parezcan completados.
-         lesson_count = GREATEST(EXCLUDED.lesson_count, learning.course_directory.lesson_count),
+         lesson_count = EXCLUDED.lesson_count,
          updated_at   = now()`,
-      [payload.courseId, payload.kitId, payload.title ?? '', payload.lessonCount ?? 0],
+      [payload.courseId, payload.kitId, payload.title ?? '', payload.lessonCount ?? lessons.length],
     );
+
+    // Las lecciones llegan DENTRO del evento del curso, no como eventos sueltos.
+    // Publicar un curso es un solo hecho del negocio, y trocearlo dejaria a este
+    // consumidor sin saber cuando termino la tanda: el total de lecciones -que es
+    // lo que permite decir "3 de 12"- estaria mal hasta que llegase el ultimo.
+    for (const lesson of lessons) {
+      await client.query(
+        `INSERT INTO learning.lesson_directory (lesson_id, course_id, kit_id, title, order_index)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (lesson_id) DO UPDATE SET
+           course_id   = EXCLUDED.course_id,
+           kit_id      = EXCLUDED.kit_id,
+           title       = EXCLUDED.title,
+           order_index = EXCLUDED.order_index,
+           updated_at  = now()`,
+        [lesson.lessonId, payload.courseId, payload.kitId, lesson.title ?? '', lesson.orderIndex ?? 0],
+      );
+    }
   });
 
   consumer.on<LessonPublishedPayload>(EVENTS.LESSON_PUBLISHED, async (event, tx) => {
