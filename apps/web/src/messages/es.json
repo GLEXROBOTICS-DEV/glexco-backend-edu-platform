@@ -101,7 +101,10 @@
     "pistaEnlace": "Súbelo a YouTube o a Drive y pega aquí la dirección. Tu docente lo verá allí.",
     "evidenciaOpcional": "Si tu docente lo revisa en clase, puedes dejar esto en blanco.",
     "reduciendoFoto": "Reduciendo tu foto…",
-    "fotoReducida": "Foto reducida de {antes} a {despues} para que suba rápido."
+    "fotoReducida": "Foto reducida de {antes} a {despues} para que suba rápido.",
+    "emparejaCada": "empareja cada uno con el suyo",
+    "parejaDe": "Pareja de: {elemento}",
+    "sinPareja": "Sin emparejar"
   },
   "niveles": {
     "1": "Explorador",
@@ -406,7 +409,11 @@
     "tusIntentos": "Tus intentos",
     "intentoNumero": "Intento {numero}",
     "sinEntregar": "sin entregar",
-    "pendienteDeCorregir": "pendiente de corregir"
+    "pendienteDeCorregir": "pendiente de corregir",
+    "comoSePuntuo": "Cómo se puntuó",
+    "rubricaExplicacion": "Cada criterio se puntúa por separado. Así sabes qué te salió bien y qué repasar.",
+    "rubricaSinPuntuar": "Sin puntuar",
+    "rubricaPuntos": "{puntos} de {total}"
   },
   "contenido": {
     "falloTitulo": "No pudimos cargar tu contenido",

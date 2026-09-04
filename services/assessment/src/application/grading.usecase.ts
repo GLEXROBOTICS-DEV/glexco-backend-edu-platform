@@ -10,6 +10,7 @@ import { ROLES, isPlatformRole, type Role } from '@glexco/contracts';
 import { AssessmentId, type Question } from '../domain/assessment.aggregate';
 import { SubmissionId } from '../domain/submission.aggregate';
 import type { ClassroomDirectory } from './directory';
+import type { Rubric } from '../domain/rubric';
 import type { AssessmentRepository, SubmissionRepository } from './ports';
 
 /**
@@ -167,6 +168,8 @@ export interface GradableQuestion {
   /** Aqui SI viaja la clave: quien la recibe es quien corrige. */
   correctOptionIds: string[];
   explanation: string | null;
+  /** Rubrica de correccion, si la pregunta la trae. */
+  rubric: Rubric | null;
   /** Lo que respondio el alumno. */
   answer: {
     selectedOptionIds: string[];
@@ -174,6 +177,8 @@ export interface GradableQuestion {
     mediaAssetId: string | null;
     awardedPoints: number | null;
     feedback: string | null;
+    /** Los niveles ya elegidos, para no empezar de cero al reabrir. */
+    rubricSelections: { criterionId: string; levelIndex: number }[];
   } | null;
   /** `true` si la maquina no puede puntuarla y hace falta una persona. */
   needsManualGrading: boolean;
@@ -267,6 +272,9 @@ export class GetSubmissionForGradingUseCase
           points: question.points,
           correctOptionIds: question.correctOptionIds,
           explanation: question.explanation,
+          // La rubrica viaja para que la pantalla ofrezca niveles en vez de un
+          // numero libre. Es el enunciado de la correccion, no la clave.
+          rubric: question.rubric ?? null,
           answer: answer
             ? {
                 selectedOptionIds: answer.selectedOptionIds,
@@ -274,6 +282,10 @@ export class GetSubmissionForGradingUseCase
                 mediaAssetId: answer.mediaAssetId,
                 awardedPoints: answer.awardedPoints,
                 feedback: answer.feedback,
+                // Lo ya elegido, para que reabrir la correccion no empiece de
+                // cero: un docente que corrige veinte entregas y vuelve a una
+                // no puede perder lo que ya puso.
+                rubricSelections: answer.rubricSelections ?? [],
               }
             : null,
           // Una pregunta de marcar ya la puntuo la maquina; lo que necesita una

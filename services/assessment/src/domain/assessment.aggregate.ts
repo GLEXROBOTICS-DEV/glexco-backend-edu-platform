@@ -15,6 +15,7 @@ import {
   type PublicationStatus,
   type QuestionType,
 } from '@glexco/contracts';
+import { assertRubricIsUsable, type Rubric } from './rubric';
 
 export class AssessmentId extends defineId('Assessment') {}
 
@@ -55,21 +56,21 @@ export type { QuestionType };
 /**
  * Tipos que la maquina puede corregir sola.
  *
- * `matching` existe en el vocabulario pero NO esta aqui: su correccion no esta
- * escrita, y meterlo en la lista lo puntuaria a cero en silencio. Fuera de la
- * lista se trata como manual, que es el comportamiento correcto mientras no
- * exista el algoritmo. Ademas le falta el modelo: emparejar necesita PARES, y
- * `correctOptionIds` es una lista plana; codificarlos como "izq:der" dentro de
- * un id seria una estructura escondida en un `string`.
+ * `ordering` encaja sin modelo nuevo: `correctOptionIds` ya es un ARRAY
+ * ORDENADO, asi que la secuencia correcta es su propio orden.
  *
- * `ordering` si esta, y encaja sin cambiar el modelo: `correctOptionIds` ya es
- * un ARRAY ORDENADO, asi que la secuencia correcta es su propio orden.
+ * `matching` si necesito modelo, y por eso tardo: emparejar son PARES y
+ * `correctOptionIds` es una lista plana. Se resolvio con dos campos propios
+ * -`matches` para la columna derecha y `pairs` para la clave- en vez de
+ * codificar "izq:der" dentro de un identificador, que seria una estructura
+ * escondida en un `string` y se rompe en cuanto un id lleve el separador.
  */
 const AUTO_GRADABLE: readonly QuestionType[] = [
   QUESTION_TYPES.SINGLE_CHOICE,
   QUESTION_TYPES.MULTIPLE_CHOICE,
   QUESTION_TYPES.TRUE_FALSE,
   QUESTION_TYPES.ORDERING,
+  QUESTION_TYPES.MATCHING,
 ];
 
 export function isAutoGradable(type: QuestionType): boolean {
@@ -81,12 +82,50 @@ export interface QuestionOption {
   text: string;
 }
 
+/** Una pareja de una pregunta de emparejar: un elemento de cada columna. */
+export interface QuestionPair {
+  optionId: string;
+  matchId: string;
+}
+
 export interface Question {
   id: string;
   type: QuestionType;
   prompt: string;
-  /** Vacio en las preguntas abiertas y de entrega. */
+  /**
+   * Rubrica de correccion, en las preguntas que corrige una persona.
+   *
+   * Vive DENTRO de la pregunta y no en una tabla aparte: una rubrica sin su
+   * pregunta no significa nada, se lee y se escribe siempre con ella, y en tabla
+   * aparte cada carga de la bandeja de correccion seria un JOIN mas. Es la misma
+   * decision que las opciones.
+   *
+   * `null` en las de marcar: la maquina no necesita criterios para comparar una
+   * opcion con la clave.
+   */
+  rubric?: Rubric | null;
+  /**
+   * Vacio en las preguntas abiertas y de entrega.
+   *
+   * En `matching` son la columna IZQUIERDA: lo que hay que emparejar.
+   */
   options: QuestionOption[];
+  /**
+   * La columna DERECHA de una pregunta de emparejar.
+   *
+   * Puede tener mas elementos que `options`: un distractor a la derecha -una
+   * opcion que no empareja con nada- es lo que evita que la ultima pareja se
+   * acierte por descarte.
+   */
+  matches?: QuestionOption[];
+  /**
+   * La clave de una pregunta de emparejar: que va con que.
+   *
+   * **Nunca sale del servidor hacia un alumno**, igual que `correctOptionIds`.
+   * Va aparte y no dentro de `correctOptionIds` porque un par no es una opcion
+   * suelta, y una lista plana no puede representar una relacion.
+   */
+  pairs?: QuestionPair[];
   /**
    * La clave de correccion.
    *
@@ -105,6 +144,25 @@ export interface StudentQuestion {
   prompt: string;
   options: QuestionOption[];
   points: number;
+  /**
+   * La rubrica SI viaja al alumno, y a proposito.
+   *
+   * No es parte de la clave de correccion: es el enunciado de como se va a
+   * evaluar. Saber de antemano que se puntua el montaje, el cableado y la
+   * explicacion es exactamente lo que hace que una rubrica sirva para aprender
+   * y no solo para calificar. Esconderla hasta despues la convierte en una
+   * sorpresa.
+   */
+  rubric?: Rubric | null;
+  /**
+   * La columna derecha de una pregunta de emparejar, DESORDENADA.
+   *
+   * Sin desordenar, la clave viaja igual: si el docente captura los pares en
+   * orden y la derecha sale en ese mismo orden, emparejar el primero con el
+   * primero acierta todo. Ver `forStudent()` para como se desordena sin usar
+   * azar.
+   */
+  matches?: QuestionOption[];
 }
 
 // ---------------------------------------------------------------------------
@@ -312,7 +370,12 @@ export class Assessment extends AggregateRoot<AssessmentId> {
       );
     }
 
-    if (isAutoGradable(question.type)) {
+    // Emparejar se valida aparte: su clave son `pairs` y no `correctOptionIds`,
+    // asi que la rama de las de marcar -que exige una respuesta correcta entre
+    // las opciones- no le aplica.
+    if (question.type === QUESTION_TYPE.MATCHING) {
+      assertMatchingIsUsable(question);
+    } else if (isAutoGradable(question.type)) {
       if (question.options.length < 2) {
         throw new BusinessRuleError(
           'QUESTION_NEEDS_OPTIONS',
@@ -369,6 +432,13 @@ export class Assessment extends AggregateRoot<AssessmentId> {
         );
       }
     }
+
+    // La rubrica, si la trae. La comprobacion que importa es que su maximo
+    // COINCIDA con los puntos de la pregunta: si diera menos, la pregunta seria
+    // imposible de sacar entera y nadie sabria por que; si diera mas, el dominio
+    // rechazaria la correccion al pasarse y el docente se quedaria sin poder
+    // cerrar la nota despues de haber puntuado todo.
+    if (question.rubric) assertRubricIsUsable(question.rubric, question.points);
 
     this.touch();
     this.state.questions.push({ ...question });
@@ -479,6 +549,22 @@ export class Assessment extends AggregateRoot<AssessmentId> {
       prompt: question.prompt,
       options: question.options.map((option) => ({ id: option.id, text: option.text })),
       points: question.points,
+      // La rubrica SI sale, porque no es parte de la clave: es el enunciado de
+      // como se va a evaluar. Saber de antemano que se puntua el montaje, el
+      // cableado y la explicacion es lo que hace que sirva para aprender.
+      ...(question.rubric ? { rubric: question.rubric } : {}),
+      // La columna derecha sale SIN los pares y ORDENADA POR IDENTIFICADOR.
+      //
+      // Ordenar por id es desordenar: los identificadores son UUID v4, asi que
+      // su orden no guarda ninguna relacion con el orden de captura, y el
+      // docente que escribe las parejas en fila no regala la clave. Y se hace
+      // asi en vez de con `Math.random()` porque el dominio tiene que ser
+      // determinista -una pregunta que sale distinta en cada carga no se puede
+      // probar, y al recargar la pantalla el alumno veria la derecha bailar y
+      // perderia lo que llevaba emparejado-.
+      ...(question.matches
+        ? { matches: [...question.matches].sort((a, b) => a.id.localeCompare(b.id)) }
+        : {}),
     }));
   }
 
@@ -542,5 +628,70 @@ export class Assessment extends AggregateRoot<AssessmentId> {
 
   snapshot(): Readonly<AssessmentState> {
     return this.state;
+  }
+}
+
+/**
+ * Comprueba una pregunta de emparejar al capturarla.
+ *
+ * Se comprueba aqui ademas de en el esquema Zod porque el esquema solo cubre la
+ * via HTTP, y el banco de GLEXCO se siembra por otro camino. Una pregunta de
+ * emparejar con la clave a medias no se puede acertar, y el salon entero sacaria
+ * la misma nota rara sin que nadie supiera por que -el mismo fallo que ya se
+ * cerro en las de ordenar-.
+ */
+function assertMatchingIsUsable(question: Omit<Question, 'id'> & { id: string }): void {
+  const matches = question.matches ?? [];
+  const pairs = question.pairs ?? [];
+
+  if (question.options.length < 2 || matches.length < 2) {
+    throw new BusinessRuleError(
+      'MATCHING_NEEDS_TWO_COLUMNS',
+      'Una pregunta de emparejar necesita al menos dos elementos en cada columna.',
+    );
+  }
+
+  // TODA la izquierda tiene que estar emparejada. Dejar un elemento fuera es
+  // pedirle al alumno que empareje algo que no puntua, y no hay forma de que lo
+  // sepa.
+  if (pairs.length !== question.options.length) {
+    throw new BusinessRuleError(
+      'MATCHING_NEEDS_ALL_PAIRS',
+      'Cada elemento de la izquierda necesita su pareja.',
+    );
+  }
+
+  const optionIds = new Set(question.options.map((option) => option.id));
+  const matchIds = new Set(matches.map((match) => match.id));
+  const vistosIzquierda = new Set<string>();
+  const vistosDerecha = new Set<string>();
+
+  for (const pair of pairs) {
+    if (!optionIds.has(pair.optionId) || !matchIds.has(pair.matchId)) {
+      throw new BusinessRuleError(
+        'MATCHING_PAIR_UNKNOWN',
+        'Hay una pareja que apunta a un elemento que no existe.',
+      );
+    }
+
+    if (vistosIzquierda.has(pair.optionId)) {
+      throw new BusinessRuleError(
+        'MATCHING_OPTION_DUPLICATED',
+        'Un elemento de la izquierda no puede tener dos parejas.',
+      );
+    }
+    vistosIzquierda.add(pair.optionId);
+
+    // Un elemento de la derecha tampoco se reutiliza. Se podria permitir -"todos
+    // estos sensores van con Yanshee"-, pero entonces "cuantas parejas acerto"
+    // deja de ser explicable: el alumno que asigna el mismo elemento a todo
+    // acertaria varias sin haber emparejado nada.
+    if (vistosDerecha.has(pair.matchId)) {
+      throw new BusinessRuleError(
+        'MATCHING_MATCH_DUPLICATED',
+        'Un elemento de la derecha no puede emparejarse con dos de la izquierda.',
+      );
+    }
+    vistosDerecha.add(pair.matchId);
   }
 }

@@ -32,12 +32,22 @@ export interface GradableQuestion {
   points: number;
   correctOptionIds: string[];
   explanation: string | null;
+  /** Rúbrica de corrección, si la pregunta la trae. `null` en las de marcar. */
+  rubric: {
+    criteria: {
+      id: string;
+      label: string;
+      levels: { label: string; points: number; description?: string | null }[];
+    }[];
+  } | null;
   answer: {
     selectedOptionIds: string[];
     text: string | null;
     mediaAssetId: string | null;
     awardedPoints: number | null;
     feedback: string | null;
+    /** Los niveles ya elegidos: reabrir una corrección no empieza de cero. */
+    rubricSelections: { criterionId: string; levelIndex: number }[];
   } | null;
   needsManualGrading: boolean;
 }

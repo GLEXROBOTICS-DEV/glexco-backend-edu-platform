@@ -139,8 +139,73 @@ export async function AssessmentResult({
         </article>
       </div>
 
+      {best?.rubricBreakdown && best.rubricBreakdown.length > 0 ? (
+        <Rubricas desglose={best.rubricBreakdown} t={t} />
+      ) : null}
+
       {result.attempts.length > 1 ? <Historial attempts={result.attempts} t={t} /> : null}
     </div>
+  );
+}
+
+/**
+ * Por qué salió esa nota, criterio a criterio.
+ *
+ * Es el motivo por el que existen las rúbricas: «12 de 20» no dice nada, y
+ * «montaje: logrado, cableado: parcial, explicación: no logrado» sí. **No filtra
+ * la clave de corrección**: no dice cuál era la respuesta buena, dice a qué
+ * nivel llegó el trabajo del alumno, que es información sobre lo que él mismo
+ * entregó.
+ *
+ * Solo aparece si el docente ya puntuó. Enseñar todos los criterios como «sin
+ * puntuar» en una entrega que nadie ha abierto se lee como un cero.
+ */
+function Rubricas({
+  desglose,
+  t,
+}: {
+  desglose: NonNullable<MyAttempt['rubricBreakdown']>;
+  t: (key: string, values?: TranslationValues) => string;
+}) {
+  return (
+    <section aria-labelledby="rubricas" data-rubrica="1">
+      <h2 id="rubricas" className="eyebrow mb-1">
+        {t('comoSePuntuo')}
+      </h2>
+      <p className="mb-3 text-sm text-ink-500">{t('rubricaExplicacion')}</p>
+
+      <div className="grid gap-[var(--portal-gap)]">
+        {desglose.map((pregunta) => (
+          <article
+            key={pregunta.prompt}
+            className="rounded-[var(--portal-radius)] border border-line-200 bg-white p-[var(--portal-card-padding)]"
+          >
+            <p className="font-display text-base font-semibold">{pregunta.prompt}</p>
+            <p className="mt-1 text-sm tabular-nums text-ink-500">
+              {t('rubricaPuntos', { puntos: pregunta.awardedPoints, total: pregunta.points })}
+            </p>
+
+            <ul className="mt-4 grid list-none gap-3">
+              {pregunta.criteria.map((criterio) => (
+                <li key={criterio.criterion} className="border-t border-line-200 pt-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="text-sm font-medium text-ink-900">{criterio.criterion}</span>
+                    {/* El nivel es TEXTO, no un color ni una barra: quien no
+                        distingue el verde del ámbar lee igual el resultado. */}
+                    <span className="text-sm tabular-nums text-ink-700">
+                      {criterio.level ?? t('rubricaSinPuntuar')} · {criterio.points}
+                    </span>
+                  </div>
+                  {criterio.description ? (
+                    <p className="mt-1 text-sm text-ink-500">{criterio.description}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 

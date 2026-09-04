@@ -34,7 +34,12 @@ export async function gradeSubmission(
     return { error: 'Falta la entrega. Vuelve a abrirla.' };
   }
 
-  const grades: { questionId: string; points: number; feedback?: string }[] = [];
+  const grades: {
+    questionId: string;
+    points: number;
+    feedback?: string;
+    rubric?: { criterionId: string; levelIndex: number }[];
+  }[] = [];
 
   for (const rawId of formData.getAll('gradableQuestionId')) {
     const questionId = String(rawId);
@@ -50,12 +55,43 @@ export async function gradeSubmission(
       return { error: 'Las puntuaciones tienen que ser números positivos.' };
     }
 
+    // Con rúbrica, lo que se envía son los NIVELES y no el total: los puntos
+    // los calcula el dominio. La lista de criterios viaja en un campo oculto
+    // porque una acción de servidor no tiene el cuestionario delante, y sin
+    // ella no habría forma de distinguir «no eligió este criterio» de «esta
+    // pregunta no tiene rúbrica».
+    const rawCriteria = formData.get(`rubricCriteria:${questionId}`);
+    const criterios =
+      typeof rawCriteria === 'string' && rawCriteria.trim().length > 0
+        ? rawCriteria.split(',').filter((id) => id.length > 0)
+        : [];
+
+    const selecciones: { criterionId: string; levelIndex: number }[] = [];
+
+    for (const criterionId of criterios) {
+      const rawLevel = formData.get(`rubric:${questionId}:${criterionId}`);
+      // Un criterio sin nivel vale cero en el dominio, y cerrar la nota con la
+      // rúbrica a medias daría un cero silencioso en ese criterio. Se para aquí
+      // antes de publicar una nota que el docente no quiso poner.
+      if (typeof rawLevel !== 'string' || rawLevel.length === 0) {
+        return { error: 'Elige un nivel en cada criterio de la rúbrica.' };
+      }
+
+      const levelIndex = Number(rawLevel);
+      if (!Number.isInteger(levelIndex) || levelIndex < 0) {
+        return { error: 'Hay un nivel de rúbrica que no reconocemos. Vuelve a abrir la entrega.' };
+      }
+
+      selecciones.push({ criterionId, levelIndex });
+    }
+
     grades.push({
       questionId,
       points,
       ...(typeof rawFeedback === 'string' && rawFeedback.trim().length > 0
         ? { feedback: rawFeedback.trim() }
         : {}),
+      ...(selecciones.length > 0 ? { rubric: selecciones } : {}),
     });
   }
 

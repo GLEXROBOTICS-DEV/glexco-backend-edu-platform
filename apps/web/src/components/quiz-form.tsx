@@ -109,6 +109,7 @@ function QuestionCard({ question, index }: { question: StudentQuestion; index: n
   const t = useTranslations('evaluacion');
   const multiple = question.type === 'multiple_choice';
   const ordering = question.type === 'ordering';
+  const matching = question.type === 'matching';
   const evidence = question.type === 'file_upload';
   const legendId = `pregunta-${question.id}`;
 
@@ -132,11 +133,14 @@ function QuestionCard({ question, index }: { question: StudentQuestion; index: n
           {t('puntos', { puntos: question.points })}
           {multiple ? ` · ${t('marcaTodas')}` : ''}
           {ordering ? ` · ${t('ordenaLosPasos')}` : ''}
+          {matching ? ` · ${t('emparejaCada')}` : ''}
           {evidence ? ` · ${t('entregaEvidencia')}` : ''}
         </p>
 
         {ordering ? (
           <OrderingAnswer question={question} t={t} />
+        ) : matching ? (
+          <MatchingAnswer question={question} t={t} />
         ) : evidence ? (
           <EvidenceAnswer question={question} t={t} />
         ) : question.options.length > 0 ? (
@@ -267,6 +271,59 @@ function OrderingAnswer({
             </select>
           </label>
           <span>{option.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Emparejar dos columnas, con un desplegable por elemento de la izquierda.
+ *
+ * **Mismo motivo que en ordenar: no es arrastrar y soltar.** Arrastrar exige
+ * JavaScript -y este formulario tiene que poder entregarse sin el-, es
+ * practicamente imposible con un lector de pantalla, y en una tableta de
+ * laboratorio con el dedo de un nino de nueve anos falla mas de lo que acierta.
+ *
+ * La columna derecha llega YA DESORDENADA del servidor. No se desordena aqui: si
+ * el navegador lo hiciera, la clave habria viajado en el orden original y
+ * bastaria mirar la respuesta de red.
+ */
+function MatchingAnswer({
+  question,
+  t,
+}: {
+  question: StudentQuestion;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}) {
+  const matches = question.matches ?? [];
+
+  return (
+    <div className="grid gap-2">
+      {question.options.map((option) => (
+        <div
+          key={option.id}
+          className="grid items-center gap-3 rounded-lg border border-line-200 px-4 py-3 text-sm text-ink-700 sm:grid-cols-[1fr_1fr]"
+        >
+          <span>{option.text}</span>
+          <label>
+            {/* La etiqueta nombra el ELEMENTO y no "pareja 1": un lector de
+                pantalla lee "Pareja de: Yanshee", que es lo que hace falta para
+                responder sin ver la pantalla. */}
+            <span className="sr-only">{t('parejaDe', { elemento: option.text })}</span>
+            <select
+              name={`pareja:${question.id}:${option.id}`}
+              defaultValue=""
+              className="field"
+            >
+              <option value="">{t('sinPareja')}</option>
+              {matches.map((match) => (
+                <option key={match.id} value={match.id}>
+                  {match.text}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       ))}
     </div>

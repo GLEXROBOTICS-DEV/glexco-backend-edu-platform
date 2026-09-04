@@ -21,6 +21,7 @@ import {
   type Question,
   type QuestionType,
 } from '../domain/assessment.aggregate';
+import type { Rubric } from '../domain/rubric';
 import type { AssessmentRepository } from './ports';
 
 /** Traduce el actor de la peticion al que entiende el dominio. */
@@ -142,6 +143,13 @@ export interface AddQuestionInput {
   correctOptions?: number[] | undefined;
   points: number;
   explanation?: string | undefined;
+  /** Rubrica de correccion. Su maximo tiene que coincidir con `points`, y lo
+   *  comprueba el agregado al anadirla. */
+  rubric?: Rubric | undefined;
+  /** La columna derecha de una pregunta de emparejar. */
+  matches?: { text: string }[] | undefined;
+  /** Que va con que, por POSICION en cada columna. */
+  matchPairs?: { option: number; match: number }[] | undefined;
 }
 
 /**
@@ -198,6 +206,29 @@ export class AddQuestionUseCase implements UseCase<AddQuestionInput, { questionI
         return option.id;
       });
 
+      // La columna derecha de emparejar recibe sus identificadores aqui, igual
+      // que las opciones, y los pares se traducen de posiciones a
+      // identificadores. Un indice fuera de rango es el unico error posible.
+      const matches = (input.matches ?? []).map((match) => ({
+        id: this.ids.uuid(),
+        text: match.text,
+      }));
+
+      const pairs = (input.matchPairs ?? []).map((par) => {
+        const option = options[par.option];
+        const match = matches[par.match];
+
+        if (!option || !match) {
+          throw new BusinessRuleError(
+            'MATCHING_PAIR_UNKNOWN',
+            'Una pareja senala un elemento que no existe.',
+            { pair: par },
+          );
+        }
+
+        return { optionId: option.id, matchId: match.id };
+      });
+
       const question: Question = {
         id: questionId,
         type: input.type,
@@ -206,6 +237,9 @@ export class AddQuestionUseCase implements UseCase<AddQuestionInput, { questionI
         correctOptionIds,
         points: input.points,
         explanation: input.explanation ?? null,
+        ...(input.rubric ? { rubric: input.rubric } : {}),
+        ...(matches.length > 0 ? { matches } : {}),
+        ...(pairs.length > 0 ? { pairs } : {}),
       };
 
       assessment.addQuestion(question, now);

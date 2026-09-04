@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { gradeSubmission, type GradeState } from '../lib/grading.actions';
 import type { GradableQuestion, SubmissionForGrading } from '../lib/grading';
@@ -177,27 +177,39 @@ function ManualQuestion({
         )}
       </div>
 
+      {question.rubric ? (
+        <RubricGrader question={question} rubric={question.rubric} />
+      ) : null}
+
       <div className="mt-4 grid gap-3 sm:grid-cols-[10rem_1fr]">
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">
-            Puntos <span className="text-ink-400">/ {question.points}</span>
-          </span>
-          {/*
-            `type="number"` con `max`: el dominio rechaza pasarse del máximo, y
-            que el navegador lo diga antes ahorra un viaje. La validación real
-            sigue estando en el servidor.
-          */}
-          <input
-            type="number"
-            name={`points:${question.id}`}
-            min={0}
-            max={question.points}
-            step="0.5"
-            required
-            defaultValue={question.answer?.awardedPoints ?? ''}
-            className="field"
-          />
-        </label>
+        {question.rubric ? (
+          // Con rúbrica NO hay campo de puntos: los calcula el dominio a partir
+          // de los niveles. Un número libre al lado de la rúbrica invitaría a
+          // corregir por rúbrica y luego «ajustar» la nota, que es exactamente
+          // lo que la rúbrica existe para evitar.
+          <input type="hidden" name={`points:${question.id}`} value="0" />
+        ) : (
+          <label className="grid gap-1.5">
+            <span className="text-sm font-medium text-ink-700">
+              Puntos <span className="text-ink-400">/ {question.points}</span>
+            </span>
+            {/*
+              `type="number"` con `max`: el dominio rechaza pasarse del máximo, y
+              que el navegador lo diga antes ahorra un viaje. La validación real
+              sigue estando en el servidor.
+            */}
+            <input
+              type="number"
+              name={`points:${question.id}`}
+              min={0}
+              max={question.points}
+              step="0.5"
+              required
+              defaultValue={question.answer?.awardedPoints ?? ''}
+              className="field"
+            />
+          </label>
+        )}
 
         <label className="grid gap-1.5">
           <span className="text-sm font-medium text-ink-700">Comentario</span>
@@ -210,6 +222,96 @@ function ManualQuestion({
           />
         </label>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Corregir con rúbrica: un nivel por criterio, y los puntos salen de ahí.
+ *
+ * **Radios y no un desplegable ni un número**, porque el docente tiene que ver
+ * los niveles a la vez para elegir: la descripción de cada uno es lo que hace
+ * que dos docentes puntúen igual el mismo trabajo, y escondida en un `<select>`
+ * no la lee nadie.
+ *
+ * La suma se enseña en vivo, pero **no se envía**: el formulario manda qué nivel
+ * se eligió en cada criterio y el dominio hace la cuenta. Si mandara el total,
+ * un valor manipulado otorgaría más de lo que la rúbrica permite y la única
+ * comprobación —«no más que el máximo de la pregunta»— no lo notaría.
+ *
+ * Sin JavaScript se pierde la suma en vivo y nada más: los radios se envían
+ * igual y el total lo pone el servidor, que es quien lo pone de todos modos.
+ */
+function RubricGrader({
+  question,
+  rubric,
+}: {
+  question: GradableQuestion;
+  rubric: NonNullable<GradableQuestion['rubric']>;
+}) {
+  const previas = new Map(
+    (question.answer?.rubricSelections ?? []).map((s) => [s.criterionId, s.levelIndex]),
+  );
+
+  const [elegidos, setElegidos] = useState<Record<string, number>>(() =>
+    Object.fromEntries(previas),
+  );
+
+  const suma = rubric.criteria.reduce((total, criterion) => {
+    const index = elegidos[criterion.id];
+    const level = index === undefined ? undefined : criterion.levels[index];
+    return total + (level?.points ?? 0);
+  }, 0);
+
+  const completa = rubric.criteria.every((criterion) => elegidos[criterion.id] !== undefined);
+
+  return (
+    <div className="mt-4 grid gap-3" data-rubrica="1">
+      <input
+        type="hidden"
+        name={`rubricCriteria:${question.id}`}
+        value={rubric.criteria.map((criterion) => criterion.id).join(',')}
+      />
+
+      {rubric.criteria.map((criterion) => (
+        <fieldset key={criterion.id} className="grid gap-2 rounded-lg bg-surface-100 px-4 py-3">
+          <legend className="px-1 text-sm font-medium text-ink-700">{criterion.label}</legend>
+
+          <div className="grid gap-1.5 sm:grid-cols-3">
+            {criterion.levels.map((level, index) => (
+              <label
+                key={index}
+                className="flex cursor-pointer items-start gap-2 rounded-md bg-white px-3 py-2 text-sm"
+              >
+                <input
+                  type="radio"
+                  name={`rubric:${question.id}:${criterion.id}`}
+                  value={index}
+                  required
+                  defaultChecked={previas.get(criterion.id) === index}
+                  onChange={() =>
+                    setElegidos((previos) => ({ ...previos, [criterion.id]: index }))
+                  }
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="font-medium">{level.label}</span>
+                  <span className="text-ink-400"> · {level.points}</span>
+                  {level.description ? (
+                    <span className="block text-xs text-ink-500">{level.description}</span>
+                  ) : null}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ))}
+
+      <p role="status" className="text-sm font-medium text-ink-700" data-rubrica-suma="1">
+        {completa
+          ? `Suma ${suma} de ${question.points} puntos.`
+          : `Elige un nivel en cada criterio. Llevas ${suma} de ${question.points}.`}
+      </p>
     </div>
   );
 }

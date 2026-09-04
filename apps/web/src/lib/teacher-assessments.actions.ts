@@ -102,9 +102,34 @@ export async function addQuestion(
   }
 
   const ordering = type === 'ordering';
+  const matching = type === 'matching';
   const needsOptions = type === 'single_choice' || type === 'multiple_choice' || ordering;
   const options: { text: string }[] = [];
   const correctOptions: number[] = [];
+  const matches: { text: string }[] = [];
+  const matchPairs: { option: number; match: number }[] = [];
+
+  // Emparejar se arma aparte: cada FILA del formulario es una pareja, asi que
+  // los pares salen de la posicion de la fila y no de un control marcado. Se
+  // saltan las filas a medias -solo un lado escrito-: una pareja incompleta la
+  // rechaza el dominio, y aqui se puede decir mejor que un 422.
+  if (matching) {
+    const izquierda = formData.getAll('matchLeft').map((value) => String(value).trim());
+    const derecha = formData.getAll('matchRight').map((value) => String(value).trim());
+
+    izquierda.forEach((texto, index) => {
+      const pareja = derecha[index] ?? '';
+      if (texto.length === 0 || pareja.length === 0) return;
+
+      matchPairs.push({ option: options.length, match: matches.length });
+      options.push({ text: texto });
+      matches.push({ text: pareja });
+    });
+
+    if (matchPairs.length < 2) {
+      return { error: 'Una pregunta de emparejar necesita al menos dos parejas completas.' };
+    }
+  }
 
   if (needsOptions) {
     const texts = formData.getAll('optionText').map((value) => String(value).trim());
@@ -142,6 +167,40 @@ export async function addQuestion(
     }
   }
 
+  // La rubrica, si el docente la relleno. Tres niveles fijos por criterio, con
+  // el intermedio a la mitad redondeando HACIA ABAJO: hacia arriba, un criterio
+  // de 5 daria 3 por "parcial" y sumando cuatro criterios la nota parcial se
+  // acercaria demasiado a la completa.
+  const etiquetas = formData.getAll('rubricCriterion').map((value) => String(value).trim());
+  const puntos = formData.getAll('rubricPoints').map((value) => Number(value) || 0);
+
+  const criterios = etiquetas
+    .map((label, index) => ({ label, points: puntos[index] ?? 0 }))
+    .filter((criterio) => criterio.label.length > 0 && criterio.points > 0)
+    .map((criterio, index) => ({
+      // El identificador lo pone el servidor a partir de la posicion: aceptarlo
+      // del formulario obligaria a validar que no se repite, y un criterio
+      // duplicado rompe la suma sin que nadie lo vea.
+      id: `c${index + 1}`,
+      label: criterio.label,
+      levels: [
+        { label: 'Logrado', points: criterio.points },
+        { label: 'Parcial', points: Math.floor(criterio.points / 2) },
+        { label: 'No logrado', points: 0 },
+      ],
+    }));
+
+  const totalPuntos = typeof points === 'string' && points.length > 0 ? Number(points) : 10;
+  const sumaRubrica = criterios.reduce((total, criterio) => total + criterio.levels[0]!.points, 0);
+
+  // Se comprueba aqui ADEMAS del dominio para decirlo con la cifra delante: el
+  // error del servidor llega despues de perder el formulario entero.
+  if (criterios.length > 0 && sumaRubrica !== totalPuntos) {
+    return {
+      error: `La rúbrica suma ${sumaRubrica} puntos y la pregunta vale ${totalPuntos}. Tienen que coincidir.`,
+    };
+  }
+
   const explanation = formData.get('explanation');
 
   const result = await api(`/assessments/${assessmentId}/questions`, {
@@ -151,6 +210,8 @@ export async function addQuestion(
       prompt: prompt.trim(),
       points: typeof points === 'string' && points.length > 0 ? points : 10,
       ...(needsOptions ? { options, correctOptions } : {}),
+      ...(matching ? { options, matches, matchPairs } : {}),
+      ...(criterios.length > 0 ? { rubric: { criteria: criterios } } : {}),
       ...(typeof explanation === 'string' && explanation.trim().length > 0
         ? { explanation: explanation.trim() }
         : {}),

@@ -17,9 +17,10 @@ import { ASSESSMENT_TYPES, QUESTION_TYPES } from '../domain/vocabulary';
  * Salen del vocabulario compartido en vez de repetirse: si alguien anade un tipo
  * alli y no aqui, la diferencia se nota al compilar y no en produccion.
  *
- * `ordering` y `matching` existen en el vocabulario pero todavia no se admiten:
- * su correccion automatica no esta escrita, y aceptarlos daria cero a todo el
- * mundo sin que nadie entendiera por que.
+ * Ya estan los siete: `ordering` y `matching` fueron los ultimos en entrar, y
+ * solo lo hicieron cuando su correccion automatica estuvo escrita. Aceptar un
+ * tipo sin algoritmo lo puntuaria a cero en silencio, que es peor que no
+ * ofrecerlo.
  */
 export const ASSESSMENT_KINDS = [
   ASSESSMENT_TYPES.QUIZ,
@@ -34,6 +35,7 @@ export const SUPPORTED_QUESTION_TYPES = [
   QUESTION_TYPES.TRUE_FALSE,
   QUESTION_TYPES.SHORT_ANSWER,
   QUESTION_TYPES.ORDERING,
+  QUESTION_TYPES.MATCHING,
   QUESTION_TYPES.FILE_UPLOAD,
 ] as const;
 
@@ -81,10 +83,110 @@ export const addQuestionSchema = z
      */
     correctOptions: z.array(z.coerce.number().int().min(0)).max(10).optional(),
 
+    /**
+     * La columna DERECHA de una pregunta de emparejar.
+     *
+     * Puede tener mas elementos que `options`: un distractor a la derecha evita
+     * que la ultima pareja se acierte por descarte.
+     */
+    matches: z.array(z.object({ text: z.string().trim().min(1).max(500) })).max(10).optional(),
+
+    /**
+     * Que va con que, por POSICION en cada columna.
+     *
+     * Por posicion y no por identificador, igual que `correctOptions`: los
+     * identificadores los genera el backend, y aceptarlos del cliente obligaria
+     * a validar que existen, que no se repiten y que no son de otra pregunta.
+     */
+    matchPairs: z
+      .array(
+        z.object({
+          option: z.coerce.number().int().min(0),
+          match: z.coerce.number().int().min(0),
+        }),
+      )
+      .max(10)
+      .optional(),
+
     points: z.coerce.number().int().min(1).max(100),
     explanation: z.string().trim().max(1000).optional(),
+
+    /**
+     * Rubrica de correccion, en las preguntas que corrige una persona.
+     *
+     * Su maximo tiene que COINCIDIR con `points`, y lo comprueba el dominio: si
+     * diera menos, la pregunta seria imposible de sacar entera y nadie sabria
+     * por que; si diera mas, el docente puntuaria todo y no podria cerrar la
+     * nota.
+     */
+    rubric: z
+      .object({
+        criteria: z
+          .array(
+            z.object({
+              id: z.string().trim().min(1).max(60),
+              label: z.string().trim().min(1).max(160),
+              levels: z
+                .array(
+                  z.object({
+                    label: z.string().trim().min(1).max(80),
+                    points: z.coerce.number().int().min(0).max(100),
+                    description: z.string().trim().max(500).optional(),
+                  }),
+                )
+                .min(2)
+                .max(6),
+            }),
+          )
+          .min(1)
+          .max(10),
+      })
+      .optional(),
   })
   .superRefine((value, ctx) => {
+    // Emparejar se valida aparte: su clave son `matchPairs` y no
+    // `correctOptions`, asi que la regla de "marca cual es la correcta" no le
+    // aplica y exigirsela lo dejaria sin poder crearse nunca.
+    if (value.type === 'matching') {
+      const izquierda = value.options ?? [];
+      const derecha = value.matches ?? [];
+      const pares = value.matchPairs ?? [];
+
+      if (izquierda.length < 2 || derecha.length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['matches'],
+          message: 'errors.validation.matching_needs_two_columns',
+        });
+        return;
+      }
+
+      const opcionesUsadas = new Set(pares.map((par) => par.option));
+      const parejasUsadas = new Set(pares.map((par) => par.match));
+
+      // Toda la izquierda emparejada, sin repetir ninguna columna, y sin
+      // apuntar fuera de rango. Sin esto se publica una pregunta que no se
+      // puede acertar y no se descubre hasta que la hizo el salon entero.
+      const valido =
+        pares.length === izquierda.length &&
+        opcionesUsadas.size === izquierda.length &&
+        parejasUsadas.size === pares.length &&
+        pares.every(
+          (par) =>
+            par.option < izquierda.length && par.match < derecha.length,
+        );
+
+      if (!valido) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['matchPairs'],
+          message: 'errors.validation.matching_needs_all_pairs',
+        });
+      }
+
+      return;
+    }
+
     const needsOptions =
       value.type === 'single_choice' ||
       value.type === 'multiple_choice' ||
@@ -153,6 +255,18 @@ export const saveAnswerSchema = z.object({
   text: z.string().trim().max(10_000).optional(),
   /** Archivo subido o enlace compartido, por id de `media-service`. */
   mediaAssetId: uuidSchema.optional(),
+  /**
+   * Los pares que armo el alumno, en las preguntas de emparejar.
+   *
+   * Por IDENTIFICADOR y no por posicion, al contrario que en la captura: aqui
+   * los identificadores ya existen y el alumno los recibio en `forStudent()`,
+   * mientras que la columna derecha le llega desordenada -asi que una posicion
+   * no significaria lo mismo para el servidor que para el navegador-.
+   */
+  pairs: z
+    .array(z.object({ optionId: uuidSchema, matchId: uuidSchema }))
+    .max(10)
+    .optional(),
 });
 export type SaveAnswerRequest = z.infer<typeof saveAnswerSchema>;
 
@@ -163,6 +277,25 @@ export const gradeSubmissionSchema = z.object({
         questionId: uuidSchema,
         points: z.coerce.number().int().min(0),
         feedback: z.string().trim().max(2000).optional(),
+
+        /**
+         * El nivel elegido en cada criterio, en las preguntas con rubrica.
+         *
+         * **Cuando la pregunta tiene rubrica, `points` se IGNORA y la nota sale
+         * de aqui.** Lo decide el dominio y no este esquema: si el total
+         * mandara, un `points` manipulado otorgaria mas de lo que la rubrica
+         * permite y la comprobacion de "no mas del maximo de la pregunta" no lo
+         * notaria mientras cupiera.
+         */
+        rubric: z
+          .array(
+            z.object({
+              criterionId: z.string().trim().min(1).max(60),
+              levelIndex: z.coerce.number().int().min(0).max(19),
+            }),
+          )
+          .max(20)
+          .optional(),
       }),
     )
     .min(1),

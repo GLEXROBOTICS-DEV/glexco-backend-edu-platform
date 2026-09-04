@@ -18,9 +18,13 @@ export interface StudentQuestion {
     | 'true_false'
     | 'short_answer'
     | 'ordering'
+    | 'matching'
     | 'file_upload';
   prompt: string;
+  /** En `matching`, la columna IZQUIERDA: lo que hay que emparejar. */
   options: { id: string; text: string }[];
+  /** La columna DERECHA de emparejar, ya desordenada por el servidor. */
+  matches?: { id: string; text: string }[];
   points: number;
 }
 
@@ -140,6 +144,14 @@ export interface MyAttempt {
   /** La evidencia que entregó el propio alumno. Vacío si no entregó ninguna,
    *  que es lo normal cuando el docente lo revisó en clase. */
   evidenceAssetIds?: string[];
+  /** El desglose de las preguntas corregidas con rúbrica. Vacío si ninguna la
+   *  tenía o si el docente aún no las ha puntuado. */
+  rubricBreakdown?: {
+    prompt: string;
+    awardedPoints: number;
+    points: number;
+    criteria: { criterion: string; level: string | null; points: number; description: string | null }[];
+  }[];
 }
 
 export interface MyResult {

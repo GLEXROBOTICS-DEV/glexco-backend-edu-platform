@@ -3,11 +3,13 @@
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { addQuestion, type QuestionState } from '../lib/teacher-assessments.actions';
+import { RubricEditor } from './rubric-editor';
 
 const TYPES = [
   { value: 'single_choice', label: 'Una sola respuesta' },
   { value: 'multiple_choice', label: 'Varias respuestas' },
   { value: 'ordering', label: 'Ordenar una secuencia' },
+  { value: 'matching', label: 'Emparejar dos columnas' },
   { value: 'short_answer', label: 'Respuesta escrita' },
   { value: 'file_upload', label: 'Entrega de archivo o enlace' },
 ] as const;
@@ -31,6 +33,12 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
   const [type, setType] = useState<string>('single_choice');
 
   const ordering = type === 'ordering';
+  const matching = type === 'matching';
+  // Los puntos se llevan en estado porque la rúbrica tiene que cuadrar con
+  // ellos, y el aviso se da mientras se escribe y no al enviar.
+  const [puntos, setPuntos] = useState(10);
+  // Emparejar tiene su propio bloque: son DOS columnas y la clave es la fila,
+  // no una opcion marcada.
   const needsOptions = type === 'single_choice' || type === 'multiple_choice' || ordering;
   const multiple = type === 'multiple_choice';
 
@@ -86,7 +94,8 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
             name="points"
             min={1}
             max={100}
-            defaultValue={10}
+            value={puntos}
+            onChange={(event) => setPuntos(Number(event.target.value) || 0)}
             required
             className="field"
           />
@@ -105,7 +114,43 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
         />
       </label>
 
-      {needsOptions ? (
+      {matching ? (
+        <fieldset className="grid gap-2">
+          <legend className="mb-1 text-sm font-medium text-ink-700">
+            Parejas
+          </legend>
+          {/* La regla se dice ANTES de escribir y no en un error después: cada
+              fila ES una pareja, y eso no se adivina mirando ocho campos
+              vacíos. */}
+          <p className="mb-1 text-xs text-ink-400">
+            Cada fila es una pareja. El alumno verá la columna derecha
+            desordenada. Deja en blanco las filas que no uses; hacen falta al
+            menos dos.
+          </p>
+
+          {Array.from({ length: BLANK_OPTIONS }, (_, index) => (
+            <div key={index} className="grid items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
+              <input
+                type="text"
+                name="matchLeft"
+                aria-label={`Elemento izquierdo de la pareja ${index + 1}`}
+                placeholder={`Izquierda ${index + 1}`}
+                className="field"
+              />
+              <span className="hidden text-ink-400 sm:block" aria-hidden="true">
+                ↔
+              </span>
+              <input
+                type="text"
+                name="matchRight"
+                aria-label={`Su pareja ${index + 1}`}
+                placeholder={`Su pareja ${index + 1}`}
+                className="field"
+              />
+            </div>
+          ))}
+        </fieldset>
+      ) : needsOptions ? (
         <fieldset className="grid gap-2">
           <legend className="mb-1 text-sm font-medium text-ink-700">
             {ordering
@@ -155,11 +200,18 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
           ))}
         </fieldset>
       ) : (
-        <p className="rounded-lg border border-line-200 bg-surface-100 px-4 py-3 text-sm text-ink-700">
-          {/* Decirlo aquí evita la pregunta obvia: "¿y dónde pongo la respuesta?" */}
-          Esta pregunta la corriges tú: aparecerá en tu bandeja cuando el alumno
-          la entregue.
-        </p>
+        <>
+          <p className="rounded-lg border border-line-200 bg-surface-100 px-4 py-3 text-sm text-ink-700">
+            {/* Decirlo aquí evita la pregunta obvia: "¿y dónde pongo la respuesta?" */}
+            Esta pregunta la corriges tú: aparecerá en tu bandeja cuando el alumno
+            la entregue.
+          </p>
+
+          {/* La rúbrica solo tiene sentido donde corrige una persona: en las de
+              marcar, la máquina compara con la clave y no hay criterios que
+              valorar. */}
+          <RubricEditor questionPoints={puntos} />
+        </>
       )}
 
       <label className="grid gap-1.5">

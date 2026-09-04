@@ -101,7 +101,10 @@
     "pistaEnlace": "Upload it to YouTube or Drive and paste the address here. Your teacher will watch it there.",
     "evidenciaOpcional": "If your teacher checks it in class, you can leave this blank.",
     "reduciendoFoto": "Shrinking your photo…",
-    "fotoReducida": "Photo shrunk from {antes} to {despues} so it uploads fast."
+    "fotoReducida": "Photo shrunk from {antes} to {despues} so it uploads fast.",
+    "emparejaCada": "match each one",
+    "parejaDe": "Match for: {elemento}",
+    "sinPareja": "Not matched"
   },
   "niveles": {
     "1": "Explorer",
@@ -406,7 +409,11 @@
     "tusIntentos": "Your attempts",
     "intentoNumero": "Attempt {numero}",
     "sinEntregar": "not handed in",
-    "pendienteDeCorregir": "awaiting grading"
+    "pendienteDeCorregir": "awaiting grading",
+    "comoSePuntuo": "How it was scored",
+    "rubricaExplicacion": "Each criterion is scored separately, so you can see what went well and what to review.",
+    "rubricaSinPuntuar": "Not scored",
+    "rubricaPuntos": "{puntos} of {total}"
   },
   "contenido": {
     "falloTitulo": "We couldn't load your content",

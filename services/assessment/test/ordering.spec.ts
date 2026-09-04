@@ -82,12 +82,6 @@ describe('Ordenar: la maquina la corrige sola', () => {
     expect(isAutoGradable(QUESTION_TYPES.ORDERING)).toBe(true);
   });
 
-  it('matching NO lo esta: su correccion no existe todavia', () => {
-    // Meterlo en la lista lo puntuaria a cero en silencio, que es peor que
-    // mandarlo a la bandeja del docente.
-    expect(isAutoGradable(QUESTION_TYPES.MATCHING)).toBe(false);
-  });
-
   it('no deja la entrega pendiente de correccion manual', () => {
     const submission = responder(quizDeOrdenar(), PASOS);
 

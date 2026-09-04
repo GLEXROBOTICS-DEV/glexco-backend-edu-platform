@@ -9,7 +9,8 @@ import {
   type UnitOfWork,
   type UseCase,
 } from '@glexco/kernel';
-import { AssessmentId, type StudentQuestion } from '../domain/assessment.aggregate';
+import { AssessmentId, type Question, type StudentQuestion } from '../domain/assessment.aggregate';
+import { explainRubric } from '../domain/rubric';
 import { Submission, SubmissionId } from '../domain/submission.aggregate';
 import type { AssessmentRepository, SubmissionRepository } from './ports';
 
@@ -200,6 +201,8 @@ export interface SaveAnswerInput {
   selectedOptionIds?: string[] | undefined;
   text?: string | undefined;
   mediaAssetId?: string | undefined;
+  /** Los pares, en las preguntas de emparejar. */
+  pairs?: { optionId: string; matchId: string }[] | undefined;
 }
 
 /** Guarda una respuesta sin entregar, para que un cuestionario largo no se pierda. */
@@ -230,6 +233,7 @@ export class SaveAnswerUseCase implements UseCase<SaveAnswerInput, { saved: true
         selectedOptionIds: input.selectedOptionIds ?? [],
         text: input.text ?? null,
         mediaAssetId: input.mediaAssetId ?? null,
+        ...(input.pairs ? { pairs: input.pairs } : {}),
         now,
       });
 
@@ -343,7 +347,14 @@ export class SubmitAttemptUseCase implements UseCase<{ submissionId: string }, S
 
 export interface GradeSubmissionInput {
   submissionId: string;
-  grades: { questionId: string; points: number; feedback?: string | undefined }[];
+  grades: {
+    questionId: string;
+    points: number;
+    feedback?: string | undefined;
+    /** Un nivel por criterio. Solo en preguntas con rubrica; ahi manda esto y
+     *  no `points`. */
+    rubric?: { criterionId: string; levelIndex: number }[] | undefined;
+  }[];
   feedback?: string | undefined;
 }
 
@@ -420,6 +431,9 @@ export class GradeSubmissionUseCase
           points: grade.points,
           feedback: grade.feedback ?? null,
           question,
+          // Con rubrica, el agregado calcula los puntos de aqui y descarta
+          // `points`. Ver la nota de `gradeQuestion`.
+          ...(grade.rubric ? { rubric: grade.rubric } : {}),
         });
       }
 
@@ -472,6 +486,21 @@ export interface MyAttemptSummary {
    * frontera por ningun camino.
    */
   evidenceAssetIds: string[];
+  /**
+   * El desglose de las preguntas corregidas CON RUBRICA.
+   *
+   * Es el motivo por el que existen las rubricas: convierte "12 de 20" en una
+   * lista de que salio bien y que no, que es lo unico con lo que el alumno puede
+   * hacer algo. No filtra la clave -no dice cual era la respuesta correcta, dice
+   * a que nivel llego su trabajo en cada criterio- y solo aparece en las
+   * preguntas que el docente ya puntuo.
+   */
+  rubricBreakdown: {
+    prompt: string;
+    awardedPoints: number;
+    points: number;
+    criteria: { criterion: string; level: string | null; points: number; description: string | null }[];
+  }[];
 }
 
 export interface MyResultOutput {
@@ -523,7 +552,11 @@ export class MyResultUseCase implements UseCase<{ assessmentId: string }, MyResu
     }
 
     const all = await this.submissions.listByStudent(input.assessmentId, student.userId);
-    const summaries = all.map((submission) => toSummary(submission));
+    // Las preguntas van por delante para poder desglosar las rubricas: el
+    // desglose necesita los criterios, y esos viven en la pregunta, no en la
+    // respuesta. Se piden UNA vez para todos los intentos.
+    const questions = new Map(assessment.forAuthor().map((question) => [question.id, question]));
+    const summaries = all.map((submission) => toSummary(submission, questions));
 
     const graded = summaries.filter((s) => s.status === 'graded' && s.score !== null);
     // El MEJOR intento y no el ultimo: el tope de intentos existe para que se
@@ -554,7 +587,10 @@ export class MyResultUseCase implements UseCase<{ assessmentId: string }, MyResu
   }
 }
 
-function toSummary(submission: Submission): MyAttemptSummary {
+function toSummary(
+  submission: Submission,
+  questions: Map<string, Question>,
+): MyAttemptSummary {
   const state = submission.snapshot();
   return {
     submissionId: submission.id.value,
@@ -569,6 +605,22 @@ function toSummary(submission: Submission): MyAttemptSummary {
     evidenceAssetIds: state.answers
       .map((answer) => answer.mediaAssetId)
       .filter((id): id is string => typeof id === 'string' && id.length > 0),
+    rubricBreakdown: state.answers.flatMap((answer) => {
+      const question = questions.get(answer.questionId);
+      // Sin rubrica no hay desglose, y sin puntos puestos tampoco: mostrar
+      // "Sin puntuar" en todos los criterios de una entrega que el docente aun
+      // no ha abierto se lee como un cero.
+      if (!question?.rubric || answer.awardedPoints === null) return [];
+
+      return [
+        {
+          prompt: question.prompt,
+          awardedPoints: answer.awardedPoints,
+          points: question.points,
+          criteria: explainRubric(question.rubric, answer.rubricSelections ?? []),
+        },
+      ];
+    }),
   };
 }
 

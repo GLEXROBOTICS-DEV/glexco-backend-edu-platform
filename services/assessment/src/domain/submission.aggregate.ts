@@ -12,7 +12,9 @@ import {
   isAutoGradable,
   type Assessment,
   type Question,
+  type QuestionPair,
 } from './assessment.aggregate';
+import { scoreRubric, type RubricSelection } from './rubric';
 
 export class SubmissionId extends defineId('Submission') {}
 
@@ -49,6 +51,21 @@ export interface Answer {
   awardedPoints: number | null;
   /** Comentario del docente sobre ESTA pregunta. */
   feedback: string | null;
+  /**
+   * El nivel que el docente eligio en cada criterio de la rubrica.
+   *
+   * Se guarda el DESGLOSE y no solo el total, porque es lo unico que convierte
+   * una nota en algo que el alumno puede arreglar: "12 de 20" no dice si perdio
+   * los puntos por el montaje o por la explicacion.
+   */
+  rubricSelections?: RubricSelection[];
+  /**
+   * Los pares que armo el alumno, en las preguntas de emparejar.
+   *
+   * Va aparte de `selectedOptionIds` porque un par no es una opcion marcada:
+   * una lista plana no puede decir QUE va con QUE.
+   */
+  pairs?: QuestionPair[];
 }
 
 /**
@@ -229,6 +246,8 @@ export class Submission extends AggregateRoot<SubmissionId> {
     selectedOptionIds?: string[];
     text?: string | null;
     mediaAssetId?: string | null;
+    /** Los pares, en las preguntas de emparejar. */
+    pairs?: QuestionPair[];
     now: Date;
   }): void {
     if (this.state.status !== SUBMISSION_STATUS.IN_PROGRESS) {
@@ -248,6 +267,7 @@ export class Submission extends AggregateRoot<SubmissionId> {
       mediaAssetId: input.mediaAssetId ?? null,
       awardedPoints: null,
       feedback: null,
+      ...(input.pairs ? { pairs: input.pairs } : {}),
     };
 
     if (existing) {
@@ -335,7 +355,7 @@ export class Submission extends AggregateRoot<SubmissionId> {
         continue;
       }
 
-      const points = gradeChoiceQuestion(question, answer.selectedOptionIds);
+      const points = gradeChoiceQuestion(question, answer.selectedOptionIds, answer.pairs ?? []);
       answer.awardedPoints = points;
       automaticPoints += points;
     }
@@ -353,12 +373,24 @@ export class Submission extends AggregateRoot<SubmissionId> {
     }
   }
 
-  /** Correccion manual de una pregunta abierta o de entrega. */
+  /**
+   * Correccion manual de una pregunta abierta o de entrega.
+   *
+   * **Con rubrica, los puntos los calcula el DOMINIO a partir de los niveles
+   * elegidos, y se ignora cualquier total que venga de fuera.** Es la garantia
+   * que sostiene la rubrica entera: si el formulario mandara el total, un
+   * `points` manipulado otorgaria mas de lo que la rubrica permite y la
+   * comprobacion de "no mas del maximo de la pregunta" no lo notaria mientras
+   * cupiera. Aqui, lo maximo que se puede otorgar es la suma de los mejores
+   * niveles, porque no hay otra forma de llegar a un numero.
+   */
   gradeQuestion(input: {
     questionId: string;
     points: number;
     feedback?: string | null;
     question: Question;
+    /** Un nivel por criterio. Solo en preguntas con rubrica. */
+    rubric?: RubricSelection[];
   }): void {
     if (this.state.status === SUBMISSION_STATUS.IN_PROGRESS) {
       throw new BusinessRuleError(
@@ -367,7 +399,12 @@ export class Submission extends AggregateRoot<SubmissionId> {
       );
     }
 
-    if (input.points < 0 || input.points > input.question.points) {
+    // Con rubrica manda la rubrica: el total que venga en `points` no se usa.
+    const puntos = input.question.rubric
+      ? scoreRubric(input.question.rubric, input.rubric ?? [])
+      : input.points;
+
+    if (puntos < 0 || puntos > input.question.points) {
       throw new BusinessRuleError(
         'GRADE_OUT_OF_RANGE',
         `Esta pregunta vale como maximo ${input.question.points} puntos.`,
@@ -384,8 +421,9 @@ export class Submission extends AggregateRoot<SubmissionId> {
     }
 
     this.touch();
-    answer.awardedPoints = input.points;
+    answer.awardedPoints = puntos;
     answer.feedback = input.feedback ?? null;
+    if (input.question.rubric) answer.rubricSelections = input.rubric ?? [];
   }
 
   /** Cierra la correccion y publica la nota. */
@@ -499,9 +537,17 @@ export class Submission extends AggregateRoot<SubmissionId> {
  * marco dos de tres. Con todo o nada, marcar de mas cuesta exactamente igual que
  * fallar, que es lo que se quiere medir.
  */
-function gradeChoiceQuestion(question: Question, selected: readonly string[]): number {
+function gradeChoiceQuestion(
+  question: Question,
+  selected: readonly string[],
+  pairs: readonly QuestionPair[],
+): number {
   if (question.type === QUESTION_TYPE.ORDERING) {
     return gradeOrderingQuestion(question, selected);
+  }
+
+  if (question.type === QUESTION_TYPE.MATCHING) {
+    return gradeMatchingQuestion(question, pairs);
   }
 
   if (question.type === QUESTION_TYPE.MULTIPLE_CHOICE) {
@@ -552,4 +598,37 @@ function gradeOrderingQuestion(question: Question, given: readonly string[]): nu
   }
 
   return Math.floor((question.points * inPlace) / expected.length);
+}
+
+/**
+ * Emparejar dos columnas.
+ *
+ * **Con puntuacion parcial, por la misma razon que ordenar**: en una pregunta de
+ * seis parejas, todo o nada convierte confundir dos en un cero, y entonces el
+ * que empareja cinco bien y el que no tiene ni idea sacan lo mismo. La regla es
+ * la que se le puede explicar a un alumno de nueve anos: **cuantas parejas
+ * acertaste**. Se redondea hacia abajo para no regalar puntos.
+ *
+ * Un elemento de la izquierda repetido en la respuesta cuenta UNA vez. Sin eso,
+ * mandar la misma pareja correcta seis veces daria la nota entera: la
+ * puntuacion parcial se convierte en un agujero si no se cuenta por elemento de
+ * la izquierda.
+ */
+function gradeMatchingQuestion(question: Question, given: readonly QuestionPair[]): number {
+  const expected = question.pairs ?? [];
+  if (expected.length === 0) return 0;
+
+  const clave = new Map(expected.map((pair) => [pair.optionId, pair.matchId]));
+  const yaContados = new Set<string>();
+
+  let aciertos = 0;
+
+  for (const pair of given) {
+    if (yaContados.has(pair.optionId)) continue;
+    yaContados.add(pair.optionId);
+
+    if (clave.get(pair.optionId) === pair.matchId) aciertos += 1;
+  }
+
+  return Math.floor((question.points * aciertos) / expected.length);
 }

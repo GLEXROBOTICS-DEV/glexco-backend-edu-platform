@@ -81,6 +81,12 @@ export async function submitAttempt(
     // DOM, que es el de la pantalla y no el de su respuesta.
     const ordenados = ordering(formData, questionId);
 
+    // Emparejar viaja como un campo por elemento de la izquierda
+    // (`pareja:pregunta:izquierda` -> derecha) y por IDENTIFICADOR, no por
+    // posicion: la columna derecha le llega al alumno desordenada, asi que una
+    // posicion no significaria lo mismo aqui que en el servidor.
+    const parejas = matching(formData, questionId);
+
     // La evidencia se resuelve ANTES de guardar la respuesta: hace falta el id
     // del recurso, y si la subida falla hay que decirlo en vez de guardar una
     // respuesta vacia que el alumno cree entregada.
@@ -98,6 +104,7 @@ export async function submitAttempt(
             : {}),
         ...(typeof text === 'string' && text.trim().length > 0 ? { text: text.trim() } : {}),
         ...(evidencia.mediaAssetId ? { mediaAssetId: evidencia.mediaAssetId } : {}),
+        ...(parejas.length > 0 ? { pairs: parejas } : {}),
       },
     });
 
@@ -165,6 +172,32 @@ function ordering(formData: FormData, questionId: string): string[] {
   }
 
   return puestos.sort((a, b) => a.puesto - b.puesto).map((entrada) => entrada.optionId);
+}
+
+/**
+ * Los pares que armo el alumno en una pregunta de emparejar.
+ *
+ * Un elemento de la izquierda sin elegir simplemente no viaja: el dominio lo
+ * cuenta como fallo, que es lo correcto, y mandar un par a medias obligaria al
+ * esquema a admitir un `matchId` vacio.
+ */
+function matching(
+  formData: FormData,
+  questionId: string,
+): { optionId: string; matchId: string }[] {
+  const prefijo = `pareja:${questionId}:`;
+  const pares: { optionId: string; matchId: string }[] = [];
+
+  for (const [campo, valor] of formData.entries()) {
+    if (!campo.startsWith(prefijo)) continue;
+
+    const matchId = String(valor);
+    if (matchId.length === 0) continue;
+
+    pares.push({ optionId: campo.slice(prefijo.length), matchId });
+  }
+
+  return pares;
 }
 
 /**
