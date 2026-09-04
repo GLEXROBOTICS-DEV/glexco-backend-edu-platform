@@ -791,6 +791,16 @@ async function seedInstitution(people) {
     );
   }
 
+  // El nombre del colegio en APRENDIZAJE, para que salga impreso en el
+  // certificado. Llega por `institution.created`, y ese evento se publico antes
+  // de que este consumidor existiera: JetStream no reproduce hacia atras.
+  await admin.query(
+    `INSERT INTO learning.institution_directory (institution_id, name)
+     VALUES ($1,$2)
+     ON CONFLICT (institution_id) DO UPDATE SET name = EXCLUDED.name, updated_at = now()`,
+    [INSTITUTION.id, INSTITUTION.name],
+  );
+
   // Y el directorio de nombres de APRENDIZAJE, por lo mismo: lo alimentan los
   // eventos de identidad, que este guion no dispara. Sin el, un certificado sale
   // a nombre de nadie -paso en produccion con el primero que se emitio-.

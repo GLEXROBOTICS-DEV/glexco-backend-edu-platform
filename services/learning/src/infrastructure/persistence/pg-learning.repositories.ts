@@ -427,8 +427,15 @@ export class PgCertificateRepository implements CertificateRepository {
   }
 
   async findBySerial(serial: string): Promise<CertificateRow | null> {
+    // Se comparan las dos series SIN guiones. El caso de uso ya normaliza
+    // espacios y mayusculas, pero los guiones no los podia quitar: forman parte
+    // de la serie guardada. Resultado: quien tecleaba "GLXPU3WQ4NZXYKV" -que es
+    // lo que hace media la gente al copiar de un papel- recibia "no encontramos
+    // este certificado" sobre uno perfectamente valido.
     const { rows } = await this.readPool.query<CertificateDbRow>(
-      `SELECT ${C_COLUMNS} FROM learning.certificates WHERE serial = $1 LIMIT 1`,
+      `SELECT ${C_COLUMNS} FROM learning.certificates
+        WHERE replace(serial, '-', '') = replace($1, '-', '')
+        LIMIT 1`,
       [serial],
     );
     return rows[0] ? toCertificate(rows[0]) : null;

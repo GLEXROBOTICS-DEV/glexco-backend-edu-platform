@@ -266,8 +266,9 @@ export class VerifyCertificateUseCase implements UseCase<{ serial: string }, Ver
   ) {}
 
   async execute(input: { serial: string }): Promise<VerificationResult> {
-    // Se normaliza como el codigo de institucion y por lo mismo: en el papel
-    // lleva guiones y quien lo teclea los pone o no.
+    // Mayusculas y sin espacios. Los GUIONES no se tocan aqui -forman parte de
+    // la serie guardada-: es el repositorio quien compara los dos lados sin
+    // ellos, para que dé igual como la teclee quien la copia de un papel.
     const serial = input.serial.trim().toUpperCase().replace(/[\s_.]/g, '');
     const row = await this.certificates.findBySerial(serial);
 

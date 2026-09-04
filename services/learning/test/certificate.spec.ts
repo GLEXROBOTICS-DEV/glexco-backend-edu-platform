@@ -116,3 +116,27 @@ describe('serie del certificado', () => {
     }
   });
 });
+
+describe('la serie se teclea a mano', () => {
+  it('sobrevive a que la copien sin guiones o en minusculas', () => {
+    // Es lo que hace media la gente al copiar de un papel. Antes, tecleada sin
+    // guiones, la verificacion respondia "no encontramos este certificado" sobre
+    // un documento perfectamente valido, que es la peor respuesta posible.
+    const guardada = 'GLX-PU3W-Q4NZ-XYKV';
+    const escritas = [
+      'GLX-PU3W-Q4NZ-XYKV',
+      'glx-pu3w-q4nz-xykv',
+      'GLXPU3WQ4NZXYKV',
+      '  GLX PU3W Q4NZ XYKV  ',
+      'GLX.PU3W.Q4NZ.XYKV',
+    ];
+
+    // Lo mismo que hacen el caso de uso y la consulta, juntos.
+    const canonica = (raw: string) =>
+      raw.trim().toUpperCase().replace(/[\s_.]/g, '').split('-').join('');
+
+    for (const escrita of escritas) {
+      expect(canonica(escrita)).toBe(canonica(guardada));
+    }
+  });
+});
