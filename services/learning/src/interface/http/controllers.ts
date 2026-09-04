@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Param,
+  Post,
+  Req,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -13,6 +24,14 @@ import {
   StartLessonUseCase,
 } from '../../application/progress.usecase';
 import { BADGE_RULES, EXPLORER_LEVELS } from '../../domain/gamification';
+import {
+  IssueCertificateUseCase,
+  IssueClassroomCertificatesUseCase,
+  MyCertificatesUseCase,
+  VerifyCertificateUseCase,
+} from '../../application/certificates.usecase';
+import { CERTIFICATE_KEYS } from '../../tokens';
+import type { CertificateKeyPair } from '../../certificate-keys';
 
 function contextFrom(request: Request): UseCaseContext {
   const actor = (request as Request & { actor?: RequestActor }).actor;
@@ -125,5 +144,127 @@ export class LearningController {
         description: badge.description,
       })),
     };
+  }
+}
+
+const issueCertificateSchema = z.object({
+  courseId: z.string().uuid(),
+  /** Solo lo usa quien emite para otro; un alumno lo omite. */
+  studentId: z.string().uuid().optional(),
+});
+
+/**
+ * Certificados de finalizacion.
+ *
+ * Va en su propio controlador y con su propio prefijo porque **una de sus rutas
+ * es publica**: la verificacion. Mezclarla con el resto obligaria a razonar
+ * ruta por ruta sobre cual exige token, y ahi es donde se abre una por
+ * descuido.
+ */
+@Controller({ path: 'certificates', version: '1' })
+export class CertificatesController {
+  constructor(
+    private readonly issue: IssueCertificateUseCase,
+    private readonly issueClassroom: IssueClassroomCertificatesUseCase,
+    private readonly verify: VerifyCertificateUseCase,
+    private readonly mine: MyCertificatesUseCase,
+    @Inject(CERTIFICATE_KEYS) private readonly keys: CertificateKeyPair | null,
+  ) {}
+
+  /**
+   * Verificacion PUBLICA. Sin token.
+   *
+   * Devuelve `valid: false` con su motivo en vez de un 404: quien comprueba un
+   * certificado necesita distinguir "esta serie no existe" -que huele a
+   * falsificacion- de "existe pero se anulo", que es una decision del colegio.
+   * Un 404 las confunde en una sola cosa.
+   */
+  @Get('verify/:serial')
+  async verifySerial(@Param('serial') serial: string) {
+    if (!this.keys) {
+      throw new ServiceUnavailableException({
+        code: 'CERTIFICATES_NOT_CONFIGURED',
+        message: 'La verificacion de certificados no esta disponible en este despliegue.',
+      });
+    }
+    return this.verify.execute({ serial });
+  }
+
+  /**
+   * La clave PUBLICA de firma.
+   *
+   * Es lo que hace que un certificado valga fuera de aqui: con ella, cualquiera
+   * comprueba la firma por su cuenta, sin preguntarnos y sin poder nosotros
+   * negar despues haberlo emitido. Publicarla no debilita nada -para eso es
+   * publica- y no publicarla convertiria la firma asimetrica en un HMAC caro.
+   */
+  @Get('public-key')
+  publicKey() {
+    if (!this.keys) {
+      throw new ServiceUnavailableException({
+        code: 'CERTIFICATES_NOT_CONFIGURED',
+        message: 'Este despliegue no emite certificados.',
+      });
+    }
+    return { algorithm: 'Ed25519', publicKeyPem: this.keys.publicKeyPem };
+  }
+
+  /** Mis certificados. El alcance lo decide el token, nunca un parametro. */
+  @Get('me')
+  @RequirePermissions(PERMISSIONS.PROGRESS_READ_OWN)
+  async myCertificates(@Req() request: Request) {
+    const items = await this.mine.execute(undefined, contextFrom(request));
+    // La firma NO se devuelve aqui. En "mis certificados" no sirve para nada y
+    // exponerla en un listado la deja en cualquier registro intermedio; quien
+    // quiera comprobarla usa la ruta de verificacion con la serie.
+    return {
+      items: items.map(({ signature: _signature, ...rest }) => rest),
+    };
+  }
+
+  @Post()
+  @RequirePermissions(PERMISSIONS.PROGRESS_READ_OWN)
+  @HttpCode(HttpStatus.CREATED)
+  async issueOne(
+    @Body(zodBody(issueCertificateSchema)) body: { studentId?: string; courseId: string },
+    @Req() request: Request,
+  ) {
+    this.assertConfigured();
+    const context = contextFrom(request);
+    return this.issue.execute(
+      { studentId: body.studentId ?? context.actor!.userId, courseId: body.courseId },
+      context,
+    );
+  }
+
+  /** Emision masiva por salon. Docente o direccion. */
+  @Post('classrooms/:classroomId')
+  @RequirePermissions(PERMISSIONS.PROGRESS_READ_CLASSROOM)
+  @HttpCode(HttpStatus.CREATED)
+  async issueForClassroom(
+    @Param('classroomId') classroomId: string,
+    @Body(zodBody(z.object({ courseId: z.string().uuid() }))) body: { courseId: string },
+    @Req() request: Request,
+  ) {
+    this.assertConfigured();
+    return this.issueClassroom.execute(
+      { classroomId, courseId: body.courseId },
+      contextFrom(request),
+    );
+  }
+
+  /**
+   * Se corta ANTES de firmar.
+   *
+   * Sin esto, un despliegue sin claves produciria un error de criptografia al
+   * intentar firmar con una cadena vacia, y en los registros apareceria como un
+   * fallo del algoritmo en vez de "esto no esta configurado".
+   */
+  private assertConfigured(): void {
+    if (this.keys) return;
+    throw new ServiceUnavailableException({
+      code: 'CERTIFICATES_NOT_CONFIGURED',
+      message: 'Este despliegue no tiene configurada la firma de certificados.',
+    });
   }
 }

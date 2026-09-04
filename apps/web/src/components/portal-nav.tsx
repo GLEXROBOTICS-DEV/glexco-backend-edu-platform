@@ -35,6 +35,7 @@ const DISCOVER_NAV: readonly NavItem[] = [
   { href: '/discover/evaluaciones', label: 'Actividades', icon: <ChallengeIcon /> },
   { href: '/discover/biblioteca', label: 'Biblioteca', icon: <LibraryIcon /> },
   { href: '/discover/logros', label: 'Mis logros', icon: <BadgeIcon /> },
+  { href: '/discover/certificados', label: 'Mis certificados', icon: <CertificateIcon /> },
 ];
 
 const ACADEMY_NAV: readonly NavItem[] = [

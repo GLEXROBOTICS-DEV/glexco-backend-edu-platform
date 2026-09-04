@@ -4,7 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Pool } from 'pg';
 import type { Redis } from 'ioredis';
-import type { Clock, SecureRandom, UnitOfWork } from '@glexco/kernel';
+import type { Clock, LoggerPort, SecureRandom, UnitOfWork } from '@glexco/kernel';
 import { authEnvSchema, baseEnvSchema, loadEnv, withServiceDatabaseUrl } from '@glexco/config';
 import {
   CorrelationMiddleware,
@@ -31,8 +31,10 @@ import {
   UNIT_OF_WORK,
   LEARNING_REPOSITORY,
   GAMIFICATION_REPOSITORY,
+  CERTIFICATE_REPOSITORY,
+  CERTIFICATE_KEYS,
 } from './tokens';
-import { LearningController } from './interface/http/controllers';
+import { CertificatesController, LearningController } from './interface/http/controllers';
 import {
   CompleteLessonUseCase,
   GetClassroomProgressUseCase,
@@ -40,9 +42,18 @@ import {
   StartLessonUseCase,
 } from './application/progress.usecase';
 import {
+  PgCertificateRepository,
   PgGamificationRepository,
   PgLearningRepository,
 } from './infrastructure/persistence/pg-learning.repositories';
+import {
+  IssueCertificateUseCase,
+  IssueClassroomCertificatesUseCase,
+  MyCertificatesUseCase,
+  VerifyCertificateUseCase,
+} from './application/certificates.usecase';
+import { readCertificateKeys, type CertificateKeyPair } from './certificate-keys';
+import type { CertificateRepository } from './domain/repositories';
 
 const learningEnvSchema = baseEnvSchema
   .merge(authEnvSchema.pick({ JWT_ACCESS_SECRET: true, JWT_ISSUER: true, JWT_AUDIENCE: true }))
@@ -55,6 +66,19 @@ const learningEnvSchema = baseEnvSchema
       .transform((value) =>
         (value ?? '').split(',').map((url) => url.trim()).filter(Boolean),
       ),
+
+    /**
+     * Claves de firma de los certificados, en PEM (Ed25519).
+     *
+     * Se validan como cadena y se normalizan en `readCertificateKeys`, que es
+     * donde se resuelven los saltos de linea escapados de los paneles de
+     * despliegue. Opcionales: sin ellas el servicio arranca y solo los
+     * certificados quedan desactivados.
+     */
+    CERTIFICATE_PRIVATE_KEY: z.string().optional(),
+    CERTIFICATE_PUBLIC_KEY: z.string().optional(),
+
+    CERTIFICATE_VERIFY_URL: z.string().default('https://glexcoweb-production.up.railway.app/verificar'),
   });
 
 export type LearningConfig = z.infer<typeof learningEnvSchema>;
@@ -64,7 +88,7 @@ export const loadLearningConfig = (): LearningConfig =>
 export { CONFIG, LOGGER, LOGGER_PORT } from './tokens';
 
 @Module({
-  controllers: [LearningController, HealthController],
+  controllers: [LearningController, CertificatesController, HealthController],
   providers: [
     Reflector,
 
@@ -148,6 +172,73 @@ export { CONFIG, LOGGER, LOGGER_PORT } from './tokens';
       provide: GAMIFICATION_REPOSITORY,
       useFactory: (readPool: Pool) => new PgGamificationRepository(readPool),
       inject: [DB_READ_POOL],
+    },
+    {
+      provide: CertificatesController,
+      useFactory: (...args: ConstructorParameters<typeof CertificatesController>) =>
+        new CertificatesController(...args),
+      inject: [
+        IssueCertificateUseCase,
+        IssueClassroomCertificatesUseCase,
+        VerifyCertificateUseCase,
+        MyCertificatesUseCase,
+        CERTIFICATE_KEYS,
+      ],
+    },
+    {
+      provide: CERTIFICATE_REPOSITORY,
+      useFactory: (writePool: Pool, readPool: Pool) =>
+        new PgCertificateRepository(writePool, readPool),
+      inject: [DB_WRITE_POOL, DB_READ_POOL],
+    },
+    {
+      provide: CERTIFICATE_KEYS,
+      // Se leen UNA vez al arrancar. Leerlas en cada firma volveria a normalizar
+      // el PEM en cada peticion y, peor, permitiria que el servicio cambiara de
+      // clave a mitad de vida sin que nadie lo notara.
+      useFactory: () => readCertificateKeys(),
+    },
+    {
+      provide: IssueCertificateUseCase,
+      // Las claves pueden ser `null` -despliegue sin certificados-, y el caso de
+      // uso las exige. Se le pasa un par vacio y es el controlador quien corta
+      // antes con un mensaje claro: dejar que falle al firmar produciria un
+      // error de criptografia en vez de "esto no esta configurado".
+      useFactory: (
+        certificates: CertificateRepository,
+        keys: CertificateKeyPair | null,
+        random: SecureRandom,
+        logger: LoggerPort,
+      ) =>
+        new IssueCertificateUseCase(
+          certificates,
+          keys ?? { privateKeyPem: '', publicKeyPem: '' },
+          () => random.uuid(),
+          (alphabet, length) => random.fromAlphabet(alphabet, length),
+          logger,
+        ),
+      inject: [CERTIFICATE_REPOSITORY, CERTIFICATE_KEYS, SECURE_RANDOM, LOGGER_PORT],
+    },
+    {
+      provide: IssueClassroomCertificatesUseCase,
+      useFactory: (...args: ConstructorParameters<typeof IssueClassroomCertificatesUseCase>) =>
+        new IssueClassroomCertificatesUseCase(...args),
+      inject: [CERTIFICATE_REPOSITORY, IssueCertificateUseCase],
+    },
+    {
+      provide: VerifyCertificateUseCase,
+      useFactory: (certificates: CertificateRepository, keys: CertificateKeyPair | null) =>
+        new VerifyCertificateUseCase(
+          certificates,
+          keys ?? { privateKeyPem: '', publicKeyPem: '' },
+        ),
+      inject: [CERTIFICATE_REPOSITORY, CERTIFICATE_KEYS],
+    },
+    {
+      provide: MyCertificatesUseCase,
+      useFactory: (...args: ConstructorParameters<typeof MyCertificatesUseCase>) =>
+        new MyCertificatesUseCase(...args),
+      inject: [CERTIFICATE_REPOSITORY],
     },
 
     {

@@ -16,3 +16,6 @@ export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
 
 export const LEARNING_REPOSITORY = Symbol('LEARNING_REPOSITORY');
 export const GAMIFICATION_REPOSITORY = Symbol('GAMIFICATION_REPOSITORY');
+export const CERTIFICATE_REPOSITORY = Symbol('CERTIFICATE_REPOSITORY');
+/** `null` cuando el despliegue no tiene claves de firma configuradas. */
+export const CERTIFICATE_KEYS = Symbol('CERTIFICATE_KEYS');

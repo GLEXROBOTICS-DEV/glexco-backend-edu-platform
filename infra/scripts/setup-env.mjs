@@ -14,7 +14,7 @@
  *
  * Uso: pnpm setup
  */
-import { randomBytes } from 'node:crypto';
+import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -32,6 +32,34 @@ if (existsSync(envPath)) {
 
 const secret = () => randomBytes(48).toString('base64');
 
+/**
+ * Par de claves Ed25519 para firmar los certificados.
+ *
+ * En una sola linea, con los saltos escapados: es como hay que escribirlas en
+ * los paneles de despliegue, que no admiten valores multilinea, y tener aqui el
+ * mismo formato evita que el `.env` local y produccion diverjan en algo que solo
+ * se descubre cuando una firma no valida.
+ *
+ * Si la privada cambia, todo lo emitido con la anterior deja de verificarse,
+ * igual que con la pimienta de los codigos. Por eso el certificado lleva impresa
+ * la huella de la clave: permite rotar sin invalidar lo viejo, guardando la
+ * publica antigua.
+ */
+const certificateKeys = () => {
+  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+  const inline = (key, type) =>
+    key
+      .export({ type, format: 'pem' })
+      .toString()
+      .trimEnd()
+      .split(String.fromCharCode(10))
+      .join('\\n');
+  return {
+    CERTIFICATE_PRIVATE_KEY: inline(privateKey, 'pkcs8'),
+    CERTIFICATE_PUBLIC_KEY: inline(publicKey, 'spki'),
+  };
+};
+
 /** Variables cuyo valor de ejemplo debe sustituirse por un secreto real. */
 const GENERATED = {
   JWT_ACCESS_SECRET: secret(),
@@ -40,6 +68,7 @@ const GENERATED = {
   INTERNAL_SERVICE_TOKEN: secret(),
   // Si esta cambia, todos los codigos ya emitidos dejan de validar.
   ACTIVATION_CODE_PEPPER: secret(),
+  ...certificateKeys(),
 };
 
 let content = await readFile(examplePath, 'utf8');

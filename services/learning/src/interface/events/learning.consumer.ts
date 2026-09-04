@@ -58,6 +58,11 @@ interface ClassroomCreatedPayload {
   teacherId: string;
 }
 
+interface InstitutionCreatedPayload {
+  institutionId: string;
+  name: string;
+}
+
 interface EnrollmentPayload {
   classroomId: string;
   studentId: string;
@@ -78,6 +83,7 @@ export function buildLearningConsumer(deps: LearningConsumerDeps): EventConsumer
       EVENTS.CLASSROOM_CREATED,
       EVENTS.STUDENT_ENROLLED,
       EVENTS.STUDENT_WITHDRAWN,
+      EVENTS.INSTITUTION_CREATED,
     ],
     logger: deps.natsLogger,
   });
@@ -221,6 +227,22 @@ export function buildLearningConsumer(deps: LearningConsumerDeps): EventConsumer
           SET active = false, updated_at = now()
         WHERE classroom_id = $1 AND student_id = $2`,
       [event.payload.classroomId, event.payload.studentId],
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // Nombre del colegio, para el certificado
+  // -------------------------------------------------------------------------
+  // `classroom_members` guarda el identificador pero no el nombre, y un
+  // certificado que dice "colegio 7d3ab3a7-..." no lo ensena nadie. Llega por
+  // evento y no preguntandoselo a instituciones al emitir: eso ataria los dos
+  // servicios justo en la operacion que menos puede fallar.
+  consumer.on<InstitutionCreatedPayload>(EVENTS.INSTITUTION_CREATED, async (event, tx) => {
+    await (tx.client as PoolClient).query(
+      `INSERT INTO learning.institution_directory (institution_id, name)
+       VALUES ($1,$2)
+       ON CONFLICT (institution_id) DO UPDATE SET name = EXCLUDED.name, updated_at = now()`,
+      [event.payload.institutionId, event.payload.name],
     );
   });
 

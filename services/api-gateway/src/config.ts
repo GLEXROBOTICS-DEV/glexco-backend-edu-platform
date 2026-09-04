@@ -103,7 +103,23 @@ export const ROUTES: RouteDefinition[] = [
   { prefix: 'courses', target: 'CATALOG_URL' },
   { prefix: 'learning', target: 'LEARNING_URL' },
   { prefix: 'assessments', target: 'ASSESSMENT_URL' },
-  { prefix: 'certificates', target: 'ASSESSMENT_URL' },
+  {
+    // Los certificados los emite APRENDIZAJE, no evaluacion: el hecho que los
+    // dispara -terminar un curso- ocurre alli. Este prefijo apuntaba a
+    // evaluacion desde que se escribio la tabla de rutas, cuando aun no habia
+    // decidido donde vivirian.
+    prefix: 'certificates',
+    target: 'LEARNING_URL',
+    // **La verificacion es publica y tiene que serlo.** Quien recibe un
+    // certificado -una universidad, un empleador- no tiene cuenta aqui, y
+    // exigirle una convierte la verificacion en algo que nadie hace. La
+    // respuesta solo devuelve lo que ya esta impreso en el papel que esa persona
+    // tiene delante.
+    publicPaths: [/^\/verify\/[^/]+$/, /^\/public-key$/],
+    // Limite estricto: la serie es lo unico que hace falta saber para consultar,
+    // asi que sin freno esta ruta permite enumerar certificados probando series.
+    strictRateLimit: true,
+  },
   { prefix: 'announcements', target: 'ENGAGEMENT_URL' },
   { prefix: 'notifications', target: 'ENGAGEMENT_URL' },
   { prefix: 'support', target: 'ENGAGEMENT_URL' },

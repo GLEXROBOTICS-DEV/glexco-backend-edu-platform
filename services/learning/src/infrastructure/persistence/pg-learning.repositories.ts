@@ -2,6 +2,8 @@ import type { Pool, PoolClient } from 'pg';
 import type { TransactionContext } from '@glexco/kernel';
 import { BADGE_RULES, isStale, levelFor } from '../../domain/gamification';
 import type {
+  CertificateRepository,
+  CertificateRow,
   ClassroomProgressRow,
   GamificationRepository,
   LearningRepository,
@@ -397,4 +399,173 @@ export class PgGamificationRepository implements GamificationRepository {
       );
     }
   }
+}
+
+/**
+ * Certificados.
+ *
+ * Todas las lecturas van al pool de REPLICAS salvo dos: la que decide si emitir
+ * y la de "ya tengo uno", que se hacen contra el pool de escritura. No es
+ * simetria rota por descuido: emitir es una escritura que depende de lo que
+ * acaba de leer, y una replica unos milisegundos por detras basta para emitir un
+ * segundo certificado del mismo curso.
+ */
+export class PgCertificateRepository implements CertificateRepository {
+  constructor(
+    private readonly writePool: Pool,
+    private readonly readPool: Pool,
+  ) {}
+
+  async findActive(studentId: string, courseId: string): Promise<CertificateRow | null> {
+    const { rows } = await this.writePool.query<CertificateDbRow>(
+      `SELECT ${C_COLUMNS} FROM learning.certificates
+        WHERE student_id = $1 AND course_id = $2 AND revoked_at IS NULL
+        LIMIT 1`,
+      [studentId, courseId],
+    );
+    return rows[0] ? toCertificate(rows[0]) : null;
+  }
+
+  async findBySerial(serial: string): Promise<CertificateRow | null> {
+    const { rows } = await this.readPool.query<CertificateDbRow>(
+      `SELECT ${C_COLUMNS} FROM learning.certificates WHERE serial = $1 LIMIT 1`,
+      [serial],
+    );
+    return rows[0] ? toCertificate(rows[0]) : null;
+  }
+
+  async listByStudent(studentId: string): Promise<CertificateRow[]> {
+    const { rows } = await this.readPool.query<CertificateDbRow>(
+      `SELECT ${C_COLUMNS} FROM learning.certificates
+        WHERE student_id = $1
+        ORDER BY issued_at DESC`,
+      [studentId],
+    );
+    return rows.map(toCertificate);
+  }
+
+  async insert(row: CertificateRow): Promise<void> {
+    await this.writePool.query(
+      `INSERT INTO learning.certificates
+         (id, serial, student_id, student_name, course_id, course_title, kit_id,
+          institution_name, completion, signature, key_fingerprint, issued_at, issued_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      [
+        row.id,
+        row.serial,
+        row.studentId,
+        row.studentName,
+        row.courseId,
+        row.courseTitle,
+        row.kitId,
+        row.institutionName,
+        row.completion,
+        row.signature,
+        row.keyFingerprint,
+        row.issuedAt,
+        row.issuedBy,
+      ],
+    );
+  }
+
+  async eligibility(studentId: string, courseId: string) {
+    // Una sola consulta con todo lo que hace falta. Emitir en masa recorre
+    // treinta alumnos, y a cuatro consultas por alumno serian ciento veinte
+    // viajes a la base para una operacion que se lanza con un boton.
+    const { rows } = await this.writePool.query<{
+      student_name: string | null;
+      course_title: string;
+      kit_id: string;
+      institution_name: string | null;
+      lessons_completed: string;
+      lesson_count: number;
+    }>(
+      `SELECT
+         (SELECT full_name FROM learning.classroom_members m
+           WHERE m.student_id = $1 AND m.active AND m.full_name <> ''
+           LIMIT 1)                                            AS student_name,
+         d.title                                               AS course_title,
+         d.kit_id                                              AS kit_id,
+         (SELECT i.name FROM learning.institution_directory i
+            JOIN learning.classroom_members m2 ON m2.institution_id = i.institution_id
+           WHERE m2.student_id = $1 AND m2.active
+           LIMIT 1)                                            AS institution_name,
+         (SELECT count(*) FROM learning.lesson_progress p
+           WHERE p.student_id = $1 AND p.course_id = $2 AND p.completed_at IS NOT NULL)
+                                                               AS lessons_completed,
+         d.lesson_count                                        AS lesson_count
+       FROM learning.course_directory d
+      WHERE d.course_id = $2`,
+      [studentId, courseId],
+    );
+
+    const row = rows[0];
+    if (!row) return null;
+
+    return {
+      // Sin nombre no se emite nada: un certificado a nombre de nadie no sirve
+      // para lo unico que sirve un certificado, que es ensenarselo a alguien.
+      studentName: row.student_name ?? '',
+      courseTitle: row.course_title,
+      kitId: row.kit_id,
+      institutionName: row.institution_name,
+      lessonsCompleted: Number(row.lessons_completed),
+      lessonCount: row.lesson_count,
+    };
+  }
+
+  async classroomStudents(classroomId: string): Promise<string[]> {
+    const { rows } = await this.readPool.query<{ student_id: string }>(
+      `SELECT student_id FROM learning.classroom_members
+        WHERE classroom_id = $1 AND active
+        ORDER BY full_name`,
+      [classroomId],
+    );
+    return rows.map((row) => row.student_id);
+  }
+}
+
+const C_COLUMNS = `id, serial, student_id, student_name, course_id, course_title, kit_id,
+  institution_name, completion, signature, key_fingerprint, issued_at, issued_by,
+  revoked_at, revoked_reason`;
+
+interface CertificateDbRow {
+  id: string;
+  serial: string;
+  student_id: string;
+  student_name: string;
+  course_id: string;
+  course_title: string;
+  kit_id: string;
+  institution_name: string | null;
+  completion: number;
+  signature: string;
+  key_fingerprint: string;
+  issued_at: Date;
+  issued_by: string | null;
+  revoked_at: Date | null;
+  revoked_reason: string | null;
+}
+
+function toCertificate(row: CertificateDbRow): CertificateRow {
+  return {
+    id: row.id,
+    serial: row.serial,
+    studentId: row.student_id,
+    studentName: row.student_name,
+    courseId: row.course_id,
+    courseTitle: row.course_title,
+    kitId: row.kit_id,
+    institutionName: row.institution_name,
+    completion: row.completion,
+    // ISO y no `Date`: es lo que se firma, y una fecha formateada por el driver
+    // produciria una cadena distinta a la del dia de la emision. La firma
+    // dejaria de validar sin que nada estuviera mal.
+    issuedAt: row.issued_at.toISOString(),
+    signature: row.signature,
+    keyFingerprint: row.key_fingerprint,
+    issuedBy: row.issued_by,
+    revokedAt: row.revoked_at ? row.revoked_at.toISOString() : null,
+    revokedReason: row.revoked_reason,
+  };
 }

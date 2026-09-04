@@ -131,3 +131,55 @@ export interface GamificationRepository {
     tx: TransactionContext,
   ): Promise<void>;
 }
+
+// ---------------------------------------------------------------------------
+// Certificados
+// ---------------------------------------------------------------------------
+
+export interface CertificateRow {
+  id: string;
+  serial: string;
+  studentId: string;
+  studentName: string;
+  courseId: string;
+  courseTitle: string;
+  kitId: string;
+  institutionName: string | null;
+  completion: number;
+  issuedAt: string;
+  signature: string;
+  keyFingerprint: string;
+  issuedBy: string | null;
+  revokedAt: string | null;
+  revokedReason: string | null;
+}
+
+/**
+ * Lo que hace falta saber para emitir, y que no esta en el certificado.
+ *
+ * Se pide en UNA consulta y no campo a campo: emitir en masa recorre treinta
+ * alumnos, y con cuatro consultas por alumno serian ciento veinte viajes a la
+ * base para una operacion que el docente lanza pulsando un boton.
+ */
+export interface CertificateEligibility {
+  studentName: string;
+  courseTitle: string;
+  kitId: string;
+  institutionName: string | null;
+  lessonsCompleted: number;
+  lessonCount: number;
+}
+
+export interface CertificateRepository {
+  /** El certificado vigente de ese alumno y ese curso, si lo hay. */
+  findActive(studentId: string, courseId: string): Promise<CertificateRow | null>;
+  findBySerial(serial: string): Promise<CertificateRow | null>;
+  listByStudent(studentId: string): Promise<CertificateRow[]>;
+  insert(row: CertificateRow): Promise<void>;
+
+  /** `null` si el alumno no tiene ese curso: no existe, o no es suyo. */
+  eligibility(studentId: string, courseId: string): Promise<CertificateEligibility | null>;
+
+  /** Los alumnos activos de un salon, para la emision masiva. */
+  classroomStudents(classroomId: string): Promise<string[]>;
+}
