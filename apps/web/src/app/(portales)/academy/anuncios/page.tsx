@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { CardSkeleton } from '../../../../components/ui';
 import { PageHeader } from '../../../../components/page-header';
-import { AnnouncementList } from '../../../../components/announcements';
+import { ClassroomWall } from '../../../../components/wall';
 
 export const metadata: Metadata = { title: 'Anuncios' };
 
@@ -17,12 +17,12 @@ export default function Anuncios() {
   return (
     <>
       <PageHeader
-        title="Anuncios de tu salón"
-        subtitle="Lo que ha publicado tu docente. Los fijados van siempre arriba."
+        title="El muro de tu clase"
+        subtitle="Los avisos de tu docente y las preguntas de tu clase. Si tú tienes la duda, seguramente alguien más también."
       />
 
       <Suspense fallback={<CardSkeleton />}>
-        <AnnouncementList title="Del salón" />
+        <ClassroomWall />
       </Suspense>
     </>
   );

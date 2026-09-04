@@ -2,15 +2,26 @@ import 'server-only';
 import { cache } from 'react';
 import { api } from './api';
 
-/** Anuncio tal y como lo devuelve engagement. */
+export interface Reply {
+  id: string;
+  announcementId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+}
+
+/** Una publicacion del muro, tal y como la devuelve engagement. */
 export interface Announcement {
   announcementId: string;
+  /** `announcement` lo escribio el docente; `question`, un alumno. */
+  kind: 'announcement' | 'question';
   classroomId: string;
   title: string;
   body: string;
   pinned: boolean;
   publishedAt: string;
   authorId: string;
+  replies?: Reply[];
 }
 
 /**

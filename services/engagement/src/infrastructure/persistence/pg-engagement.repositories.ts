@@ -1,4 +1,6 @@
 import type { Pool, PoolClient } from 'pg';
+import type { PostKind } from '../../domain/announcement.aggregate';
+import type { ReplyRecord, ReplyRepository } from '../../domain/repositories';
 import { ConflictError, type TransactionContext } from '@glexco/kernel';
 import {
   Announcement,
@@ -34,9 +36,9 @@ export class PgAnnouncementRepository implements AnnouncementRepository {
 
     const { rowCount } = await client.query(
       `INSERT INTO engagement.announcements
-         (id, classroom_id, institution_id, author_id, title, body, pinned,
+         (id, kind, classroom_id, institution_id, author_id, title, body, pinned,
           published_at, archived_at, version, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        ON CONFLICT (id) DO UPDATE
           SET title       = EXCLUDED.title,
               body        = EXCLUDED.body,
@@ -47,6 +49,7 @@ export class PgAnnouncementRepository implements AnnouncementRepository {
         WHERE engagement.announcements.version < EXCLUDED.version`,
       [
         announcement.id.value,
+        announcement.kind,
         announcement.classroomId,
         announcement.institutionId,
         announcement.authorId,
@@ -84,6 +87,7 @@ export class PgAnnouncementRepository implements AnnouncementRepository {
     return Announcement.rehydrate(
       AnnouncementId.create(row.id),
       {
+        kind: (row.kind ?? 'announcement') as PostKind,
         classroomId: row.classroom_id,
         institutionId: row.institution_id,
         authorId: row.author_id,
@@ -104,7 +108,7 @@ export class PgAnnouncementRepository implements AnnouncementRepository {
 
     // Lectura pesada y de solo lectura: va al pool de replicas.
     const { rows } = await this.readPool.query(
-      `SELECT id, classroom_id, author_id, title, body, pinned, published_at
+      `SELECT id, kind, classroom_id, author_id, title, body, pinned, published_at
          FROM engagement.announcements
         WHERE classroom_id = ANY($1::uuid[]) AND archived_at IS NULL
         ORDER BY pinned DESC, published_at DESC
@@ -114,6 +118,7 @@ export class PgAnnouncementRepository implements AnnouncementRepository {
 
     return rows.map((row) => ({
       announcementId: row.id,
+      kind: (row.kind ?? 'announcement') as PostKind,
       classroomId: row.classroom_id,
       title: row.title,
       body: row.body,
@@ -197,5 +202,69 @@ export class PgEmailDeliveryLog implements EmailDeliveryLog {
         entry.providerRef ?? null,
       ],
     );
+  }
+}
+
+/**
+ * Respuestas del muro.
+ *
+ * Sin agregado propio a proposito: una respuesta no tiene invariantes -es un
+ * texto, un autor y una fecha- y montarle un agregado con version optimista
+ * seria maquinaria para proteger algo que nadie modifica despues de escribirlo.
+ */
+export class PgReplyRepository implements ReplyRepository {
+  constructor(
+    private readonly writePool: Pool,
+    private readonly readPool: Pool,
+  ) {}
+
+  async add(reply: ReplyRecord): Promise<void> {
+    await this.writePool.query(
+      `INSERT INTO engagement.announcement_replies (id, announcement_id, author_id, body, created_at)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [reply.id, reply.announcementId, reply.authorId, reply.body, reply.createdAt],
+    );
+  }
+
+  async listFor(announcementIds: readonly string[]): Promise<ReplyRecord[]> {
+    if (announcementIds.length === 0) return [];
+
+    // UNA consulta para todos los hilos, no una por hilo. El muro pinta veinte
+    // publicaciones de golpe: con una consulta por hilo serian veinte viajes a
+    // la base cada vez que un alumno abre la pantalla.
+    const { rows } = await this.readPool.query<{
+      id: string;
+      announcement_id: string;
+      author_id: string;
+      body: string;
+      created_at: Date;
+    }>(
+      `SELECT id, announcement_id, author_id, body, created_at
+         FROM engagement.announcement_replies
+        WHERE announcement_id = ANY($1::uuid[]) AND archived_at IS NULL
+        ORDER BY created_at`,
+      [[...announcementIds]],
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      announcementId: row.announcement_id,
+      authorId: row.author_id,
+      body: row.body,
+      createdAt: row.created_at.toISOString(),
+    }));
+  }
+
+  async archive(replyId: string, actorId: string, canModerate: boolean): Promise<boolean> {
+    // Cada uno retira lo SUYO; el docente y la direccion, cualquiera. La
+    // comprobacion va dentro del `WHERE` y no en una consulta previa: hacerlo en
+    // dos pasos deja una ventana entre comprobar y borrar.
+    const { rowCount } = await this.writePool.query(
+      `UPDATE engagement.announcement_replies
+          SET archived_at = now()
+        WHERE id = $1 AND archived_at IS NULL AND ($3 OR author_id = $2)`,
+      [replyId, actorId, canModerate],
+    );
+    return (rowCount ?? 0) > 0;
   }
 }

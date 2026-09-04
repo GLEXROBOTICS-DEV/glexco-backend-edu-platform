@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { CardSkeleton } from '../../../../components/ui';
-import { AnnouncementList } from '../../../../components/announcements';
+import { ClassroomWall } from '../../../../components/wall';
 import { AnnouncementForm } from '../../../../components/announcement-form';
 import { fetchMyClassrooms } from '../../../../lib/classrooms';
 
-export const metadata: Metadata = { title: 'Anuncios' };
+export const metadata: Metadata = { title: 'El muro' };
 
 /**
  * Anuncios del docente.
@@ -20,10 +20,11 @@ export default function AnunciosPage() {
     <>
       <div>
         <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="font-semibold">
-          Anuncios
+          El muro de tus salones
         </h1>
         <p className="mt-1 text-sm text-ink-500">
-          Tus alumnos los verán la próxima vez que entren al portal.
+          Tus avisos y las preguntas de tus alumnos, en el mismo sitio. Responder aquí lo ve
+          toda la clase, que es de lo que se trata: la duda de uno le sirve al resto.
         </p>
       </div>
 
@@ -32,10 +33,7 @@ export default function AnunciosPage() {
       </Suspense>
 
       <Suspense fallback={<CardSkeleton />}>
-        <AnnouncementList
-          title="Publicados"
-          emptyMessage="Todavía no has publicado ningún anuncio."
-        />
+        <ClassroomWall canAsk={false} />
       </Suspense>
     </>
   );

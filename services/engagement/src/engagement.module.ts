@@ -37,6 +37,7 @@ import {
   UNIT_OF_WORK,
   ANNOUNCEMENT_REPOSITORY,
   CLASSROOM_DIRECTORY,
+  REPLY_REPOSITORY,
   MAIL_SENDER,
   EMAIL_DELIVERY_LOG,
   ONE_TIME_TOKEN_ISSUER,
@@ -44,12 +45,15 @@ import {
 import { AnnouncementsController } from './interface/http/controllers';
 import {
   ArchiveAnnouncementUseCase,
+  AskQuestionUseCase,
+  ReplyToPostUseCase,
   ListMyAnnouncementsUseCase,
   PublishAnnouncementUseCase,
 } from './application/announcements.usecase';
 import { SendAccountEmailUseCase } from './application/send-account-email.usecase';
 import {
   PgAnnouncementRepository,
+  PgReplyRepository,
   PgClassroomDirectory,
   PgEmailDeliveryLog,
 } from './infrastructure/persistence/pg-engagement.repositories';
@@ -261,6 +265,24 @@ export {
       useFactory: (...args: ConstructorParameters<typeof ArchiveAnnouncementUseCase>) =>
         new ArchiveAnnouncementUseCase(...args),
       inject: [ANNOUNCEMENT_REPOSITORY, UNIT_OF_WORK, CLOCK],
+    },
+
+    {
+      provide: REPLY_REPOSITORY,
+      useFactory: (writePool: Pool, readPool: Pool) => new PgReplyRepository(writePool, readPool),
+      inject: [DB_WRITE_POOL, DB_READ_POOL],
+    },
+    {
+      provide: AskQuestionUseCase,
+      useFactory: (...args: ConstructorParameters<typeof AskQuestionUseCase>) =>
+        new AskQuestionUseCase(...args),
+      inject: [ANNOUNCEMENT_REPOSITORY, CLASSROOM_DIRECTORY, UNIT_OF_WORK, CLOCK, SECURE_RANDOM],
+    },
+    {
+      provide: ReplyToPostUseCase,
+      useFactory: (...args: ConstructorParameters<typeof ReplyToPostUseCase>) =>
+        new ReplyToPostUseCase(...args),
+      inject: [ANNOUNCEMENT_REPOSITORY, REPLY_REPOSITORY, CLASSROOM_DIRECTORY, CLOCK, SECURE_RANDOM],
     },
 
     {

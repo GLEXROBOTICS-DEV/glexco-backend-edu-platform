@@ -35,3 +35,27 @@ export interface ClassroomDirectory {
    *  acotar la consulta de anuncios. */
   classroomsFor(userId: string): Promise<string[]>;
 }
+
+export interface ReplyRecord {
+  id: string;
+  announcementId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+}
+
+/**
+ * Respuestas del muro.
+ *
+ * Repositorio aparte y no metodos del de anuncios: una respuesta no es parte del
+ * agregado del anuncio -no participa en ninguna de sus invariantes, y se escribe
+ * en otro momento y por otra persona-. Meterla dentro obligaria a cargar y
+ * reescribir el anuncio entero para anadir una linea, y a perder respuestas
+ * cuando dos alumnos contestan a la vez.
+ */
+export interface ReplyRepository {
+  add(reply: ReplyRecord): Promise<void>;
+  /** Las respuestas vigentes de varios hilos, para pintar el muro de una vez. */
+  listFor(announcementIds: readonly string[]): Promise<ReplyRecord[]>;
+  archive(replyId: string, actorId: string, canModerate: boolean): Promise<boolean>;
+}

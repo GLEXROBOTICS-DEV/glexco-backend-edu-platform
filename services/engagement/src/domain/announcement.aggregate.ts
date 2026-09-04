@@ -83,7 +83,19 @@ export class AnnouncementPublished extends DomainEvent<AnnouncementPublishedPayl
   }
 }
 
+/**
+ * Que es cada publicacion del muro.
+ *
+ * `announcement` lo escribe el docente y es informacion; `question` la escribe
+ * un alumno y espera respuesta. Se distinguen porque **se ordenan distinto y se
+ * moderan distinto**: un aviso fijado encabeza la lista, y una pregunta sin
+ * responder es trabajo pendiente para el docente.
+ */
+export const POST_KINDS = { ANNOUNCEMENT: 'announcement', QUESTION: 'question' } as const;
+export type PostKind = (typeof POST_KINDS)[keyof typeof POST_KINDS];
+
 interface AnnouncementState {
+  kind: PostKind;
   classroomId: string;
   institutionId: string;
   authorId: string;
@@ -125,15 +137,24 @@ export class Announcement extends AggregateRoot<AnnouncementId> {
     title: AnnouncementTitle;
     body: AnnouncementBody;
     pinned: boolean;
+    /** Por defecto, aviso del docente: es lo que habia antes de existir el muro. */
+    kind?: PostKind;
     now: Date;
   }): Announcement {
+    // Una PREGUNTA no se puede fijar. Fijar es una herramienta del docente para
+    // que un aviso encabece la lista; si un alumno pudiera fijar la suya, el
+    // muro seria una carrera por quedarse arriba.
+    const kind = input.kind ?? POST_KINDS.ANNOUNCEMENT;
+    const pinned = kind === POST_KINDS.QUESTION ? false : input.pinned;
+
     const announcement = new Announcement(input.id, {
+      kind,
       classroomId: input.classroomId,
       institutionId: input.institutionId,
       authorId: input.authorId,
       title: input.title,
       body: input.body,
-      pinned: input.pinned,
+      pinned,
       publishedAt: input.now,
       archivedAt: null,
       createdAt: input.now,
@@ -215,6 +236,9 @@ export class Announcement extends AggregateRoot<AnnouncementId> {
     this.touch();
   }
 
+  get kind(): PostKind {
+    return this.state.kind;
+  }
   get classroomId(): string {
     return this.state.classroomId;
   }

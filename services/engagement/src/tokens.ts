@@ -16,6 +16,7 @@ export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
 
 export const ANNOUNCEMENT_REPOSITORY = Symbol('ANNOUNCEMENT_REPOSITORY');
 export const CLASSROOM_DIRECTORY = Symbol('CLASSROOM_DIRECTORY');
+export const REPLY_REPOSITORY = Symbol('REPLY_REPOSITORY');
 
 /** Envio de correo. Es un puerto: cambiar de SMTP a una API transaccional es
  *  escribir otro adaptador, no tocar un caso de uso. */

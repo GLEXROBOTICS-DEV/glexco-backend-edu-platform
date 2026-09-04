@@ -83,8 +83,8 @@ export async function AnnouncementsAction({
           pastilla naranja, y "anuncios" a secas no dice si hay algo nuevo. */}
       <span className="sr-only">
         {items.length === 0
-          ? 'Anuncios de tu salón: no hay ninguno'
-          : `Anuncios de tu salón: ${items.length}`}
+          ? 'El muro de tu clase: no hay nada nuevo'
+          : `El muro de tu clase: ${items.length} publicaciones`}
       </span>
     </a>
   );

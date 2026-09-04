@@ -19,9 +19,21 @@ import { getRequestContext } from '@glexco/observability';
 import type { ExecutionContext as UseCaseContext } from '@glexco/kernel';
 import {
   ArchiveAnnouncementUseCase,
+  AskQuestionUseCase,
+  ReplyToPostUseCase,
   ListMyAnnouncementsUseCase,
   PublishAnnouncementUseCase,
 } from '../../application/announcements.usecase';
+
+const askSchema = z.object({
+  classroomId: z.string().uuid(),
+  title: z.string().trim().min(3).max(120),
+  body: z.string().trim().min(1).max(4000),
+});
+
+const replySchema = z.object({
+  body: z.string().trim().min(1).max(4000),
+});
 
 const publishSchema = z.object({
   classroomId: z.string().uuid(),
@@ -65,6 +77,8 @@ export class AnnouncementsController {
     private readonly publish: PublishAnnouncementUseCase,
     private readonly listMine: ListMyAnnouncementsUseCase,
     private readonly archive: ArchiveAnnouncementUseCase,
+    private readonly ask_: AskQuestionUseCase,
+    private readonly reply_: ReplyToPostUseCase,
   ) {}
 
   /**
@@ -106,5 +120,34 @@ export class AnnouncementsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('announcementId') announcementId: string, @Req() request: Request) {
     await this.archive.execute({ announcementId }, contextFrom(request));
+  }
+
+  /**
+   * Un alumno pregunta a su salon.
+   *
+   * Va con `ANNOUNCEMENT_READ` y no con `ANNOUNCEMENT_PUBLISH`: publicar avisos
+   * es del docente, y preguntar lo puede hacer cualquiera que este en el salon.
+   * Es el caso de uso quien comprueba la matricula, que es la condicion real.
+   */
+  @Post('questions')
+  @RequirePermissions(PERMISSIONS.ANNOUNCEMENT_READ)
+  @HttpCode(HttpStatus.CREATED)
+  async ask(
+    @Body(zodBody(askSchema)) input: z.infer<typeof askSchema>,
+    @Req() request: Request,
+  ) {
+    return this.ask_.execute(input, contextFrom(request));
+  }
+
+  /** Responder en el muro. Lo hace el docente y tambien los companeros. */
+  @Post(':announcementId/replies')
+  @RequirePermissions(PERMISSIONS.ANNOUNCEMENT_READ)
+  @HttpCode(HttpStatus.CREATED)
+  async reply(
+    @Param('announcementId') announcementId: string,
+    @Body(zodBody(replySchema)) input: z.infer<typeof replySchema>,
+    @Req() request: Request,
+  ) {
+    return this.reply_.execute({ announcementId, body: input.body }, contextFrom(request));
   }
 }
