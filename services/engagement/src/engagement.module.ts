@@ -258,7 +258,7 @@ export {
       provide: ListMyAnnouncementsUseCase,
       useFactory: (...args: ConstructorParameters<typeof ListMyAnnouncementsUseCase>) =>
         new ListMyAnnouncementsUseCase(...args),
-      inject: [ANNOUNCEMENT_REPOSITORY, CLASSROOM_DIRECTORY],
+      inject: [ANNOUNCEMENT_REPOSITORY, CLASSROOM_DIRECTORY, REPLY_REPOSITORY],
     },
     {
       provide: ArchiveAnnouncementUseCase,
