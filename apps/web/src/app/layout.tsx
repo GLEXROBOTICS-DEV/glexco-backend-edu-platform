@@ -103,7 +103,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
  * que claves pide un componente de cliente, y una heuristica que se equivocara
  * en silencio es peor que una lista que hay que mantener a mano.
  */
-const CLIENT_NAMESPACES = ['comun', 'tema', 'idioma', 'nav', 'evaluacion'] as const;
+const CLIENT_NAMESPACES = ['comun', 'tema', 'idioma', 'nav', 'evaluacion', 'cuenta'] as const;
 
 function forClient(messages: AbstractIntlMessages): AbstractIntlMessages {
   const subset: AbstractIntlMessages = {};

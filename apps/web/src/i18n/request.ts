@@ -27,10 +27,24 @@ export const LOCALE_COOKIE = 'glexco_locale';
  */
 export async function resolveLocale(): Promise<Locale> {
   const session = await getSession();
+  const store = await cookies();
+  const cookieLocale = store.get(LOCALE_COOKIE)?.value;
+
+  // **La cookie gana si el perfil no se pudo leer.** Con sesion degradada -
+  // identidad sin responder un instante- el idioma de la sesion sale del TOKEN,
+  // que es el de cuando inicio sesion y no el que el usuario acaba de elegir.
+  // Sin esto, cambiar a ingles se deshacia solo en la siguiente navegacion.
+  //
+  // Cuando el perfil SI contesta manda el perfil, que es lo correcto: es el
+  // idioma con el que se le escriben los correos, y una cookie vieja en otro
+  // navegador no debe cambiarlo.
+  if (session && !session.profileLoaded && (cookieLocale === 'en' || cookieLocale === 'es')) {
+    return cookieLocale;
+  }
+
   if (session?.locale === 'en' || session?.locale === 'es') return session.locale;
 
-  const store = await cookies();
-  return store.get(LOCALE_COOKIE)?.value === 'en' ? 'en' : DEFAULT_LOCALE;
+  return cookieLocale === 'en' ? 'en' : DEFAULT_LOCALE;
 }
 
 export default getRequestConfig(async () => {

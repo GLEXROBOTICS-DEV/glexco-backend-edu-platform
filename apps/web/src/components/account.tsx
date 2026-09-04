@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   changeLanguage,
   changePassword,
@@ -23,6 +24,7 @@ export function PasswordForm() {
     changePassword,
     {},
   );
+  const t = useTranslations('cuenta');
 
   return (
     <form action={formAction} className="grid max-w-md gap-4">
@@ -32,7 +34,7 @@ export function PasswordForm() {
           data-password-changed="1"
           className="rounded-[var(--portal-radius)] border border-state-done-fg/25 bg-state-done-bg px-4 py-3 text-sm text-state-done-fg"
         >
-          Listo. Tu contraseña ya está cambiada y se cerraron tus otras sesiones.
+          {t('contrasenaCambiada')}
         </p>
       ) : null}
 
@@ -46,7 +48,7 @@ export function PasswordForm() {
       ) : null}
 
       <label className="block">
-        <span className="text-sm font-medium text-ink-700">Contraseña actual</span>
+        <span className="text-sm font-medium text-ink-700">{t('actual')}</span>
         <input
           type="password"
           name="currentPassword"
@@ -57,7 +59,7 @@ export function PasswordForm() {
       </label>
 
       <label className="block">
-        <span className="text-sm font-medium text-ink-700">Contraseña nueva</span>
+        <span className="text-sm font-medium text-ink-700">{t('nueva')}</span>
         <input
           type="password"
           name="newPassword"
@@ -65,13 +67,11 @@ export function PasswordForm() {
           required
           className="field mt-1.5"
         />
-        <span className="mt-1.5 block text-xs text-ink-500">
-          Al menos 10 caracteres. Mezcla letras y números.
-        </span>
+        <span className="mt-1.5 block text-xs text-ink-500">{t('nuevaPista')}</span>
       </label>
 
       <label className="block">
-        <span className="text-sm font-medium text-ink-700">Repite la nueva</span>
+        <span className="text-sm font-medium text-ink-700">{t('repite')}</span>
         <input
           type="password"
           name="repeatPassword"
@@ -82,7 +82,7 @@ export function PasswordForm() {
       </label>
 
       <button type="submit" disabled={pending} className="btn btn-primary justify-self-start">
-        {pending ? 'Cambiando…' : 'Cambiar contraseña'}
+        {pending ? t('cambiando') : t('cambiar')}
       </button>
     </form>
   );
@@ -100,6 +100,7 @@ export function SessionList({ sessions }: { sessions: readonly ActiveSession[] }
     revokeSessions,
     {},
   );
+  const t = useTranslations('cuenta');
 
   const others = sessions.filter((s) => !s.current).length;
 
@@ -113,8 +114,8 @@ export function SessionList({ sessions }: { sessions: readonly ActiveSession[] }
       {state.revoked !== undefined && !state.error ? (
         <p role="status" className="text-sm text-state-done-fg">
           {state.revoked === 0
-            ? 'No había ninguna otra sesión abierta.'
-            : `Se cerraron ${state.revoked} ${state.revoked === 1 ? 'sesión' : 'sesiones'}.`}
+            ? t('sinOtrasSesiones')
+            : t('sesionesCerradas', { count: state.revoked })}
         </p>
       ) : null}
 
@@ -129,12 +130,12 @@ export function SessionList({ sessions }: { sessions: readonly ActiveSession[] }
                 {session.device}
                 {session.current ? (
                   <span className="ml-2 rounded-full bg-state-doing-bg px-2 py-0.5 text-[11px] font-semibold text-state-doing-fg">
-                    este dispositivo
+                    {t('esteDispositivo')}
                   </span>
                 ) : null}
               </p>
               <p className="mt-0.5 text-xs text-ink-500">
-                Última actividad {relative(session.lastUsedAt)}
+                {t('ultimaActividad', { cuando: relative(t, session.lastUsedAt) })}
                 {session.ipAddress ? ` · ${session.ipAddress}` : ''}
               </p>
             </div>
@@ -143,7 +144,7 @@ export function SessionList({ sessions }: { sessions: readonly ActiveSession[] }
               <form action={formAction}>
                 <input type="hidden" name="sessionId" value={session.id} />
                 <button type="submit" disabled={pending} className="btn btn-sm btn-secondary">
-                  Cerrar
+                  {t('cerrar')}
                 </button>
               </form>
             ) : null}
@@ -154,7 +155,7 @@ export function SessionList({ sessions }: { sessions: readonly ActiveSession[] }
       {others > 0 ? (
         <form action={formAction} className="justify-self-start">
           <button type="submit" disabled={pending} className="btn btn-danger">
-            {pending ? 'Cerrando…' : 'Cerrar todas las demás'}
+            {pending ? t('cerrando') : t('cerrarTodas')}
           </button>
         </form>
       ) : null}
@@ -169,19 +170,21 @@ export function SessionList({ sessions }: { sessions: readonly ActiveSession[] }
  * que esta mirando, y calcularla en el servidor mostraria "hace 5 horas" a quien
  * acaba de entrar desde otra zona horaria.
  */
-function relative(iso: string): string {
+function relative(
+  t: (key: string, values?: Record<string, string | number>) => string,
+  iso: string,
+): string {
   const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return 'hace un momento';
+  if (Number.isNaN(then)) return t('haceUnMomento');
 
   const minutes = Math.round((Date.now() - then) / 60_000);
-  if (minutes < 2) return 'ahora mismo';
-  if (minutes < 60) return `hace ${minutes} minutos`;
+  if (minutes < 2) return t('ahoraMismo');
+  if (minutes < 60) return t('haceMinutos', { minutos: minutes });
 
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `hace ${hours} ${hours === 1 ? 'hora' : 'horas'}`;
+  if (hours < 24) return t('haceHoras', { horas: hours });
 
-  const days = Math.round(hours / 24);
-  return `hace ${days} ${days === 1 ? 'día' : 'días'}`;
+  return t('haceDias', { dias: Math.round(hours / 24) });
 }
 
 /**
@@ -196,6 +199,7 @@ export function LanguageChoice({ current }: { current: 'es' | 'en' }) {
     changeLanguage,
     {},
   );
+  const t = useTranslations('cuenta');
 
   const options: Array<{ value: 'es' | 'en'; label: string }> = [
     { value: 'es', label: 'Español' },
@@ -211,7 +215,7 @@ export function LanguageChoice({ current }: { current: 'es' | 'en' }) {
       ) : null}
 
       <fieldset className="flex flex-wrap gap-2">
-        <legend className="sr-only">Idioma de la cuenta</legend>
+        <legend className="sr-only">{t('leyendaIdioma')}</legend>
         {options.map((option) => (
           <button
             key={option.value}

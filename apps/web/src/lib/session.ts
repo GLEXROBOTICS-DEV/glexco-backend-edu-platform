@@ -42,6 +42,30 @@ export interface SessionUser {
   institutionId: string | null;
   /** Portal que le corresponde: decide el layout y la densidad. */
   portal: 'discover' | 'academy' | 'teacher' | 'institution' | 'admin';
+  /**
+   * Si el portal viene del PERFIL o es una suposicion.
+   *
+   * Importa mas de lo que parece. Cuando identidad no responde, la sesion sigue
+   * adelante con lo que da el token -que no lleva el portal, porque depende de
+   * la edad- y `resolvePortal` cae en `discover` para cualquier alumno. Sin esta
+   * marca, el guard de portal leia esa suposicion como un hecho y expulsaba a un
+   * alumno de Academy a Discover: el cliente lo vio como "cambio de idioma y la
+   * cuenta se convierte en otra".
+   *
+   * Un fallo pasajero de un servicio no puede cambiar a que portal pertenece
+   * alguien. Con `false`, el guard no mueve a nadie.
+   */
+  portalKnown: boolean;
+  /**
+   * Si el PERFIL se pudo leer.
+   *
+   * Distinto de `portalKnown` solo en el nombre: los dos salen de la misma
+   * llamada. Se declaran los dos porque se leen desde sitios que preguntan cosas
+   * distintas -el guard pregunta por el portal, el idioma por el perfil-, y una
+   * sola marca llamada `portalKnown` usada para decidir el idioma se lee como un
+   * error al pasar por delante.
+   */
+  profileLoaded: boolean;
   locale: 'es' | 'en';
 }
 
@@ -88,6 +112,12 @@ export const getSession = cache(async (): Promise<SessionUser | null> => {
     permissions: profile?.permissions ?? claims.perms ?? [],
     institutionId: profile?.institutionId ?? claims.inst ?? null,
     portal: resolvePortal(profile?.roles ?? claims.roles ?? [], profile?.portal),
+    // Solo se sabe si el perfil contesto. Los roles del token bastan para un
+    // docente o para el personal -su portal se deduce del rol-, pero no para un
+    // alumno: entre Discover y Academy decide la edad, y eso solo lo tiene
+    // identidad.
+    portalKnown: Boolean(profile?.portal),
+    profileLoaded: profile !== null,
     locale: (profile?.locale ?? claims.loc) === 'en' ? 'en' : 'es',
   };
 });

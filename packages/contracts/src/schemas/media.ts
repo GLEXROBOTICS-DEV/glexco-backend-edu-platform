@@ -16,6 +16,27 @@ export const ACCEPTED_UPLOAD_TYPES = [
   'video/mp4',
 ] as const;
 
+/**
+ * Lo que se admite como EVIDENCIA de un alumno.
+ *
+ * Un subconjunto, y la diferencia importa: **el video no entra**. Asi trabajan
+ * de verdad -lo dijo el cliente-: el docente revisa el montaje en clase la
+ * mayoria de las veces, y cuando es a distancia el alumno publica su video donde
+ * ya lo tiene y envia el ENLACE. Como mucho sube una foto que demuestre que esta
+ * hecho.
+ *
+ * Vive aqui y no en cada lado porque la usan los DOS: el servicio de medios para
+ * rechazar, y el selector de archivos del portal para no ofrecer lo que va a ser
+ * rechazado. Con una copia en cada sitio, la del frontend se queda vieja y el
+ * alumno elige un archivo que muere en el servidor.
+ */
+export const EVIDENCE_UPLOAD_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
+] as const;
+
 export const uploadScopeSchema = z.enum(['evidence', 'content', 'avatar', 'document']);
 export type UploadScope = z.infer<typeof uploadScopeSchema>;
 

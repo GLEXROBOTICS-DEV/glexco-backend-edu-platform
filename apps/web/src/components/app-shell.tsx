@@ -1,7 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import type { SessionUser } from '../lib/session';
 import { SidebarNav, type NavItem } from './sidebar-nav';
-import { ThemeToggle } from './theme-toggle';
 import { Tour, type TourStep } from './tour';
 
 export type { NavItem };
@@ -54,6 +53,7 @@ export async function AppShell({
   children: React.ReactNode;
 }) {
   const t = await getTranslations('comun');
+  const nav = await getTranslations('nav');
   // El nombre puede venir vacio, y no es un caso raro: `getSession` sigue
   // adelante con lo que da el token cuando identidad no responde -mejor el
   // portal sin nombre que echar al alumno a la pantalla de ingreso-. Ese estado
@@ -105,7 +105,7 @@ export async function AppShell({
             muerta obliga a inventar otro destino para lo mismo. */}
         <a
           href={accountHref}
-          aria-label={`Mi cuenta: ${displayName}`}
+          aria-label={`${nav('miCuenta')}: ${displayName}`}
           className="hidden items-center gap-2.5 rounded-[var(--nav-radius)] bg-white/[0.09] p-2.5 transition hover:bg-white/[0.16] lg:flex"
         >
           <span
@@ -122,27 +122,16 @@ export async function AppShell({
           </span>
         </a>
 
-        {/* Tema y visita guiada, juntos y al final: son ajustes de COMO se usa la
-            plataforma, no destinos. Mezclarlos con la navegacion los pondria al
-            mismo nivel que "mis kits", que es lo que el alumno viene a abrir. */}
-        <div className="hidden lg:mt-3 lg:block">
-          <ThemeToggle />
-        </div>
+        {/* Solo la visita guiada.
 
-        <div className="hidden lg:mt-1.5 lg:block">
+            El tema y el cierre de sesion se movieron a "Mi cuenta", que es donde
+            la gente los busca: son AJUSTES de la cuenta, y aqui competian por
+            atencion con los destinos de la navegacion. Lo que queda al pie es la
+            ficha de usuario -que lleva a esos ajustes- y la visita guiada, que es
+            ayuda y no un ajuste. */}
+        <div className="hidden lg:mt-3 lg:block">
           <Tour steps={tour} />
         </div>
-
-        {/* Salir vive dentro de la barra, no en una esquina de la cabecera: es
-            donde esta el resto de lo que trata de "mi cuenta". */}
-        <form action={onLogout} className="hidden lg:mt-0.5 lg:block">
-          <button
-            type="submit"
-            className="w-full rounded-[var(--nav-radius)] px-3 py-2 text-left text-[13px] font-medium text-onbrand-300 transition hover:bg-white/10 hover:text-white"
-          >
-            {t('cerrarSesion')}
-          </button>
-        </form>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">

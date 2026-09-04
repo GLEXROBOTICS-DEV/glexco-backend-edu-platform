@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { api } from './api';
+import { shareEvidenceLink, uploadEvidence } from './evidence';
 import type { OpenAttempt } from './assessments';
 
 /**
@@ -80,6 +81,12 @@ export async function submitAttempt(
     // DOM, que es el de la pantalla y no el de su respuesta.
     const ordenados = ordering(formData, questionId);
 
+    // La evidencia se resuelve ANTES de guardar la respuesta: hace falta el id
+    // del recurso, y si la subida falla hay que decirlo en vez de guardar una
+    // respuesta vacia que el alumno cree entregada.
+    const evidencia = await resolveEvidence(formData, questionId);
+    if (evidencia.error) return { error: evidencia.error };
+
     const saved = await api(`/assessments/attempts/${submissionId}/answers`, {
       method: 'POST',
       body: {
@@ -90,6 +97,7 @@ export async function submitAttempt(
             ? { selectedOptionIds: selected }
             : {}),
         ...(typeof text === 'string' && text.trim().length > 0 ? { text: text.trim() } : {}),
+        ...(evidencia.mediaAssetId ? { mediaAssetId: evidencia.mediaAssetId } : {}),
       },
     });
 
@@ -157,4 +165,34 @@ function ordering(formData: FormData, questionId: string): string[] {
   }
 
   return puestos.sort((a, b) => a.puesto - b.puesto).map((entrada) => entrada.optionId);
+}
+
+/**
+ * La evidencia de una pregunta de entrega: archivo o enlace.
+ *
+ * Si vienen los dos, manda el ARCHIVO. Es lo que el alumno acaba de elegir en el
+ * selector, y es el gesto mas deliberado de los dos: el enlace puede haber
+ * quedado escrito de un intento anterior.
+ *
+ * Un campo vacio no es un error: la mayoria de las preguntas no son de entrega,
+ * y una pregunta de entrega sin responder se puntua a cero como cualquier otra.
+ */
+async function resolveEvidence(
+  formData: FormData,
+  questionId: string,
+): Promise<{ mediaAssetId?: string; error?: string }> {
+  const archivo = formData.get(`archivo:${questionId}`);
+
+  if (archivo instanceof File && archivo.size > 0) {
+    return uploadEvidence(archivo);
+  }
+
+  const enlace = formData.get(`enlace:${questionId}`);
+  if (typeof enlace === 'string' && enlace.trim().length > 0) {
+    // El titulo lo pone la accion y no el alumno: en la bandeja del docente,
+    // treinta enlaces sin titulo son treinta enlaces indistinguibles.
+    return shareEvidenceLink(enlace, `Entrega de la pregunta ${questionId.slice(0, 8)}`);
+  }
+
+  return {};
 }

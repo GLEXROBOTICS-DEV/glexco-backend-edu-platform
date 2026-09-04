@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useFormStatus } from 'react-dom';
 import { submitAttempt, type SubmitState } from '../lib/assessment.actions';
+import { EVIDENCE_UPLOAD_TYPES } from '@glexco/contracts';
 import type { StudentQuestion } from '../lib/assessments';
 
 /**
@@ -108,6 +109,7 @@ function QuestionCard({ question, index }: { question: StudentQuestion; index: n
   const t = useTranslations('evaluacion');
   const multiple = question.type === 'multiple_choice';
   const ordering = question.type === 'ordering';
+  const evidence = question.type === 'file_upload';
   const legendId = `pregunta-${question.id}`;
 
   return (
@@ -130,10 +132,13 @@ function QuestionCard({ question, index }: { question: StudentQuestion; index: n
           {t('puntos', { puntos: question.points })}
           {multiple ? ` · ${t('marcaTodas')}` : ''}
           {ordering ? ` · ${t('ordenaLosPasos')}` : ''}
+          {evidence ? ` · ${t('entregaEvidencia')}` : ''}
         </p>
 
         {ordering ? (
           <OrderingAnswer question={question} t={t} />
+        ) : evidence ? (
+          <EvidenceAnswer question={question} t={t} />
         ) : question.options.length > 0 ? (
           <div className="grid gap-2">
             {question.options.map((option) => (
@@ -161,6 +166,58 @@ function QuestionCard({ question, index }: { question: StudentQuestion; index: n
           />
         )}
       </fieldset>
+    </div>
+  );
+}
+
+/**
+ * Entregar evidencia: un archivo o un enlace.
+ *
+ * **Los dos campos a la vez y no una pestana que elija.** Son dos situaciones
+ * distintas y las dos ocurren: quien tiene la foto en el movil del aula sube, y
+ * quien ya tiene el video en el Drive del centro pega el enlace. Obligar a
+ * elegir primero anade un paso a lo unico que el alumno tiene que poder hacer.
+ *
+ * `type="file"` nativo y sin JavaScript: el navegador manda el fichero como
+ * `multipart/form-data` y la Server Action lo sube al almacen desde el
+ * servidor. Pedir la URL prefirmada desde el navegador -que es como se hace
+ * normalmente- exigiria JavaScript justo para entregar.
+ */
+function EvidenceAnswer({
+  question,
+  t,
+}: {
+  question: StudentQuestion;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}) {
+  return (
+    <div className="grid gap-4">
+      <label className="grid gap-1.5">
+        <span className="text-sm font-medium text-ink-700">{t('subirArchivo')}</span>
+        <input
+          type="file"
+          name={`archivo:${question.id}`}
+          accept={EVIDENCE_UPLOAD_TYPES.join(',')}
+          className="field file:mr-3 file:rounded-md file:border-0 file:bg-brand-600/10 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-brand-700"
+        />
+        <span className="text-xs text-ink-400">{t('pistaArchivo')}</span>
+      </label>
+
+      <label className="grid gap-1.5">
+        <span className="text-sm font-medium text-ink-700">{t('oComparteEnlace')}</span>
+        <input
+          type="url"
+          name={`enlace:${question.id}`}
+          placeholder="https://"
+          className="field"
+        />
+        <span className="text-xs text-ink-400">{t('pistaEnlace')}</span>
+      </label>
+
+      {/* Que es OPCIONAL se dice aquí y no en la ayuda: lo normal es que el
+          docente lo revise en clase, y un alumno que crea obligatorio subir algo
+          no entrega -o sube cualquier cosa para poder pulsar el botón-. */}
+      <p className="text-xs text-ink-500">{t('evidenciaOpcional')}</p>
     </div>
   );
 }

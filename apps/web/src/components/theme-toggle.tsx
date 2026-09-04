@@ -70,7 +70,7 @@ export function ThemeToggle() {
 
   return (
     <fieldset className="min-w-0">
-      <legend className="sr-only">Tema de la interfaz</legend>
+      <legend className="sr-only">{t('leyenda')}</legend>
       <div className="flex gap-1 rounded-[var(--nav-radius)] bg-white/[0.09] p-1">
         {options.map((option) => (
           <button

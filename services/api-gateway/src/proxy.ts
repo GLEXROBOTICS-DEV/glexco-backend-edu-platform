@@ -127,10 +127,7 @@ export class ServiceProxy {
     // Sin `publicPaths`, el prefijo entero exige credencial. Es el valor por
     // defecto seguro: exponer algo tiene que costar anadir una linea, y no
     // olvidarse de anadirla.
-    const isPublic = (route.publicPaths ?? []).some((pattern) =>
-      pattern.test(pathWithinPrefix(request)),
-    );
-    if (isPublic) return;
+    if (this.isPublicPath(route, request)) return;
 
     const authorization = request.headers.authorization;
     if (typeof authorization === 'string' && authorization.startsWith('Bearer ')) return;
@@ -162,23 +159,58 @@ export class ServiceProxy {
   }
 
   /**
+   * Rutas sin credencial de un prefijo.
+   *
+   * Vive aparte porque lo usan DOS decisiones -si se exige token y si se aplica
+   * el limite estricto- y tienen que coincidir siempre. Con la comprobacion
+   * repetida en cada sitio, cambiar una lista y no la otra deja una ruta publica
+   * con el limite de una privada, o al reves.
+   */
+  private isPublicPath(route: RouteDefinition, request: Request): boolean {
+    return (route.publicPaths ?? []).some((pattern) => pattern.test(pathWithinPrefix(request)));
+  }
+
+  /**
    * Limitacion en el borde.
    *
    * Se aplica ANTES de reenviar: el objetivo es que el trafico abusivo no llegue
-   * siquiera a consumir una conexion del servicio interno. Las rutas de
-   * autenticacion llevan un limite mucho mas estricto porque ahi el ataque no es
-   * saturar, es adivinar.
+   * siquiera a consumir una conexion del servicio interno.
+   *
+   * **El limite estricto es para el trafico SIN credencial, no para el prefijo
+   * entero.** Ahi el ataque no es saturar, es adivinar: una contrasena, un token
+   * de recuperacion, una serie de certificado. Quien ya presenta un token no
+   * esta adivinando nada, y leer su propio perfil no es un intento de fuerza
+   * bruta.
+   *
+   * Esto era un fallo con consecuencias visibles y raras. `/auth/me` caia en el
+   * limite estricto, y el portal lo llama en CADA carga de pagina: sesenta
+   * vistas por minuto agotaban el presupuesto de un colegio entero -el gateway
+   * no puede identificar al usuario y cuenta por IP, asi que todos comparten
+   * cubo detras del NAT-. A partir de ahi el perfil respondia 429, la sesion
+   * seguia adelante sin el, y el portal de un alumno de Academy se resolvia como
+   * Discover: el cliente lo vio como "cambio a ingles y me saca a otra cuenta".
+   *
+   * Los dos cubos se llevan por SEPARADO. Compartir la clave hacia que las dos
+   * politicas se descontaran del mismo contador, asi que el limite real de cada
+   * una era el de la ultima peticion que pasara por aqui.
    */
   private async enforceRateLimit(route: RouteDefinition, request: Request): Promise<void> {
+    // El gateway no verifica firmas -no tiene el secreto, y es deliberado-, asi
+    // que `actor` casi nunca esta y en practica se cuenta por IP. Con un colegio
+    // detras de un NAT eso significa un solo cubo para todo el centro, y esta
+    // anotado como deuda en el traspaso.
     const identity = request.actor?.userId ?? request.ip ?? 'desconocido';
-    const policy = route.strictRateLimit
+
+    const strict = route.strictRateLimit === true && this.isPublicPath(route, request);
+
+    const policy = strict
       ? { limit: this.deps.config.RATE_LIMIT_AUTH_MAX, windowMs: 60_000 }
       : request.method === 'GET'
         ? RATE_LIMITS.READ
         : RATE_LIMITS.WRITE;
 
     const result = await this.deps.rateLimiter.consume(
-      `gw:${route.prefix}:${identity}`,
+      strict ? `gw:${route.prefix}:strict:${identity}` : `gw:${route.prefix}:${identity}`,
       policy.limit,
       policy.windowMs,
     );

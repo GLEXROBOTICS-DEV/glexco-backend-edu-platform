@@ -19,9 +19,19 @@ import type { GradableQuestion, SubmissionForGrading } from '../lib/grading';
 export function GradingForm({
   submission,
   studentName,
+  evidence,
 }: {
   submission: SubmissionForGrading;
   studentName: string;
+  /**
+   * La evidencia de cada pregunta, ya resuelta y por id de pregunta.
+   *
+   * Llega hecha desde el servidor porque su URL viene FIRMADA y dura minutos:
+   * este componente es de cliente y no puede pedirla. Pasarle el identificador
+   * para que la pidiera él dejaría la dirección en el HTML de una página que se
+   * puede guardar o compartir por error, y al otro lado hay la foto de un menor.
+   */
+  evidence?: Record<string, React.ReactNode>;
 }) {
   const [state, formAction] = useActionState<GradeState, FormData>(gradeSubmission, {});
 
@@ -79,7 +89,12 @@ export function GradingForm({
             Para puntuar ({manual.length})
           </h2>
           {manual.map((question, index) => (
-            <ManualQuestion key={question.id} question={question} index={index} />
+            <ManualQuestion
+              key={question.id}
+              question={question}
+              index={index}
+              evidence={evidence?.[question.id]}
+            />
           ))}
         </section>
       ) : (
@@ -119,7 +134,15 @@ export function GradingForm({
   );
 }
 
-function ManualQuestion({ question, index }: { question: GradableQuestion; index: number }) {
+function ManualQuestion({
+  question,
+  index,
+  evidence,
+}: {
+  question: GradableQuestion;
+  index: number;
+  evidence?: React.ReactNode;
+}) {
   return (
     <div
       className="border border-line-200 bg-white"
@@ -139,7 +162,16 @@ function ManualQuestion({ question, index }: { question: GradableQuestion; index
         {question.answer?.text ? (
           <p className="whitespace-pre-wrap">{question.answer.text}</p>
         ) : question.answer?.mediaAssetId ? (
-          <p>Entregó un archivo o un enlace.</p>
+          // La evidencia se pinta, no se anuncia.
+          (evidence ?? <p className="text-ink-400">Entregó un archivo.</p>)
+        ) : question.type === 'file_upload' ? (
+          // "Sin respuesta" sería mentir aquí. La evidencia es OPCIONAL y lo
+          // habitual es que el docente revise el montaje en clase: leer que el
+          // alumno "no respondió" empuja a puntuarle cero por algo que hizo
+          // delante de él.
+          <p className="text-ink-500">
+            Sin evidencia en la plataforma. Si lo revisaste en clase, pon la nota aquí.
+          </p>
         ) : (
           <p className="text-ink-400">Sin respuesta.</p>
         )}

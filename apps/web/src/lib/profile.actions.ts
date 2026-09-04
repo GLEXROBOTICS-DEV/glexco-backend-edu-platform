@@ -1,7 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 import { api } from './api';
+import { LOCALE_COOKIE } from '../i18n/request';
 
 /**
  * Acciones de la pantalla "Mi cuenta".
@@ -137,6 +139,23 @@ export async function changeLanguage(
   if (!result.ok) {
     return { error: 'No pudimos cambiar tu idioma. Vuelve a intentarlo en un momento.' };
   }
+
+  // La cookie se pone TAMBIEN, no en vez del perfil.
+  //
+  // El perfil sigue siendo la fuente: es el que deciden los correos. Pero el
+  // idioma de la sesion se lee de ahi en cada peticion, y si identidad no
+  // responde un instante la sesion cae al idioma del TOKEN, que es el de cuando
+  // inicio sesion. Resultado: el alumno cambia a ingles, lo ve un momento, y a
+  // la siguiente navegacion la pagina vuelve al espanol sin que el haya tocado
+  // nada. Con la cookie, ese hueco se cubre con lo ultimo que eligio.
+  //
+  // Un ano de vida y `lax`: no es un secreto, es una preferencia.
+  const store = await cookies();
+  store.set(LOCALE_COOKIE, locale, {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: 'lax',
+  });
 
   // El idioma sale de la sesion, que se relee en cada peticion: hay que
   // revalidar el layout entero o la barra lateral se queda en el idioma viejo

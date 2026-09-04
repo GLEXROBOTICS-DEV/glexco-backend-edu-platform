@@ -16,12 +16,22 @@ import { requireSession } from '../../../lib/session';
  *
  * Se **redirige** y no se da un error: quien llega aquí no ha hecho nada mal,
  * ha pulsado un enlace que le hemos dado nosotros.
+ *
+ * **Y no se redirige cuando no se sabe.** El portal de un alumno viene del
+ * perfil de identidad porque depende de su edad; si esa llamada falla, la sesión
+ * sigue adelante sin él y `resolvePortal` supone Discover para cualquier alumno.
+ * Con la suposición tratada como un hecho, este guard expulsaba a un alumno de
+ * Academy de su propio portal cada vez que identidad tardaba un instante — y el
+ * cliente lo vio así: «cambio a inglés y me lleva a inicio como cuenta
+ * Discovery». Ante la duda, se deja donde está: el marco lateral ya es el suyo y
+ * el backend comprueba el alcance de cada dato por su cuenta.
  */
 export default async function AcademyLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
-  const suyo = session.portal === 'academy' ? 'academy' : 'discover';
 
-  if (suyo !== 'academy') redirect(`/${suyo}`);
+  if (session.portalKnown && session.portal !== 'academy') {
+    redirect(`/${session.portal === 'teacher' ? 'docentes' : session.portal}`);
+  }
 
   return <>{children}</>;
 }

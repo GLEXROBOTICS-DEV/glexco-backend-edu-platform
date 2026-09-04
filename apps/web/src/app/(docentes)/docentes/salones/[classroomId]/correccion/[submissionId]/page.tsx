@@ -8,6 +8,7 @@ import {
 } from '../../../../../../../lib/grading';
 import { shortDate } from '../../../../../../../lib/analytics';
 import { GradingForm } from '../../../../../../../components/grading-form';
+import { EvidenceView } from '../../../../../../../components/evidence-view';
 import { EmptyState } from '../../../../../../../components/ui';
 
 export const metadata: Metadata = { title: 'Corregir entrega' };
@@ -39,6 +40,18 @@ export default async function GradeSubmissionPage({
   const format = await getFormatter();
   const studentName = studentLabel(data.studentId, roster.byId);
 
+  // La evidencia se resuelve aqui, en el servidor: su URL viene firmada y dura
+  // minutos. Solo para las preguntas que traen algo, y no para todas: cada una
+  // es una llamada al servicio de medios.
+  const evidence = Object.fromEntries(
+    data.questions
+      .filter((question) => question.answer?.mediaAssetId)
+      .map((question) => [
+        question.id,
+        <EvidenceView key={question.id} mediaAssetId={question.answer!.mediaAssetId!} />,
+      ]),
+  );
+
   return (
     <>
       <section>
@@ -59,7 +72,7 @@ export default async function GradeSubmissionPage({
         </p>
       </section>
 
-      <GradingForm submission={data} studentName={studentName} />
+      <GradingForm submission={data} studentName={studentName} evidence={evidence} />
     </>
   );
 }

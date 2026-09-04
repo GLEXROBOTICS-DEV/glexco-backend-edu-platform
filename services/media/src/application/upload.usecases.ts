@@ -9,6 +9,7 @@ import {
   type UnitOfWork,
   type UseCase,
 } from '@glexco/kernel';
+import { EVIDENCE_UPLOAD_TYPES } from '@glexco/contracts';
 import {
   ACCEPTED_MEDIA,
   MediaAsset,
@@ -46,23 +47,29 @@ const SCOPE_BUCKET: Record<UploadScope, keyof BucketMap> = {
 /**
  * Que tipos admite cada ambito.
  *
- * El video se admite en `content` -los tutoriales que produce GLEXCO- y en
- * `evidence`, para que un alumno pueda grabar su robot funcionando cuando eso
- * sea lo que hay que entregar. En los dos casos pasa por el proveedor externo:
- * servir video desde nuestro ancho de banda es lo primero que dispara la
- * factura.
+ * **`evidence` NO admite video, y es una decision del cliente.** Asi trabajan de
+ * verdad: la mayoria de las veces el docente corrige el montaje EN CLASE y en la
+ * plataforma solo registra la nota. Cuando es a distancia, el alumno publica su
+ * video donde ya lo tiene -YouTube, Drive, el Stream de su centro- y lo que
+ * envia es el ENLACE; como mucho sube una FOTO que demuestre que esta hecho, y
+ * el docente ve el video fuera.
  *
- * Existe ademas la via del ENLACE (`ShareLinkUseCase`), pensada para cuando el
- * centro ya aloja el material en su propio OneDrive o Stream. Son alternativas,
- * no sustitutas: quien tenga el video en el movil sube, y quien ya lo tenga
- * publicado en su institucion comparte el enlace.
+ * Cerrarlo aqui y no solo en la pantalla es lo que hace que valga: la lista del
+ * frontend es comodidad, y quien llame a la API directamente se salta cualquier
+ * restriccion que solo viva alli. Ademas coincide con lo que este mismo archivo
+ * ya advertia: servir video desde nuestro ancho de banda es lo primero que
+ * dispara la factura, y el proveedor externo todavia no esta contratado, asi que
+ * un MP4 subido hoy se serviria desde aqui.
+ *
+ * El video sigue admitido en `content`, que son los tutoriales que produce
+ * GLEXCO y pasan por el proveedor externo.
  *
  * El avatar se limita a imagen por la razon evidente, y un documento no es una
  * foto: aceptar cualquier cosa en cualquier sitio convierte la lista en
  * decorativa.
  */
 const SCOPE_TYPES: Record<UploadScope, readonly string[]> = {
-  evidence: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4'],
+  evidence: EVIDENCE_UPLOAD_TYPES,
   content: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4'],
   avatar: ['image/jpeg', 'image/png', 'image/webp'],
   document: ['application/pdf'],

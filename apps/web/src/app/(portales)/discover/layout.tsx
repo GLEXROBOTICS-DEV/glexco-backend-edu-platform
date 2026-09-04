@@ -16,12 +16,19 @@ import { requireSession } from '../../../lib/session';
  *
  * Se **redirige** y no se da un error: quien llega aquí no ha hecho nada mal,
  * ha pulsado un enlace que le hemos dado nosotros.
+ *
+ * **Y no se redirige cuando no se sabe.** Ver la nota del layout de Academy: el
+ * portal de un alumno viene del perfil de identidad, y con ese perfil sin
+ * responder la suposición es Discover. Aquí esa suposición no hacía daño -deja
+ * al alumno donde ya está-, pero la regla se escribe igual en los dos sitios: si
+ * un día cambia el valor por defecto, el guard no empieza a mover gente sola.
  */
 export default async function DiscoverLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
-  const suyo = session.portal === 'academy' ? 'academy' : 'discover';
 
-  if (suyo !== 'discover') redirect(`/${suyo}`);
+  if (session.portalKnown && session.portal !== 'discover') {
+    redirect(`/${session.portal === 'teacher' ? 'docentes' : session.portal}`);
+  }
 
   return <>{children}</>;
 }
