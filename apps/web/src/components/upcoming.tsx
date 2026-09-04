@@ -14,14 +14,23 @@ import { StatePill } from './ui';
  * tarjetas de reto inventadas dejaria la portada llena de cosas que no se
  * pueden abrir.
  */
-export async function UpcomingActivities({ portal }: { portal: 'discover' | 'academy' }) {
+export async function UpcomingActivities({
+  portal,
+  className = 'lg:col-span-2',
+}: {
+  portal: 'discover' | 'academy';
+  /** Lo decide la pagina: cada portada lo coloca en una fila distinta. */
+  className?: string;
+}) {
   const { kits } = await fetchMyKits();
   const { items } = await fetchUpcomingActivities(kits);
 
   const title = portal === 'discover' ? 'Próximos retos' : 'Próximas actividades';
 
   return (
-    <article className="rounded-[var(--portal-radius)] border border-line-200 bg-white p-[var(--portal-card-padding)] lg:col-span-2">
+    <article
+      className={`rounded-[var(--portal-radius)] border border-line-200 bg-white p-[var(--portal-card-padding)] ${className}`}
+    >
       <div className="mb-4 flex items-baseline justify-between gap-4">
         <h2 className="eyebrow">{title}</h2>
         {items.length > 0 ? (
@@ -96,14 +105,15 @@ export async function RecentBadges({ portal }: { portal: 'discover' | 'academy' 
     <article className="rounded-[var(--portal-radius)] border border-line-200 bg-white p-[var(--portal-card-padding)]">
       <div className="mb-4 flex items-baseline justify-between gap-4">
         <h2 className="eyebrow">Logros recientes</h2>
-        {portal === 'discover' ? (
-          <a
-            href="/discover/logros"
-            className="text-sm font-medium text-brand-600 hover:text-brand-400"
-          >
-            Ver todos
-          </a>
-        ) : null}
+        {/* La ruta sale del portal. Estaba escrita a mano apuntando a Discover:
+            en cuanto Academy tuvo logros, el enlace habria sacado al alumno de su
+            portal, que es justo el fallo que se acaba de corregir. */}
+        <a
+          href={`/${portal}/logros`}
+          className="text-sm font-medium text-brand-600 hover:text-brand-400"
+        >
+          Ver todos
+        </a>
       </div>
 
       {recent.length === 0 ? (

@@ -45,6 +45,7 @@ const ACADEMY_NAV: readonly NavItem[] = [
   { href: '/academy/progreso', label: 'Mi progreso', icon: <LevelIcon /> },
   { href: '/academy/evaluaciones', label: 'Evaluaciones', icon: <ChallengeIcon /> },
   { href: '/academy/biblioteca', label: 'Biblioteca', icon: <LibraryIcon /> },
+  { href: '/academy/logros', label: 'Logros', icon: <BadgeIcon /> },
   { href: '/academy/certificaciones', label: 'Certificaciones', icon: <CertificateIcon /> },
 ];
 

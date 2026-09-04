@@ -1,0 +1,69 @@
+{
+  "comun": {
+    "cerrar": "Close",
+    "siguiente": "Next",
+    "atras": "Back",
+    "entendido": "Got it",
+    "saltarAlContenido": "Skip to content",
+    "cerrarSesion": "Sign out",
+    "salir": "Sign out",
+    "reintentar": "Please try again in a moment.",
+    "verTodas": "See all",
+    "verTodos": "See all",
+    "seAbreEnOtraPestana": "(opens in a new tab)"
+  },
+  "tema": {
+    "leyenda": "Interface theme",
+    "claro": "Light",
+    "oscuro": "Dark",
+    "sistema": "System"
+  },
+  "idioma": {
+    "leyenda": "Interface language",
+    "es": "Español",
+    "en": "English"
+  },
+  "nav": {
+    "secciones": "Sections",
+    "inicio": "Home",
+    "laboratorio": "Lab",
+    "laboratorioRobots": "Robot lab",
+    "misKits": "My kits",
+    "cursos": "Courses",
+    "miProgreso": "My progress",
+    "actividades": "Activities",
+    "evaluaciones": "Assessments",
+    "biblioteca": "Library",
+    "misLogros": "My achievements",
+    "misCertificados": "My certificates",
+    "certificaciones": "Certifications",
+    "misSalones": "My classrooms",
+    "salonesDelColegio": "School classrooms",
+    "anuncios": "Announcements",
+    "miInstitucion": "My school",
+    "plataforma": "Platform",
+    "miCuenta": "My account",
+    "comoFunciona": "How it works"
+  },
+  "ingreso": {
+    "titulo": "Welcome back",
+    "subtitulo": "Sign in to continue.",
+    "entrar": "Sign in",
+    "entrando": "Signing in...",
+    "titularMarca": "The classroom where robotics is learned by doing",
+    "descripcionMarca": "Courses, challenges and projects for teachers and students, built around the uKit, uGoT, Yanshee and the whole GLEXCO - UBTECH range.",
+    "plataformas": "robotics platforms",
+    "niveles": "learning stages",
+    "idiomas": "languages"
+  },
+  "evaluacion": {
+    "tiempoRestante": "Time left",
+    "seAcaboElTiempo": "Time is up. We are submitting what you answered.",
+    "quedaUnMinuto": "One minute left.",
+    "quedanCincoMinutos": "Five minutes left.",
+    "cerrada": "Closed",
+    "cierraHoy": "Closes today",
+    "cierraManana": "Closes tomorrow",
+    "cierraEnDias": "Closes in {dias} days"
+  }
+}

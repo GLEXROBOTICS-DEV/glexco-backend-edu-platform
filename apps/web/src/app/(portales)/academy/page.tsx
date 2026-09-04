@@ -6,7 +6,7 @@ import { CardSkeleton, Stat } from '../../../components/ui';
 import { ActionSkeleton, AnnouncementsAction, PageHeader } from '../../../components/page-header';
 import { ContinueLearning } from '../../../components/continue-learning';
 import { LearningPath } from '../../../components/learning-path';
-import { UpcomingActivities } from '../../../components/upcoming';
+import { RecentBadges, UpcomingActivities } from '../../../components/upcoming';
 import { NoKitNotice } from '../../../components/no-kit-notice';
 
 export const metadata: Metadata = { title: 'Academy' };
@@ -47,18 +47,29 @@ export default async function AcademyHome() {
         <Cifras />
       </Suspense>
 
+      {/* La ruta ocupa dos tercios y las proximas actividades el otro: eran las
+          dos de dos tercios, asi que en pantalla ancha la segunda saltaba de fila
+          y dejaba un hueco. */}
       <div className="grid gap-[var(--portal-gap)] lg:grid-cols-3">
         <Suspense fallback={<CardSkeleton />}>
           <LearningPath />
         </Suspense>
         <Suspense fallback={<CardSkeleton />}>
-          <UpcomingActivities portal="academy" />
+          <UpcomingActivities portal="academy" className="" />
         </Suspense>
       </div>
 
       <Suspense fallback={<CardSkeleton />}>
         <ContinueLearning portal="academy" />
       </Suspense>
+
+      {/* Los logros tambien en Academy: la gamificacion no deja de motivar a los
+          diecisiete anos, solo cambia el tono. */}
+      <Suspense fallback={<CardSkeleton />}>
+        <RecentBadges portal="academy" />
+      </Suspense>
+
+
     </>
   );
 }

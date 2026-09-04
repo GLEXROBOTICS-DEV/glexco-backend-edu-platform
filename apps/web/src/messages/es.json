@@ -1,0 +1,69 @@
+{
+  "comun": {
+    "cerrar": "Cerrar",
+    "siguiente": "Siguiente",
+    "atras": "Atrás",
+    "entendido": "Entendido",
+    "saltarAlContenido": "Saltar al contenido",
+    "cerrarSesion": "Cerrar sesión",
+    "salir": "Salir",
+    "reintentar": "Vuelve a intentarlo en un momento.",
+    "verTodas": "Ver todas",
+    "verTodos": "Ver todos",
+    "seAbreEnOtraPestana": "(se abre en otra pestaña)"
+  },
+  "tema": {
+    "leyenda": "Tema de la interfaz",
+    "claro": "Claro",
+    "oscuro": "Oscuro",
+    "sistema": "Sistema"
+  },
+  "idioma": {
+    "leyenda": "Idioma de la interfaz",
+    "es": "Español",
+    "en": "English"
+  },
+  "nav": {
+    "secciones": "Secciones",
+    "inicio": "Inicio",
+    "laboratorio": "Laboratorio",
+    "laboratorioRobots": "Laboratorio de robots",
+    "misKits": "Mis kits",
+    "cursos": "Cursos",
+    "miProgreso": "Mi progreso",
+    "actividades": "Actividades",
+    "evaluaciones": "Evaluaciones",
+    "biblioteca": "Biblioteca",
+    "misLogros": "Mis logros",
+    "misCertificados": "Mis certificados",
+    "certificaciones": "Certificaciones",
+    "misSalones": "Mis salones",
+    "salonesDelColegio": "Salones del colegio",
+    "anuncios": "Anuncios",
+    "miInstitucion": "Mi institución",
+    "plataforma": "Plataforma",
+    "miCuenta": "Mi cuenta",
+    "comoFunciona": "Cómo funciona"
+  },
+  "ingreso": {
+    "titulo": "Bienvenido de vuelta",
+    "subtitulo": "Ingresa a tu cuenta para continuar.",
+    "entrar": "Iniciar sesión",
+    "entrando": "Entrando...",
+    "titularMarca": "El aula donde la robótica se aprende haciendo",
+    "descripcionMarca": "Cursos, retos y proyectos para acompañar a docentes y alumnos con los kits uKit, uGoT, Yanshee y toda la línea GLEXCO – UBTECH.",
+    "plataformas": "plataformas robóticas",
+    "niveles": "niveles formativos",
+    "idiomas": "idiomas"
+  },
+  "evaluacion": {
+    "tiempoRestante": "Tiempo restante",
+    "seAcaboElTiempo": "Se acabó el tiempo. Estamos entregando lo que respondiste.",
+    "quedaUnMinuto": "Queda un minuto.",
+    "quedanCincoMinutos": "Quedan cinco minutos.",
+    "cerrada": "Cerrada",
+    "cierraHoy": "Cierra hoy",
+    "cierraManana": "Cierra mañana",
+    "cierraEnDias": "Cierra en {dias} días"
+  }
+}

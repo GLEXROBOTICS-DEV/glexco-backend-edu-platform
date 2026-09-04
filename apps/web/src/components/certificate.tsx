@@ -52,7 +52,13 @@ export async function MyCertificates({ portal }: { portal: 'discover' | 'academy
         icon={<CertificateIcon size={32} />}
         title="Todavía no tienes ningún certificado"
         description="Se emite al terminar todas las lecciones de un curso. Te queda poco."
-        action={{ href: `/${portal}/cursos`, label: 'Ver mis cursos' }}
+        // `/discover/cursos` NO existe -en Discover se llama "mis kits"-, y este
+        // enlace llevaba a un 404 desde la pantalla de certificados. Es el que
+        // destapo que ademas un alumno podia acabar navegando por el otro portal.
+        action={{
+          href: portal === 'academy' ? '/academy/cursos' : '/discover/kits',
+          label: portal === 'academy' ? 'Ver mis cursos' : 'Ver mis kits',
+        }}
       />
     );
   }
