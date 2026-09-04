@@ -238,9 +238,11 @@ frontend o clientes reales:
       del usuario —que es donde ya vivía y lo que usan los correos— y de una
       cookie en las pantallas públicas. Traducidos el acceso, el cromo de la
       aplicación y la navegación.
-- [ ] i18n: **traducir el cuerpo de las pantallas**. Es continuación mecánica
-      sobre la infraestructura ya montada: `getTranslations` en los componentes
-      de servidor, `useTranslations` en los de cliente, y las claves nuevas en
+- [ ] i18n: **traducir el cuerpo de las pantallas**. Al cambiar a inglés hoy
+      cambian la barra lateral y el acceso, y el cuerpo sigue en español: no es
+      un fallo del montaje, es que solo esas superficies están traducidas. Es
+      continuación mecánica: `getTranslations` en los componentes de servidor,
+      `useTranslations` en los de cliente, y las claves nuevas en
       `apps/web/src/messages/{es,en}.json`.
 - [x] **Auditoría WCAG 2.1 AA automatizada** (`pnpm a11y`): audita el HTML que
       sirve el servidor, no el código, que es donde de verdad aparecen los

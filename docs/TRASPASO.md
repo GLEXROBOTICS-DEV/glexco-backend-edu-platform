@@ -214,11 +214,20 @@ tráfico real son cientos de megas por vídeo desde nuestro ancho de banda.
 
 ### Lo que el cliente ha pedido y está a medias
 
-1. **i18n: traducir el cuerpo de las pantallas.** La infraestructura está
-   montada y funcionando —acceso, cromo y navegación ya son bilingües—, así que
-   lo que queda es mecánico: `getTranslations` en los componentes de servidor,
-   `useTranslations` en los de cliente, y las claves en
-   `apps/web/src/messages/{es,en}.json`.
+1. **i18n: traducir el cuerpo de las pantallas.**
+
+   **Síntoma que verás si lo pruebas:** al cambiar a inglés, la barra lateral y
+   la pantalla de acceso cambian, y **el cuerpo de las páginas sigue en
+   español**. No es un fallo del montaje: es que solo esas superficies están
+   traducidas. La infraestructura funciona y lo que queda es mecánico.
+
+   Cómo se continúa, pantalla a pantalla:
+   - Componentes de servidor: `const t = await getTranslations('espacio')`.
+   - Componentes de cliente (`'use client'`): `const t = useTranslations(...)`.
+   - Claves nuevas en `apps/web/src/messages/es.json` **y** `en.json`; si falta
+     una en un idioma, next-intl la marca y no rompe la página.
+   - Empieza por lo que más se lee: portadas de Discover y Academy, biblioteca,
+     evaluaciones y el muro. Los paneles de docente y admin, después.
 
    Dos decisiones que conviene NO deshacer: el idioma sale del **perfil** del
    usuario y no de la URL (si no, la interfaz y los correos acabarían en idiomas
