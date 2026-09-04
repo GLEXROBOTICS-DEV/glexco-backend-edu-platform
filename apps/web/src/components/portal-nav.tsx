@@ -9,6 +9,7 @@ import {
   LibraryIcon,
   RobotIcon,
 } from '@glexco/icons';
+import { getTranslations } from 'next-intl/server';
 import type { NavItem } from './sidebar-nav';
 
 /**
@@ -27,28 +28,43 @@ import type { NavItem } from './sidebar-nav';
  * cliente y por esa frontera no pasan funciones. Ver `NavItem`.
  */
 
-const DISCOVER_NAV: readonly NavItem[] = [
-  { href: '/discover', label: 'Inicio', icon: <HomeIcon />, exact: true },
-  { href: '/discover/laboratorio', label: 'Laboratorio', icon: <RobotIcon /> },
-  { href: '/discover/kits', label: 'Mis kits', icon: <KitIcon /> },
-  { href: '/discover/progreso', label: 'Mi progreso', icon: <LevelIcon /> },
-  { href: '/discover/evaluaciones', label: 'Actividades', icon: <ChallengeIcon /> },
-  { href: '/discover/biblioteca', label: 'Biblioteca', icon: <LibraryIcon /> },
-  { href: '/discover/logros', label: 'Mis logros', icon: <BadgeIcon /> },
-  { href: '/discover/certificados', label: 'Mis certificados', icon: <CertificateIcon /> },
-];
+/**
+ * Los destinos, ya traducidos.
+ *
+ * Pasa a ser `async` y a pedir las traducciones porque las etiquetas de la barra
+ * son lo unico que un usuario ve en TODAS las pantallas: dejarlas en espanol
+ * mientras el resto cambia de idioma es peor que no traducir nada, porque hace
+ * dudar de si el cambio funciono.
+ *
+ * Las RUTAS no se traducen y no es un descuido: son las mismas para todos, van
+ * en correos y enlaces ya repartidos, y traducirlas duplicaria cada pantalla.
+ */
+export async function portalNavItems(
+  portal: 'discover' | 'academy',
+): Promise<readonly NavItem[]> {
+  const t = await getTranslations('nav');
 
-const ACADEMY_NAV: readonly NavItem[] = [
-  { href: '/academy', label: 'Inicio', icon: <HomeIcon />, exact: true },
-  { href: '/academy/laboratorio', label: 'Laboratorio de robots', icon: <RobotIcon /> },
-  { href: '/academy/cursos', label: 'Cursos', icon: <CourseIcon /> },
-  { href: '/academy/progreso', label: 'Mi progreso', icon: <LevelIcon /> },
-  { href: '/academy/evaluaciones', label: 'Evaluaciones', icon: <ChallengeIcon /> },
-  { href: '/academy/biblioteca', label: 'Biblioteca', icon: <LibraryIcon /> },
-  { href: '/academy/logros', label: 'Logros', icon: <BadgeIcon /> },
-  { href: '/academy/certificaciones', label: 'Certificaciones', icon: <CertificateIcon /> },
-];
+  if (portal === 'academy') {
+    return [
+      { href: '/academy', label: t('inicio'), icon: <HomeIcon />, exact: true },
+      { href: '/academy/laboratorio', label: t('laboratorioRobots'), icon: <RobotIcon /> },
+      { href: '/academy/cursos', label: t('cursos'), icon: <CourseIcon /> },
+      { href: '/academy/progreso', label: t('miProgreso'), icon: <LevelIcon /> },
+      { href: '/academy/evaluaciones', label: t('evaluaciones'), icon: <ChallengeIcon /> },
+      { href: '/academy/biblioteca', label: t('biblioteca'), icon: <LibraryIcon /> },
+      { href: '/academy/logros', label: t('misLogros'), icon: <BadgeIcon /> },
+      { href: '/academy/certificaciones', label: t('certificaciones'), icon: <CertificateIcon /> },
+    ];
+  }
 
-export function portalNavItems(portal: 'discover' | 'academy'): readonly NavItem[] {
-  return portal === 'academy' ? ACADEMY_NAV : DISCOVER_NAV;
+  return [
+    { href: '/discover', label: t('inicio'), icon: <HomeIcon />, exact: true },
+    { href: '/discover/laboratorio', label: t('laboratorio'), icon: <RobotIcon /> },
+    { href: '/discover/kits', label: t('misKits'), icon: <KitIcon /> },
+    { href: '/discover/progreso', label: t('miProgreso'), icon: <LevelIcon /> },
+    { href: '/discover/evaluaciones', label: t('actividades'), icon: <ChallengeIcon /> },
+    { href: '/discover/biblioteca', label: t('biblioteca'), icon: <LibraryIcon /> },
+    { href: '/discover/logros', label: t('misLogros'), icon: <BadgeIcon /> },
+    { href: '/discover/certificados', label: t('misCertificados'), icon: <CertificateIcon /> },
+  ];
 }

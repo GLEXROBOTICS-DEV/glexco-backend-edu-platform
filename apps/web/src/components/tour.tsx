@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslations } from 'next-intl';
 
 export interface TourStep {
   /** Selector del elemento que se resalta. Si no aparece, el paso se salta. */
@@ -25,7 +26,9 @@ export interface TourStep {
  * docente no tiene lo mismo que la de un alumno, y mantener una lista por rol
  * garantizaria que una de ellas se quedara desincronizada.
  */
-export function Tour({ steps, label = 'Cómo funciona' }: { steps: TourStep[]; label?: string }) {
+export function Tour({ steps, label }: { steps: TourStep[]; label?: string }) {
+  const t = useTranslations('comun');
+  const nav = useTranslations('nav');
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
   const [box, setBox] = useState<DOMRect | null>(null);
@@ -88,7 +91,7 @@ export function Tour({ steps, label = 'Cómo funciona' }: { steps: TourStep[]; l
         onClick={() => setOpen(true)}
         className="w-full rounded-[var(--nav-radius)] px-3 py-2 text-left text-[13px] font-medium text-onbrand-300 transition hover:bg-white/10 hover:text-white"
       >
-        {label}
+        {label ?? nav('comoFunciona')}
       </button>
     );
   }
@@ -162,7 +165,7 @@ export function Tour({ steps, label = 'Cómo funciona' }: { steps: TourStep[]; l
             onClick={() => setOpen(false)}
             className="text-sm font-medium text-ink-500 hover:text-ink-900"
           >
-            Cerrar
+            {t('cerrar')}
           </button>
 
           <div className="flex gap-2">
@@ -172,7 +175,7 @@ export function Tour({ steps, label = 'Cómo funciona' }: { steps: TourStep[]; l
                 onClick={() => setIndex((i) => i - 1)}
                 className="btn btn-sm btn-secondary"
               >
-                Atrás
+                {t('atras')}
               </button>
             ) : null}
             <button
@@ -180,7 +183,7 @@ export function Tour({ steps, label = 'Cómo funciona' }: { steps: TourStep[]; l
               onClick={() => (last ? setOpen(false) : setIndex((i) => i + 1))}
               className="btn btn-sm btn-primary"
             >
-              {last ? 'Entendido' : 'Siguiente'}
+              {last ? t('entendido') : t('siguiente')}
             </button>
           </div>
         </div>

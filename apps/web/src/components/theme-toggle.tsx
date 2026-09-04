@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -24,6 +25,7 @@ const KEY = 'glexco:theme';
  * antes de pintar.
  */
 export function ThemeToggle() {
+  const t = useTranslations('tema');
   const [theme, setTheme] = useState<Theme>('system');
 
   useEffect(() => {
@@ -61,9 +63,9 @@ export function ThemeToggle() {
   }
 
   const options: Array<{ value: Theme; label: string }> = [
-    { value: 'light', label: 'Claro' },
-    { value: 'dark', label: 'Oscuro' },
-    { value: 'system', label: 'Sistema' },
+    { value: 'light', label: t('claro') },
+    { value: 'dark', label: t('oscuro') },
+    { value: 'system', label: t('sistema') },
   ];
 
   return (

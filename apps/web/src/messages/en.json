@@ -54,7 +54,9 @@
     "descripcionMarca": "Courses, challenges and projects for teachers and students, built around the uKit, uGoT, Yanshee and the whole GLEXCO - UBTECH range.",
     "plataformas": "robotics platforms",
     "niveles": "learning stages",
-    "idiomas": "languages"
+    "idiomas": "languages",
+    "yaCreada": "Your account is ready. Sign in with the email and password you just chose.",
+    "yaCambiada": "Your password has been changed. Sign in with the new one."
   },
   "evaluacion": {
     "tiempoRestante": "Time left",

@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useFormStatus } from 'react-dom';
 import { submitAttempt, type SubmitState } from '../lib/assessment.actions';
 import type { StudentQuestion } from '../lib/assessments';
@@ -271,6 +272,7 @@ function Result({
  * examen entero.
  */
 function Countdown({ expiresAt, onExpire }: { expiresAt: string; onExpire: () => void }) {
+  const t = useTranslations('evaluacion');
   const target = new Date(expiresAt).getTime();
   const [left, setLeft] = useState(() => Math.max(0, target - Date.now()));
   const fired = useRef(false);
@@ -310,9 +312,7 @@ function Countdown({ expiresAt, onExpire }: { expiresAt: string; onExpire: () =>
       data-countdown={totalSeconds}
     >
       <span>
-        {totalSeconds === 0
-          ? 'Se acabó el tiempo. Estamos entregando lo que respondiste.'
-          : 'Tiempo restante'}
+        {totalSeconds === 0 ? t('seAcaboElTiempo') : t('tiempoRestante')}
       </span>
 
       {totalSeconds > 0 ? (
@@ -325,11 +325,11 @@ function Countdown({ expiresAt, onExpire }: { expiresAt: string; onExpire: () =>
           anuncia al entrar en los tramos, que es cuando cambia algo que importa. */}
       <span className="sr-only" role="status" aria-live="polite">
         {totalSeconds === 60
-          ? 'Queda un minuto.'
+          ? t('quedaUnMinuto')
           : totalSeconds === 300
-            ? 'Quedan cinco minutos.'
+            ? t('quedanCincoMinutos')
             : totalSeconds === 0
-              ? 'Se acabó el tiempo. Se está entregando tu intento.'
+              ? t('seAcaboElTiempo')
               : ''}
       </span>
     </div>

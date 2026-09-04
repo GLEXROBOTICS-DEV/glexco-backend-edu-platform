@@ -1,3 +1,5 @@
+import createNextIntlPlugin from 'next-intl/plugin';
+
 /**
  * Configuracion de Next.
  *
@@ -37,4 +39,13 @@ const config = {
   eslint: { ignoreDuringBuilds: true },
 };
 
-export default config;
+/**
+ * next-intl, apuntando a `src/i18n/request.ts`.
+ *
+ * **Sin enrutado por idioma.** El montaje por defecto antepone `/es/` y `/en/` a
+ * todas las rutas; aqui el idioma sale del perfil del usuario, que es donde ya
+ * vivia. Ver la explicacion completa en `src/i18n/request.ts`.
+ */
+const withIntl = createNextIntlPlugin('./src/i18n/request.ts');
+
+export default withIntl(config);

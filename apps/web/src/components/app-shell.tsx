@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import type { SessionUser } from '../lib/session';
 import { SidebarNav, type NavItem } from './sidebar-nav';
 import { ThemeToggle } from './theme-toggle';
@@ -24,7 +25,7 @@ export type { NavItem };
  * extra penaliza a quien entra desde el movil, que aqui son casi todas las
  * familias.
  */
-export function AppShell({
+export async function AppShell({
   portal,
   label,
   homeHref,
@@ -52,6 +53,7 @@ export function AppShell({
   tour: TourStep[];
   children: React.ReactNode;
 }) {
+  const t = await getTranslations('comun');
   const initials =
     `${session.firstName.charAt(0)}${session.lastName.charAt(0)}`.toUpperCase() || 'GX';
 
@@ -130,7 +132,7 @@ export function AppShell({
             type="submit"
             className="w-full rounded-[var(--nav-radius)] px-3 py-2 text-left text-[13px] font-medium text-onbrand-300 transition hover:bg-white/10 hover:text-white"
           >
-            Cerrar sesión
+            {t('cerrarSesion')}
           </button>
         </form>
       </aside>
@@ -147,7 +149,7 @@ export function AppShell({
               type="submit"
               className="rounded-lg px-3 py-1.5 text-sm font-medium text-ink-500 transition hover:bg-surface-200 hover:text-ink-900"
             >
-              Salir
+              {t('salir')}
             </button>
           </form>
         </div>

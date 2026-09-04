@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -20,9 +22,18 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // El idioma sale del perfil del usuario -o de la cookie si no hay sesion-, no
+  // de la URL. Ver `src/i18n/request.ts`.
+  const locale = await getLocale();
+  const messages = await getMessages();
+  const t = await getTranslations('comun');
+
   return (
-    <html lang="es">
+    // `lang` de verdad y no un "es" fijo: es lo que decide como pronuncia un
+    // lector de pantalla y como parte las palabras el navegador. Con el idioma
+    // mal declarado, una interfaz en ingles se lee con fonetica espanola.
+    <html lang={locale}>
       <head>
         {/* Las fuentes se precargan desde el propio origen del proveedor con
             `preconnect`: sin esto, la primera pintura espera a la resolucion DNS
@@ -58,9 +69,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="#contenido"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-brand-600 focus:px-4 focus:py-2 focus:text-white"
         >
-          Saltar al contenido
+          {t('saltarAlContenido')}
         </a>
-        {children}
+        <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
       </body>
     </html>
   );

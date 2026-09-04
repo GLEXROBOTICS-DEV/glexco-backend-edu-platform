@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getSession } from '../../lib/session';
 import { portalPath } from '../../lib/portal';
+import { getTranslations } from 'next-intl/server';
 import { BrandPanel } from '../../components/brand-panel';
+import { LocaleSwitch } from '../../components/locale-switch';
 import { LoginForm } from './login-form';
 
 export const metadata: Metadata = { title: 'Ingresar' };
@@ -27,15 +29,21 @@ export default async function IngresarPage({ searchParams }: PageProps) {
   // contrasena nueva es lo unico que demuestra quien es.
   const justReset = params['restablecida'] === '1';
 
+  const t = await getTranslations('ingreso');
+
   return (
     <main id="contenido" className="flex min-h-dvh flex-col lg:flex-row">
-      <BrandPanel
-        headline="El aula donde la robótica se aprende haciendo"
-        description="Cursos, retos y proyectos para acompañar a docentes y alumnos con los kits uKit, uGoT, Yanshee y toda la línea GLEXCO – UBTECH."
-      />
+      <BrandPanel headline={t('titularMarca')} description={t('descripcionMarca')} />
 
-      <section className="flex flex-1 items-center justify-center bg-surface-50 px-6 py-12">
-        <div className="w-full max-w-[26.5rem]">
+      <section className="flex flex-1 flex-col bg-surface-50 px-6 py-8">
+        {/* El selector va arriba a la derecha, como en el canvas. Solo aparece
+            sin sesion: con sesion manda el idioma del perfil, que es el mismo
+            que usan los correos. */}
+        <div className="flex justify-end">
+          <LocaleSwitch />
+        </div>
+
+        <div className="mx-auto flex w-full max-w-[26.5rem] flex-1 flex-col justify-center py-8">
           {/* La marca tambien en movil, donde el panel no se ve: sin ella la
               primera pantalla de la plataforma no dice de quien es. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -48,8 +56,8 @@ export default async function IngresarPage({ searchParams }: PageProps) {
             className="mb-8 block w-[10.5rem] lg:hidden"
           />
 
-          <h1 className="font-display text-[1.875rem] font-semibold">Bienvenido de vuelta</h1>
-          <p className="mt-2 text-[15px] text-ink-500">Ingresa a tu cuenta para continuar.</p>
+          <h1 className="font-display text-[1.875rem] font-semibold">{t('titulo')}</h1>
+          <p className="mt-2 text-[15px] text-ink-500">{t('subtitulo')}</p>
 
           {justReset ? (
             <p
@@ -57,7 +65,7 @@ export default async function IngresarPage({ searchParams }: PageProps) {
               data-reset="1"
               className="mt-4 rounded-lg border border-success/25 bg-success/5 px-4 py-3 text-sm text-ink-700"
             >
-              Tu contraseña ya está cambiada. Ingresa con la nueva.
+              {t('yaCambiada')}
             </p>
           ) : null}
 
@@ -67,7 +75,7 @@ export default async function IngresarPage({ searchParams }: PageProps) {
               data-registered="1"
               className="mt-4 rounded-lg border border-success/25 bg-success/5 px-4 py-3 text-sm text-ink-700"
             >
-              Tu cuenta ya está creada. Ingresa con el correo y la contraseña que acabas de elegir.
+              {t('yaCreada')}
             </p>
           ) : null}
 

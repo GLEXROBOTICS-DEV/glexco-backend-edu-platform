@@ -30,7 +30,7 @@ export default async function PortalesLayout({ children }: { children: React.Rea
       label={portal === 'academy' ? 'Academy' : 'Discover'}
       homeHref={`/${portal}`}
       accountHref={`/${portal}/cuenta`}
-      items={portalNavItems(portal)}
+      items={await portalNavItems(portal)}
       session={session}
       subtitle="Estudiante"
       onLogout={logout}
