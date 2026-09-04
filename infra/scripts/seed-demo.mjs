@@ -442,6 +442,9 @@ async function resetDemo() {
     [storedCode(INSTITUTION.code)],
   );
 
+  await admin.query(
+    `DELETE FROM engagement.author_directory WHERE user_id = ANY($1::uuid[])`, [userIds]);
+
   await admin.query(`DELETE FROM identity.users WHERE id = ANY($1::uuid[])`, [userIds]);
 
   console.log(
@@ -815,6 +818,24 @@ async function seedInstitution(people) {
       `UPDATE learning.classroom_members SET full_name = $2, updated_at = now()
         WHERE student_id = $1 AND full_name = ''`,
       [student.id, `${student.first} ${student.last}`],
+    );
+  }
+
+  // Y el directorio de autores de ENGAGEMENT, para que el muro no salga firmado
+  // por "un companero". Misma historia que los otros tres: lo alimenta
+  // `user.registered`, que este guion no dispara.
+  //
+  // Van CUATRO directorios rellenados a mano por el mismo motivo -el colegio y
+  // el alumno en aprendizaje, el autor aqui, y el kit de la matricula-. Con una
+  // vez es una chapuza puntual; con cuatro es una carga fija por cada consumidor
+  // nuevo, y la razon por la que el comando de reconstruccion de proyecciones
+  // encabeza la lista del traspaso.
+  for (const person of [...Object.values(people.staff), ...people.students]) {
+    await admin.query(
+      `INSERT INTO engagement.author_directory (user_id, full_name)
+       VALUES ($1,$2)
+       ON CONFLICT (user_id) DO UPDATE SET full_name = EXCLUDED.full_name, updated_at = now()`,
+      [person.id, `${person.first} ${person.last}`],
     );
   }
 
