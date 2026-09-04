@@ -25,6 +25,28 @@ export async function HeroLearningFigures({ portal }: { portal: 'discover' | 'ac
 }
 
 /**
+ * Subtitulo de la banda de bienvenida.
+ *
+ * El canvas dice "Continua tu aventura en <curso>", con el nombre del curso
+ * destacado. Nombrarlo importa: el alumno reconoce donde se quedo antes de leer
+ * ninguna tarjeta, y es lo que convierte un saludo generico en un punto de
+ * retorno.
+ */
+export async function HeroSubtitle() {
+  const { data, failed } = await fetchLearningProgress();
+  const course = failed ? null : pickCourse(data.courses);
+
+  if (!course) return <>Continúa tu aventura donde la dejaste.</>;
+
+  return (
+    <>
+      Continúa tu aventura en{' '}
+      <strong className="font-semibold text-[var(--portal-accent)]">{course.title}</strong>.
+    </>
+  );
+}
+
+/**
  * "Continuar aprendiendo" y "Tu nivel".
  *
  * La tarjeta de continuar ocupa dos tercios del ancho porque es lo que el alumno
@@ -55,7 +77,15 @@ export async function ContinueLearning({ portal }: { portal: 'discover' | 'acade
 
       {course ? (
         <article className="rounded-[var(--portal-radius)] border border-line-200 bg-white p-[var(--portal-card-padding)] lg:col-span-2">
-          <p className="eyebrow mb-4">Continuar aprendiendo</p>
+          <div className="mb-4 flex items-baseline justify-between gap-4">
+            <h3 className="eyebrow">Continuar aprendiendo</h3>
+            <a
+              href={portal === 'academy' ? '/academy/cursos' : '/discover/kits'}
+              className="text-sm font-medium text-brand-600 hover:text-brand-400"
+            >
+              {portal === 'academy' ? 'Ver todos los cursos' : 'Ver todos mis kits'}
+            </a>
+          </div>
 
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
             <span
@@ -69,7 +99,7 @@ export async function ContinueLearning({ portal }: { portal: 'discover' | 'acade
               <p className="mb-1.5 text-xs text-ink-400">
                 Lección {course.lessonsCompleted + 1} de {course.lessonCount}
               </p>
-              <h3 className="font-display text-xl font-semibold">{course.title}</h3>
+              <p className="font-display text-xl font-semibold">{course.title}</p>
 
               <ProgressBar
                 percent={percentOf(course)}
@@ -108,22 +138,22 @@ export async function ContinueLearning({ portal }: { portal: 'discover' | 'acade
           </div>
         </div>
 
-        {/* Las insignias van como puntos y no como iconos: aqui solo importa
-            CUANTAS hay; el detalle vive en "Mi progreso" y duplicarlo obliga a
-            mantener dos veces la misma lista. */}
-        {data.badges.length > 0 ? (
-          <p className="mt-4 flex flex-wrap items-center gap-1.5 text-xs text-ink-500">
-            <span className="sr-only">{data.badges.length} insignias conseguidas</span>
-            {data.badges.slice(0, 8).map((badge) => (
-              <span
-                key={badge.code}
-                title={badge.name}
-                className="size-2.5 rounded-full bg-[var(--portal-accent)]"
-                aria-hidden="true"
-              />
-            ))}
-          </p>
-        ) : null}
+        {/* Los cinco tramos del canvas: uno por nivel de la escalera. Dicen de
+            un vistazo cuantos quedan por delante, que es lo que el anillo solo
+            -que mide el tramo actual- no puede decir. */}
+        <p className="mt-4 flex gap-1.5" aria-hidden="true">
+          {[1, 2, 3, 4, 5].map((step) => (
+            <span
+              key={step}
+              className={`h-1.5 flex-1 rounded-full ${
+                step <= data.explorerLevel ? 'bg-[var(--portal-accent)]' : 'bg-surface-200'
+              }`}
+            />
+          ))}
+        </p>
+        <p className="sr-only">
+          Nivel {data.explorerLevel} de 5. {data.badges.length} insignias conseguidas.
+        </p>
       </article>
     </section>
   );

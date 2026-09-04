@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import { KitIcon, LevelIcon } from '@glexco/icons';
 import { requireSession } from '../../../lib/session';
-import { fetchMyKits, gradeLabel } from '../../../lib/catalog';
 import { fetchLearningProgress } from '../../../lib/learning';
-import { Card, CardSkeleton, EmptyState, SectionTitle, Stat } from '../../../components/ui';
-import { AnnouncementList } from '../../../components/announcements';
+import { CardSkeleton, Stat } from '../../../components/ui';
+import { ActionSkeleton, AnnouncementsAction, PageHeader } from '../../../components/page-header';
 import { ContinueLearning } from '../../../components/continue-learning';
+import { LearningPath } from '../../../components/learning-path';
+import { UpcomingActivities } from '../../../components/upcoming';
+import { NoKitNotice } from '../../../components/no-kit-notice';
 
 export const metadata: Metadata = { title: 'Academy' };
 
@@ -17,57 +18,61 @@ export const metadata: Metadata = { title: 'Academy' };
  * reserva para primaria a proposito. A un estudiante de diecisiete anos, una
  * cabecera que le saluda por su nombre de pila le habla como a un nino; lo que
  * espera arriba son sus cifras.
+ *
+ * El orden es el del canvas y responde a tres preguntas en este orden: como voy
+ * (cifras), a donde lleva esto (ruta), y que hago ahora (continuar y proximas).
  */
 export default async function AcademyHome() {
   const session = await requireSession();
 
   return (
     <>
-      <section>
-        <h1
-          style={{ fontSize: 'var(--portal-title-size)' }}
-          className="font-display font-semibold"
-        >
-          Mi formación
-        </h1>
-        <p className="mt-1 text-sm text-ink-500">
-          {session.firstName} {session.lastName}
-        </p>
-      </section>
+      <PageHeader
+        title="Mi formación"
+        subtitle={`${session.firstName} ${session.lastName}`}
+        actions={
+          <Suspense fallback={<ActionSkeleton />}>
+            <AnnouncementsAction portal="academy" />
+          </Suspense>
+        }
+      />
 
-      {/* Las cifras van en su propio Suspense: son de otro servicio y no pueden
-          retrasar la ruta formativa, que es lo que se viene a mirar. */}
+      {/* Solo aparece si no ha activado nada: sin kit, el resto de la portada
+          se le queda vacia y este es el unico paso que puede dar. */}
+      <Suspense fallback={null}>
+        <NoKitNotice portal="academy" />
+      </Suspense>
+
       <Suspense fallback={<CifrasSkeleton />}>
         <Cifras />
       </Suspense>
 
+      <div className="grid gap-[var(--portal-gap)] lg:grid-cols-3">
+        <Suspense fallback={<CardSkeleton />}>
+          <LearningPath />
+        </Suspense>
+        <Suspense fallback={<CardSkeleton />}>
+          <UpcomingActivities portal="academy" />
+        </Suspense>
+      </div>
+
       <Suspense fallback={<CardSkeleton />}>
         <ContinueLearning portal="academy" />
-      </Suspense>
-
-      <Suspense fallback={<CardSkeleton />}>
-        <RutaFormativa />
-      </Suspense>
-
-      {/* Debajo de los kits, no encima. Lo primero que busca el alumno es su
-          contenido; un aviso del docente es importante pero no puede empujar
-          fuera de la pantalla aquello a lo que viene a entrar. */}
-      <Suspense fallback={<CardSkeleton />}>
-        <AnnouncementList hideWhenEmpty />
       </Suspense>
     </>
   );
 }
 
 /**
- * Las tres cifras de cabecera.
+ * Las cifras de cabecera.
  *
  * Antes eran tres guiones fijos. Un guion en el sitio de un dato se lee como
  * "no tienes ninguno", no como "esto no esta hecho", asi que un alumno con tres
  * cursos en marcha veia un panel que le decia que no tenia nada.
  *
- * Son tres y no cuatro porque las horas acumuladas todavia no las mide nadie:
- * la cuarta tarjeta llegara cuando haya de donde sacarla.
+ * El canvas dibuja cuatro; aqui hay tres porque las horas acumuladas no las mide
+ * nadie todavia y la de certificaciones llega con la fase de certificados. Una
+ * cuarta tarjeta clavada en 0 para siempre es peor que no tenerla.
  */
 async function Cifras() {
   const { data, failed } = await fetchLearningProgress();
@@ -95,65 +100,10 @@ function CifrasSkeleton() {
           key={label}
           className="rounded-[var(--portal-radius)] border border-line-200 bg-white p-[var(--portal-card-padding)]"
         >
-          <div className="h-8 w-12 animate-pulse rounded bg-surface-200" />
-          <p className="mt-1 text-sm text-ink-500">{label}</p>
+          <p className="mb-2 text-xs text-ink-500">{label}</p>
+          <div className="h-7 w-12 animate-pulse rounded bg-surface-200" />
         </div>
       ))}
     </div>
-  );
-}
-
-async function RutaFormativa() {
-  const { kits, failed } = await fetchMyKits();
-
-  if (failed) {
-    return (
-      <EmptyState
-        title="No pudimos cargar tu formación"
-        description="Vuelve a intentarlo en un momento. Si continúa, escribe a soporte."
-      />
-    );
-  }
-
-  if (kits.length === 0) {
-    return (
-      <EmptyState
-        icon={<KitIcon size={32} />}
-        title="Aún no tienes contenido activado"
-        description="Introduce el código de activación de tu libro para acceder a tu ruta formativa."
-        action={{ href: '/academy/activar', label: 'Activar código' }}
-      />
-    );
-  }
-
-  return (
-    <section aria-labelledby="ruta">
-      <SectionTitle id="ruta">Ruta tecnológica GLEXCO</SectionTitle>
-
-      <div className="grid gap-[var(--portal-gap)]">
-        {kits.map((kit) => (
-          <Card key={kit.kitId}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-[var(--portal-radius)] bg-brand-200/25 text-brand-700">
-                  <LevelIcon size={22} />
-                </span>
-                <div>
-                  <h3 className="font-display font-semibold">{kit.name}</h3>
-                  <p className="text-sm text-ink-500">{gradeLabel(kit.grade)}</p>
-                </div>
-              </div>
-
-              <a
-                href={`/academy/biblioteca?kit=${kit.kitId}`}
-                className="btn btn-secondary"
-              >
-                Ver contenido
-              </a>
-            </div>
-          </Card>
-        ))}
-      </div>
-    </section>
   );
 }

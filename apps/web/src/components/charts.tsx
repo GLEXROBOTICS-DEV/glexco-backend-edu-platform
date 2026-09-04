@@ -11,25 +11,46 @@ import { useId, useState } from 'react';
  * una línea y unos números: el SVG que hace falta cabe en este archivo y pesa
  * cero.
  *
- * Decisiones de color, tomadas una vez y validadas con el comprobador de
- * paleta del sistema de diseño:
+ * Decisiones de color:
  *
- * - **Una sola hue para los datos** (`--color-brand-600`). Ninguno de estos
- *   gráficos es multiserie, así que una paleta categórica no hace falta; y dos
- *   azules de la marca -#2C53A0 y #25478A- dan ΔE 4.8 incluso con visión
- *   normal, es decir, son el mismo color a efectos prácticos.
- * - **Los estados llevan siempre etiqueta de texto**, nunca solo color. El par
+ * - **El color SIGNIFICA algo, y solo por eso está.** Una barra al 88 % va en
+ *   verde de logro y una al 30 % en rojo, porque el estado del dato es una
+ *   pregunta que el lector se hace igualmente y traducirla cuesta un paso. Lo
+ *   que no hay es color decorativo: dos barras del mismo valor nunca salen de
+ *   colores distintos.
+ *
+ *   Esto sustituye a la regla anterior de "una sola hue", que dejaba las
+ *   pantallas de datos en un azul plano de arriba abajo. La razón de aquella
+ *   —evitar una paleta categórica inventada para series que no lo son— sigue en
+ *   pie: aquí no hay categorías, hay una escala de resultado.
+ *
+ * - **La serie sin estado usa el acento del portal**, así que en Discover es
+ *   ámbar y en Academy azul. Es la misma señal que la barra lateral: el portal
+ *   de primaria no puede verse igual de gris que el panel ejecutivo.
+ *
+ * - **Los estados llevan SIEMPRE etiqueta de texto**, nunca solo color. El par
  *   verde/ámbar queda en ΔE 6.9 para protanopía: distinguible solo con esa
- *   segunda codificación.
- * - **El texto va con tokens de texto**, nunca con el color de la serie.
+ *   segunda codificación. Esta regla no se toca por mucho color que se añada.
+ *
+ * - **El texto va con tokens de texto**, nunca con el color de la serie: un
+ *   párrafo en ámbar sobre blanco no llega a 4.5:1.
  */
 
-/** La hue de datos. Una sola, deliberadamente. */
-const DATA = 'var(--color-brand-600)';
+export type StatusTone = 'neutral' | 'good' | 'warning' | 'critical';
+
+/** Serie sin estado: el acento del portal. Ámbar en Discover, azul en Academy. */
+const DATA = 'var(--portal-accent, var(--color-brand-600))';
+
+/** Relleno de cada estado. Va emparejado con `STATUS_INK`, que es su version
+ *  legible como TEXTO: el mismo verde no sirve para las dos cosas. */
+const STATUS_FILL: Record<StatusTone, string> = {
+  neutral: DATA,
+  good: '#0A7D57',
+  warning: '#F0A93B',
+  critical: '#DC2626',
+};
 const GRID = 'var(--color-line-200)';
 const AXIS_INK = 'var(--color-ink-400)';
-
-export type StatusTone = 'neutral' | 'good' | 'warning' | 'critical';
 
 const STATUS_INK: Record<StatusTone, string> = {
   neutral: 'var(--color-ink-500)',
@@ -69,14 +90,14 @@ export function StatTile({
       className="border border-line-200 bg-white"
       style={{ borderRadius: 'var(--portal-radius)', padding: 'var(--portal-card-padding)' }}
     >
-      {/* Misma etiqueta en versalitas que el resto de tarjetas de cifra: eran
-          dos implementaciones distintas de lo mismo y en el panel de plataforma
-          se veian las dos juntas. */}
-      <p className="eyebrow mb-2">{label}</p>
+      {/* Misma etiqueta que el resto de tarjetas de cifra: eran dos
+          implementaciones distintas de lo mismo y en el panel de plataforma se
+          veian las dos juntas, con tamanos y colores diferentes. */}
+      <p className="mb-2 text-xs text-ink-500">{label}</p>
 
       <p className="flex items-baseline gap-1">
         <span
-          className="font-display text-[1.75rem] font-semibold leading-none tabular-nums"
+          className="font-display text-[1.875rem] font-semibold leading-none tabular-nums"
           style={{ color: empty ? 'var(--color-ink-400)' : 'var(--color-ink-900)' }}
         >
           {/* Un guión, no un cero. Cero es un dato; "todavía no hay dato" es
@@ -342,7 +363,10 @@ export function BarList({
                   className="h-2.5 rounded-full"
                   style={{
                     width: `${Math.max((datum.value / scale) * 100, 1.5)}%`,
-                    background: DATA,
+                    // El color dice EN QUE estado esta el dato. La cifra de al
+                    // lado sigue siendo la fuente de verdad; el color solo
+                    // ahorra el paso de interpretarla.
+                    background: STATUS_FILL[datum.tone ?? 'neutral'],
                   }}
                 />
               </div>
@@ -450,5 +474,108 @@ function DataTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Anillo de porcentaje.
+ *
+ * Para UNA proporcion sobre cien: la nota media, el porcentaje de aprobadas, la
+ * activacion de un colegio. El arco se lee de un vistazo -medio anillo es medio
+ * dato- y la cifra grande del centro es la que se cita.
+ *
+ * **No es un grafico de tarta.** Una tarta reparte un total entre categorias y
+ * exige comparar angulos, que es justo lo que la gente hace mal. Aqui hay un
+ * solo valor contra su maximo, y el hueco del centro es lo que permite poner la
+ * cifra dentro en vez de en una leyenda aparte.
+ *
+ * El color viene del estado y NUNCA va solo: debajo del anillo va siempre la
+ * etiqueta en texto.
+ */
+export function DonutChart({
+  value,
+  label,
+  caption,
+  tone = 'neutral',
+  toneLabel,
+  unit = '%',
+  size = 128,
+}: {
+  /** 0-100. `null` cuando todavia no hay dato: se dibuja el carril vacio. */
+  value: number | null;
+  label: string;
+  caption?: string;
+  tone?: StatusTone;
+  /** Obligatoria si `tone` no es neutro: el estado nunca se comunica solo con color. */
+  toneLabel?: string;
+  unit?: string;
+  size?: number;
+}) {
+  const empty = value === null || value === undefined;
+  const pct = empty ? 0 : Math.min(Math.max(value, 0), 100);
+
+  // El radio se deriva del tamano para que cambiarlo no descuadre el trazo.
+  const stroke = Math.round(size * 0.1);
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  return (
+    <figure
+      data-chart="donut"
+      data-value={empty ? '' : pct}
+      className="flex flex-col items-center border border-line-200 bg-white text-center"
+      style={{ borderRadius: 'var(--portal-radius)', padding: 'var(--portal-card-padding)' }}
+    >
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="var(--color-surface-200)"
+            strokeWidth={stroke}
+          />
+          {!empty ? (
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={STATUS_FILL[tone]}
+              strokeWidth={stroke}
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference * (1 - pct / 100)}
+              // Empieza arriba y no a la derecha, que es donde el ojo espera el
+              // origen de un medidor.
+              transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            />
+          ) : null}
+        </svg>
+
+        <div className="absolute inset-0 grid place-content-center">
+          <span className="font-display text-2xl font-semibold tabular-nums text-ink-900">
+            {empty ? '—' : Math.round(pct)}
+            {empty ? '' : <span className="text-base font-medium text-ink-500">{unit}</span>}
+          </span>
+        </div>
+      </div>
+
+      <figcaption className="mt-3">
+        <span className="block text-sm font-medium text-ink-900">{label}</span>
+        {caption ? <span className="mt-0.5 block text-xs text-ink-500">{caption}</span> : null}
+        {tone !== 'neutral' && toneLabel ? (
+          <span
+            className="mt-1.5 block text-xs font-semibold"
+            style={{ color: STATUS_INK[tone] }}
+          >
+            {toneLabel}
+          </span>
+        ) : null}
+      </figcaption>
+    </figure>
   );
 }

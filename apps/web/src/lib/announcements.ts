@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { api } from './api';
 
 /** Anuncio tal y como lo devuelve engagement. */
@@ -24,7 +25,9 @@ export interface Announcement {
  * la portada: la pantalla se pinta igual, y el detalle del fallo va al log del
  * servidor, que es donde sirve.
  */
-export async function fetchAnnouncements(classroomId?: string): Promise<Announcement[]> {
+export const fetchAnnouncements = cache(async function fetchAnnouncements(
+  classroomId?: string,
+): Promise<Announcement[]> {
   const path = classroomId
     ? `/announcements?classroomId=${encodeURIComponent(classroomId)}`
     : '/announcements';
@@ -40,7 +43,7 @@ export async function fetchAnnouncements(classroomId?: string): Promise<Announce
   }
 
   return result.data.items ?? [];
-}
+});
 
 /**
  * Fecha en palabras, relativa a hoy.

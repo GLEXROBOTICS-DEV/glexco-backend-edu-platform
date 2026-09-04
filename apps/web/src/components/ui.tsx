@@ -106,9 +106,14 @@ export function Stat({ value, label }: { value: string; label: string }) {
     >
       {/* La etiqueta va ENCIMA de la cifra, como en el canvas. Debajo hay que
           leer el numero antes de saber de que es, y en una fila de cuatro
-          tarjetas eso obliga a recorrerla dos veces. */}
-      <p className="eyebrow mb-2">{label}</p>
-      <p className="font-display text-[1.75rem] font-semibold leading-none text-ink-900">
+          tarjetas eso obliga a recorrerla dos veces.
+
+          En minusculas de 12 px y NO en versalitas: las versalitas del canvas
+          son para las etiquetas de SECCION ("continuar aprendiendo"), y usarlas
+          tambien aqui hace que una fila de cifras pese lo mismo que los titulos
+          de bloque y compita con ellos. */}
+      <p className="mb-2 text-xs text-ink-500">{label}</p>
+      <p className="font-display text-[1.875rem] font-semibold leading-none text-ink-900">
         {value}
       </p>
     </div>

@@ -224,10 +224,17 @@ async function KitsDebiles() {
 
       <BarList
         title="Media por kit"
-        data={items.map((kit) => ({
-          label: `${kit.kitId.slice(0, 8)}… · ${kit.studentsMeasured} alumnos`,
-          value: kit.averagePercentage === null ? 0 : Math.round(kit.averagePercentage),
-        }))}
+        data={items.map((kit) => {
+          const { tone, label } = scoreTone(kit.averagePercentage);
+          return {
+            label: `${kit.kitId.slice(0, 8)}… · ${kit.studentsMeasured} alumnos`,
+            value: kit.averagePercentage === null ? 0 : Math.round(kit.averagePercentage),
+            // El color es el que hace util esta lista de un vistazo: la pregunta
+            // que se hace aqui es "cual esta en rojo", no "cual mide 62".
+            tone,
+            toneLabel: label,
+          };
+        })}
         emptyMessage="Todavía no hay kits con datos suficientes."
       />
     </section>

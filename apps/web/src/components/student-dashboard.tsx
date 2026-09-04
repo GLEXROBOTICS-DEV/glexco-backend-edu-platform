@@ -4,7 +4,7 @@ import {
   scoreTone,
   shortDate,
 } from '../lib/analytics';
-import { BarList, StatTile, TimelineChart } from './charts';
+import { BarList, DonutChart, StatTile, TimelineChart } from './charts';
 import { EmptyState, SectionTitle } from './ui';
 
 /**
@@ -47,6 +47,8 @@ export async function StudentDashboard({ portal }: { portal: 'discover' | 'acade
   }
 
   const glexco = scoreTone(data.averageGlexco);
+  const institution = scoreTone(data.averageInstitution);
+  const pass = scoreTone(data.passRate);
   const gain = data.averageGain;
 
   return (
@@ -55,21 +57,28 @@ export async function StudentDashboard({ portal }: { portal: 'discover' | 'acade
         {portal === 'discover' ? '¿Cómo voy?' : 'Mi progreso'}
       </SectionTitle>
 
+      {/*
+        Anillos y no tarjetas de numero para las tres cifras que son un
+        PORCENTAJE sobre cien: el arco dice de un golpe si va por la mitad o por
+        el final, y la cifra del centro sigue estando para citarla. La mejora se
+        queda como numero porque no es una proporcion -es un salto en puntos- y
+        dibujar "+18" como un anillo obligaria a inventar un maximo.
+      */}
       <div className="grid gap-[var(--portal-gap)] sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile
-          label="Nota media GLEXCO"
+        <DonutChart
           value={data.averageGlexco}
-          unit="%"
+          label="Nota media GLEXCO"
+          caption="Las evaluaciones que vienen con tu kit"
           tone={glexco.tone}
           toneLabel={glexco.label}
-          hint="Las evaluaciones que vienen con tu kit"
         />
 
-        <StatTile
-          label="Nota media de tu docente"
+        <DonutChart
           value={data.averageInstitution}
-          unit="%"
-          hint="Las que preparó tu profesor"
+          label="Nota media de tu docente"
+          caption="Las que preparó tu profesor"
+          tone={institution.tone}
+          toneLabel={institution.label}
         />
 
         {/*
@@ -87,11 +96,12 @@ export async function StudentDashboard({ portal }: { portal: 'discover' | 'acade
           hint="Desde tu primer intento"
         />
 
-        <StatTile
-          label="Evaluaciones aprobadas"
+        <DonutChart
           value={data.passRate}
-          unit="%"
-          hint={`${data.assessmentsTaken} en total`}
+          label="Evaluaciones aprobadas"
+          caption={`${data.assessmentsTaken} en total`}
+          tone={pass.tone}
+          toneLabel={pass.label}
         />
       </div>
 
@@ -136,7 +146,31 @@ export function StudentWeakSpots({
         label: item.label,
         value: item.missRate,
         meta: `${item.answered} intentos`,
+        // Aqui la escala va AL REVES que en una nota: un 80 % de fallo es lo
+        // peor, no lo mejor. Invertirla es justo el motivo por el que el color
+        // no puede salir automatico del numero.
+        tone: missTone(item.missRate),
+        toneLabel: missLabel(item.missRate),
       }))}
     />
   );
+}
+
+/**
+ * Estado de una tasa de FALLO.
+ *
+ * No se puede reutilizar `scoreTone`: alli un numero alto es bueno y aqui es
+ * malo. Tenerlo aparte evita el error clasico de pintar de verde la pregunta
+ * que mas se falla.
+ */
+function missTone(missRate: number): 'good' | 'warning' | 'critical' {
+  if (missRate >= 60) return 'critical';
+  if (missRate >= 35) return 'warning';
+  return 'good';
+}
+
+function missLabel(missRate: number): string {
+  if (missRate >= 60) return 'Repásalo con tu docente';
+  if (missRate >= 35) return 'Conviene repasarlo';
+  return 'Lo llevas bien';
 }

@@ -112,3 +112,47 @@ export async function fetchClassroomLearning(classroomId: string): Promise<{
     failed: false,
   };
 }
+
+export interface LevelDefinition {
+  level: number;
+  name: string;
+  minXp: number;
+}
+
+export interface BadgeDefinition {
+  code: string;
+  name: string;
+  category: string;
+  description: string;
+}
+
+/**
+ * El catalogo completo de niveles e insignias.
+ *
+ * Se pide al backend en vez de llevar la tabla copiada aqui. Si estuviera
+ * duplicada, cambiar un umbral exigiria dos despliegues coordinados y durante el
+ * hueco la pantalla estaria mintiendo al alumno sobre cuanto le falta.
+ *
+ * Tambien va en `cache()`: la pantalla de logros lo necesita para la escalera de
+ * niveles y para la reja de insignias.
+ */
+export const fetchLearningCatalogue = cache(async function fetchLearningCatalogue(): Promise<{
+  levels: LevelDefinition[];
+  badges: BadgeDefinition[];
+  failed: boolean;
+}> {
+  const result = await api<{ levels: LevelDefinition[]; badges: BadgeDefinition[] }>(
+    '/learning/catalogue',
+  );
+
+  if (!result.ok) {
+    console.error('No se pudo leer el catalogo de gamificacion', {
+      status: result.status,
+      code: result.error.code,
+      correlationId: result.error.correlationId,
+    });
+    return { levels: [], badges: [], failed: true };
+  }
+
+  return { levels: result.data.levels ?? [], badges: result.data.badges ?? [], failed: false };
+});

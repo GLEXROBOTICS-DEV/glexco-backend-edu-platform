@@ -14,11 +14,15 @@ export function PortalHero({
   greeting,
   subtitle,
   figures,
+  action,
 }: {
   greeting: string;
   subtitle: React.ReactNode;
   /** Tres como maximo: mas de tres cifras dejan de leerse de un vistazo. */
   figures: React.ReactNode;
+  /** Acceso a los anuncios. Va DENTRO de la banda porque en Discover la banda
+   *  ocupa toda la cabecera y un boton flotando encima quedaria descolgado. */
+  action?: React.ReactNode;
 }) {
   return (
     <section className="relative overflow-hidden rounded-[var(--portal-radius)] bg-brand-700 px-6 py-6 sm:px-8">
@@ -35,7 +39,10 @@ export function PortalHero({
           <p className="mt-1.5 text-[15px] text-onbrand-100">{subtitle}</p>
         </div>
 
-        <dl className="flex shrink-0 gap-6 sm:gap-7">{figures}</dl>
+        <div className="flex shrink-0 items-center gap-5">
+          <dl className="flex gap-6 sm:gap-7">{figures}</dl>
+          {action}
+        </div>
       </div>
     </section>
   );

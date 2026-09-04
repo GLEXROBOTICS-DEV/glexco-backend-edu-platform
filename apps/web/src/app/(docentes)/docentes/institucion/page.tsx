@@ -115,11 +115,16 @@ async function Overview({ institutionId }: { institutionId: string }) {
         title="Nota media por grado"
         unit="%"
         emptyMessage="Todavía no hay resultados por grado."
-        data={data.byGrade.map((entry) => ({
-          label: gradeLabel(entry.grade),
-          value: Math.round(entry.averagePercentage ?? 0),
-          meta: `${entry.classrooms} ${entry.classrooms === 1 ? 'salón' : 'salones'}`,
-        }))}
+        data={data.byGrade.map((entry) => {
+          const { tone, label } = scoreTone(entry.averagePercentage);
+          return {
+            label: gradeLabel(entry.grade),
+            value: Math.round(entry.averagePercentage ?? 0),
+            meta: `${entry.classrooms} ${entry.classrooms === 1 ? 'salón' : 'salones'}`,
+            tone,
+            toneLabel: label,
+          };
+        })}
       />
     </section>
   );
