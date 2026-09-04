@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { KitIcon, RobotIcon } from '@glexco/icons';
 import { requireSession } from '../../../lib/session';
 import { portalPath } from '../../../lib/portal';
@@ -26,6 +27,7 @@ export default async function RegistroListoPage() {
   const session = await requireSession();
   const { kits } = await fetchMyKits();
   const destino = portalPath(session.portal);
+  const vocab = await getTranslations();
 
   return (
     <RegistrationShell step={0}>
@@ -51,7 +53,9 @@ export default async function RegistroListoPage() {
             </span>
             <div className="min-w-0">
               <p className="truncate font-display text-lg font-semibold">{kits[0]!.name}</p>
-              <p className="mt-0.5 text-sm text-ink-500">{gradeLabel(kits[0]!.grade)}</p>
+              <p className="mt-0.5 text-sm text-ink-500">
+                {gradeLabel(vocab, kits[0]!.grade)}
+              </p>
             </div>
           </div>
         </div>

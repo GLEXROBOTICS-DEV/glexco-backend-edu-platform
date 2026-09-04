@@ -1,6 +1,25 @@
+import { getTranslations } from 'next-intl/server';
 import { RobotIcon } from '@glexco/icons';
 import { fetchLearningProgress, type CourseProgress } from '../lib/learning';
 import { HeroFigure } from './portal-hero';
+
+/**
+ * Nombre del nivel, traducido en el PORTAL y no en el servicio.
+ *
+ * El servicio de aprendizaje devuelve "Explorador" o "Maestro Robotico" porque
+ * son vocabulario del dominio, y el dominio no tiene idioma de usuario: un
+ * evento vive dias en el stream y no sabe quien lo va a leer. Traducirlo alli
+ * obligaria a que cada evento y cada respuesta cargaran con el locale de quien
+ * pregunta.
+ *
+ * Se traduce por NUMERO de nivel, que es lo estable. El nombre que llega de la
+ * API queda como respaldo: si algun dia hay un sexto nivel, la pantalla dice
+ * "Maestro Robotico" en espanol antes que una clave sin traducir.
+ */
+function levelNameOf(t: (key: string) => string, level: number, fallback: string): string {
+  if (level < 1 || level > 5) return fallback;
+  return t('niveles.' + level);
+}
 
 /**
  * Las tres cifras de la cabecera.
@@ -11,15 +30,18 @@ import { HeroFigure } from './portal-hero';
  */
 export async function HeroLearningFigures({ portal }: { portal: 'discover' | 'academy' }) {
   const { data } = await fetchLearningProgress();
+  const t = await getTranslations('portada');
 
   return (
     <>
-      <HeroFigure value={data.courses.length} label={portal === 'discover' ? 'cursos' : 'cursos'} />
+      <HeroFigure value={data.courses.length} label={t('cifraCursos')} />
+      {/* Discover dice "insignias" y Academy "logros": es la misma cifra, lo que
+          cambia con la edad es el registro y no el dato. */}
       <HeroFigure
         value={data.badges.length}
-        label={portal === 'discover' ? 'insignias' : 'logros'}
+        label={portal === 'discover' ? t('cifraInsignias') : t('cifraLogros')}
       />
-      <HeroFigure value={data.totalXp} label="puntos" accent />
+      <HeroFigure value={data.totalXp} label={t('cifraPuntos')} accent />
     </>
   );
 }
@@ -32,16 +54,31 @@ export async function HeroLearningFigures({ portal }: { portal: 'discover' | 'ac
  * ninguna tarjeta, y es lo que convierte un saludo generico en un punto de
  * retorno.
  */
-export async function HeroSubtitle() {
+export async function HeroSubtitle({
+  portal = 'discover',
+}: {
+  portal?: 'discover' | 'academy';
+}) {
   const { data, failed } = await fetchLearningProgress();
+  const t = await getTranslations('portada');
   const course = failed ? null : pickCourse(data.courses);
 
-  if (!course) return <>Continúa tu aventura donde la dejaste.</>;
+  // "Aventura" en Discover y "formacion" en Academy: la palabra que engancha a
+  // un nino de nueve anos es la que hace que un universitario cierre la pestana.
+  const clave = portal === 'academy' ? 'retoma' : 'aventura';
 
+  if (!course) return <>{t(clave + 'Generica')}</>;
+
+  // `t.rich` y no partir la frase en tres trozos para meter el `<strong>` en
+  // medio: partirla obliga al traductor a mantener el orden del espanol, y en
+  // ingles el nombre del curso no cae donde cae aqui.
   return (
     <>
-      Continúa tu aventura en{' '}
-      <strong className="font-semibold text-[var(--portal-accent)]">{course.title}</strong>.
+      {t.rich(clave + 'EnCurso', {
+        curso: () => (
+          <strong className="font-semibold text-[var(--portal-accent)]">{course.title}</strong>
+        ),
+      })}
     </>
   );
 }
@@ -61,6 +98,10 @@ export async function ContinueLearning({ portal }: { portal: 'discover' | 'acade
   const { data, failed } = await fetchLearningProgress();
   if (failed) return null;
 
+  const t = await getTranslations('portada');
+  // Sin espacio: los nombres de nivel viven en su propia seccion.
+  const tn = await getTranslations();
+
   const course = pickCourse(data.courses);
   const toNext =
     data.xpToNext === null ? 100 : Math.round((data.totalXp / (data.totalXp + data.xpToNext)) * 100);
@@ -72,18 +113,18 @@ export async function ContinueLearning({ portal }: { portal: 'discover' | 'acade
       data-continue={course ? course.courseId : 'ninguno'}
     >
       <h2 id="continuar" className="sr-only">
-        Continúa donde lo dejaste
+        {t('continuaDondeLoDejaste')}
       </h2>
 
       {course ? (
         <article className="rounded-[var(--portal-radius)] border border-line-200 bg-white p-[var(--portal-card-padding)] lg:col-span-2">
           <div className="mb-4 flex items-baseline justify-between gap-4">
-            <h3 className="eyebrow">Continuar aprendiendo</h3>
+            <h3 className="eyebrow">{t('continuarAprendiendo')}</h3>
             <a
               href={portal === 'academy' ? '/academy/cursos' : '/discover/kits'}
               className="text-sm font-medium text-brand-600 hover:text-brand-400"
             >
-              {portal === 'academy' ? 'Ver todos los cursos' : 'Ver todos mis kits'}
+              {portal === 'academy' ? t('verTodosLosCursos') : t('verTodosMisKits')}
             </a>
           </div>
 
@@ -97,23 +138,28 @@ export async function ContinueLearning({ portal }: { portal: 'discover' | 'acade
 
             <div className="min-w-0 flex-1">
               <p className="mb-1.5 text-xs text-ink-400">
-                Lección {course.lessonsCompleted + 1} de {course.lessonCount}
+                {t('leccionDe', {
+                  actual: course.lessonsCompleted + 1,
+                  total: course.lessonCount,
+                })}
               </p>
               <p className="font-display text-xl font-semibold">{course.title}</p>
 
               <ProgressBar
                 percent={percentOf(course)}
-                label={`Avance de ${course.title}`}
+                label={t('avanceDe', { curso: course.title })}
                 className="mt-3"
               />
-              <p className="mt-1.5 text-xs text-ink-500">{percentOf(course)} % completado</p>
+              <p className="mt-1.5 text-xs text-ink-500">
+                {t('porcentajeCompletado', { porcentaje: percentOf(course) })}
+              </p>
             </div>
 
             <a
               href={`/${portal}/biblioteca?kit=${encodeURIComponent(course.kitId)}`}
               className="btn btn-primary shrink-0"
             >
-              Continuar
+              {t('continuar')}
             </a>
           </div>
         </article>
@@ -124,16 +170,21 @@ export async function ContinueLearning({ portal }: { portal: 'discover' | 'acade
           course ? '' : 'lg:col-span-3'
         }`}
       >
-        <p className="eyebrow mb-4">Tu nivel</p>
+        <p className="eyebrow mb-4">{t('tuNivel')}</p>
 
         <div className="flex items-center gap-3.5">
           <LevelRing level={data.explorerLevel} percent={toNext} />
           <div className="min-w-0">
-            <p className="font-display text-lg font-semibold">{data.levelName}</p>
+            <p className="font-display text-lg font-semibold">
+              {levelNameOf(tn, data.explorerLevel, data.levelName)}
+            </p>
             <p className="mt-0.5 text-xs text-ink-500">
               {data.xpToNext === null
-                ? `${data.totalXp} puntos acumulados`
-                : `${data.xpToNext} pts para ${data.nextLevelName}`}
+                ? t('puntosAcumulados', { puntos: data.totalXp })
+                : t('ptsParaSiguiente', {
+                    puntos: data.xpToNext,
+                    nivel: levelNameOf(tn, data.explorerLevel + 1, data.nextLevelName ?? ''),
+                  })}
             </p>
           </div>
         </div>
@@ -152,7 +203,7 @@ export async function ContinueLearning({ portal }: { portal: 'discover' | 'acade
           ))}
         </p>
         <p className="sr-only">
-          Nivel {data.explorerLevel} de 5. {data.badges.length} insignias conseguidas.
+          {t('nivelDeCinco', { nivel: data.explorerLevel, insignias: data.badges.length })}
         </p>
       </article>
     </section>

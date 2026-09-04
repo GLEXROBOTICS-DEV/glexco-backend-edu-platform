@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { getSession } from '../../lib/session';
 import { logout } from '../../lib/auth.actions';
 import { tourFor } from '../../lib/tour-steps';
@@ -34,7 +35,7 @@ export default async function PortalesLayout({ children }: { children: React.Rea
       session={session}
       subtitle="Estudiante"
       onLogout={logout}
-      tour={tourFor(portal)}
+      tour={tourFor(portal, await getTranslations('tour'))}
     >
       {children}
     </AppShell>

@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { AnnouncementIcon, WallIcon } from '@glexco/icons';
 import { fetchAnnouncements } from '../lib/announcements';
 
@@ -58,6 +59,7 @@ export async function ClassroomActions({
   onBrand?: boolean;
 }) {
   const items = await fetchAnnouncements();
+  const t = await getTranslations('cabecera');
   const avisos = items.filter((post) => post.kind !== 'question').length;
   const preguntas = items.filter((post) => post.kind === 'question').length;
 
@@ -67,7 +69,7 @@ export async function ClassroomActions({
         href={`/${portal}/anuncios`}
         count={avisos}
         onBrand={onBrand}
-        label={avisos === 0 ? 'Anuncios: no hay ninguno' : `Anuncios: ${avisos}`}
+        label={avisos === 0 ? t('anunciosVacio') : t('anunciosCuenta', { count: avisos })}
       >
         <AnnouncementIcon size={17} />
       </HeaderAction>
@@ -76,11 +78,7 @@ export async function ClassroomActions({
         href={`/${portal}/muro`}
         count={preguntas}
         onBrand={onBrand}
-        label={
-          preguntas === 0
-            ? 'El muro de tu clase: no hay preguntas'
-            : `El muro de tu clase: ${preguntas} preguntas`
-        }
+        label={preguntas === 0 ? t('muroVacio') : t('muroCuenta', { count: preguntas })}
       >
         <WallIcon size={17} />
       </HeaderAction>

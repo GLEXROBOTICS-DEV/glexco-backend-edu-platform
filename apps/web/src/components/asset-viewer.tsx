@@ -18,7 +18,9 @@ import { LessonComplete } from './lesson-complete';
  * La URL viene firmada y dura quince minutos. Se pide al renderizar y no se
  * guarda en ningun sitio: ver `openLibraryAsset`.
  */
-export function AssetViewer({
+import { getTranslations } from 'next-intl/server';
+
+export async function AssetViewer({
   asset,
   backHref,
   portal,
@@ -35,6 +37,7 @@ export function AssetViewer({
 }) {
   const duration = durationLabel(asset.durationSeconds);
   const size = sizeLabel(asset.sizeBytes);
+  const vocab = await getTranslations();
 
   return (
     <article data-delivery={asset.delivery} data-asset={asset.assetId}>
@@ -46,7 +49,7 @@ export function AssetViewer({
         {asset.title}
       </h1>
       <p className="mt-1 text-sm text-ink-500">
-        {[contentTypeLabel(asset.type), duration, size].filter(Boolean).join(' · ')}
+        {[contentTypeLabel(vocab, asset.type), duration, size].filter(Boolean).join(' · ')}
       </p>
 
       {asset.description ? <p className="mt-4 text-ink-700">{asset.description}</p> : null}

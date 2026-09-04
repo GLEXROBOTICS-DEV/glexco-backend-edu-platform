@@ -69,6 +69,7 @@ async function Bank() {
 
         {own.length === 0 ? (
           <EmptyState
+            level={3}
             title="Todavía no has creado ninguna"
             description="Puedes crear una desde cero, o duplicar una de GLEXCO y adaptarla a tu salón."
             action={{ href: '/docentes/evaluaciones/nueva', label: 'Crear una evaluación' }}
@@ -97,6 +98,7 @@ async function Bank() {
 
         {glexco.length === 0 ? (
           <EmptyState
+            level={3}
             title="Este kit todavía no trae evaluaciones"
             description="Cuando el equipo de GLEXCO publique las del kit aparecerán aquí."
           />

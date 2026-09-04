@@ -1,3 +1,4 @@
+import type { TranslationValues } from 'next-intl';
 import type { TourStep } from '../components/tour';
 
 /**
@@ -9,100 +10,64 @@ import type { TourStep } from '../components/tour';
  *
  * Se describe QUE responde cada sitio, no que hay. "Mis kits" no dice nada;
  * "aqui esta todo lo que has desbloqueado con el codigo de tu libro" si.
+ *
+ * **El selector vive aqui y el texto en `messages/*.json`.** Antes el texto
+ * estaba en este archivo, asi que al cambiar a ingles el tutorial de la
+ * plataforma seguia entero en espanol -y es la pantalla que lee quien no sabe
+ * usarla todavia, o sea justo quien menos margen tiene-. El selector no se
+ * traduce nunca: es una ruta del DOM, no contenido.
  */
 
-const COMMON: TourStep[] = [
-  {
-    target: '[data-sidebar] [href$="/cuenta"]',
-    title: 'Tu cuenta',
-    body: 'Aquí cambias tu contraseña y ves desde qué dispositivos tienes la sesión abierta. Si ves uno que no reconoces, ciérralo.',
-  },
-];
+interface TourSpec {
+  /** Clave en `tour` de los mensajes. Le cuelgan `titulo` y `cuerpo`. */
+  key: string;
+  target: string;
+}
 
-export const DISCOVER_TOUR: TourStep[] = [
-  {
-    target: '[data-sidebar] [href="/discover"]',
-    title: 'Tu portada',
-    body: 'Lo primero que ves al entrar: el curso que dejaste a medias, tus puntos y lo que tienes pendiente.',
-  },
-  {
-    target: '[data-sidebar] [href="/discover/laboratorio"]',
-    title: 'Laboratorio',
-    body: 'Los robots que puedes construir con tus kits, con la ficha de cada uno.',
-  },
-  {
-    target: '[data-sidebar] [href="/discover/biblioteca"]',
-    title: 'Biblioteca',
-    body: 'Los tutoriales y las fichas de trabajo de tu kit. Es de donde sale casi todo lo que vas a hacer.',
-  },
-  {
-    target: '[data-sidebar] [href="/discover/evaluaciones"]',
-    title: 'Actividades',
-    body: 'Tus retos y evaluaciones. Entrar a mirar cómo te fue no te gasta ningún intento: solo se gasta cuando pulsas para responder.',
-  },
-  {
-    target: '[data-sidebar] [href="/discover/logros"]',
-    title: 'Mis logros',
-    body: 'Tus insignias y tu nivel de Explorador, con lo que falta para el siguiente. Solo te comparas contigo mismo.',
-  },
+const COMMON: TourSpec[] = [{ key: 'cuenta', target: '[data-sidebar] [href$="/cuenta"]' }];
+
+const DISCOVER: TourSpec[] = [
+  { key: 'portadaDiscover', target: '[data-sidebar] [href="/discover"]' },
+  { key: 'laboratorio', target: '[data-sidebar] [href="/discover/laboratorio"]' },
+  { key: 'biblioteca', target: '[data-sidebar] [href="/discover/biblioteca"]' },
+  { key: 'actividades', target: '[data-sidebar] [href="/discover/evaluaciones"]' },
+  { key: 'logros', target: '[data-sidebar] [href="/discover/logros"]' },
   ...COMMON,
 ];
 
-export const ACADEMY_TOUR: TourStep[] = [
-  {
-    target: '[data-sidebar] [href="/academy"]',
-    title: 'Mi formación',
-    body: 'Tus cifras, tu ruta tecnológica y lo que tienes por delante.',
-  },
-  {
-    target: '[data-sidebar] [href="/academy/cursos"]',
-    title: 'Cursos',
-    body: 'El contenido que has activado, con el avance de cada curso lección a lección.',
-  },
-  {
-    target: '[data-sidebar] [href="/academy/evaluaciones"]',
-    title: 'Evaluaciones',
-    body: 'Abrir una para ver tu nota no consume intentos: solo se consume al pulsar para responder.',
-  },
-  {
-    target: '[data-sidebar] [href="/academy/progreso"]',
-    title: 'Mi progreso',
-    body: 'Tu media en las evaluaciones del kit y en las de tu docente, por separado, y cuánto has mejorado desde tu primer intento.',
-  },
+const ACADEMY: TourSpec[] = [
+  { key: 'portadaAcademy', target: '[data-sidebar] [href="/academy"]' },
+  { key: 'cursos', target: '[data-sidebar] [href="/academy/cursos"]' },
+  { key: 'evaluacionesAlumno', target: '[data-sidebar] [href="/academy/evaluaciones"]' },
+  { key: 'progreso', target: '[data-sidebar] [href="/academy/progreso"]' },
   ...COMMON,
 ];
 
-export const TEACHER_TOUR: TourStep[] = [
-  {
-    target: '[data-sidebar] [href="/docentes"]',
-    title: 'Panel principal',
-    body: 'Tus salones, cuántas plazas quedan y cuántas entregas tienes por corregir.',
-  },
-  {
-    target: '[href="/docentes/salones/nuevo"]',
-    title: 'Crear un salón',
-    body: 'El grado que elijas decide qué kit pueden activar sus alumnos, así que conviene acertar a la primera.',
-  },
-  {
-    target: '[data-sidebar] [href="/docentes/evaluaciones"]',
-    title: 'Evaluaciones',
-    body: 'El banco de GLEXCO viene con el kit y es igual en todos los colegios: no se edita, pero se duplica para adaptarlo.',
-  },
-  {
-    target: '[data-sidebar] [href="/docentes/anuncios"]',
-    title: 'Anuncios',
-    body: 'Lo que publiques aquí lo ven tus alumnos en su portada.',
-  },
-  {
-    target: '[data-roster]',
-    title: 'Tu clase',
-    body: 'Quién ha activado su kit y quién se ha descolgado. Son las dos señales que llegan antes del primer examen, cuando todavía se puede hacer algo.',
-  },
+const TEACHER: TourSpec[] = [
+  { key: 'panelDocente', target: '[data-sidebar] [href="/docentes"]' },
+  { key: 'crearSalon', target: '[href="/docentes/salones/nuevo"]' },
+  { key: 'evaluacionesDocente', target: '[data-sidebar] [href="/docentes/evaluaciones"]' },
+  { key: 'anunciosDocente', target: '[data-sidebar] [href="/docentes/anuncios"]' },
+  { key: 'clase', target: '[data-roster]' },
   ...COMMON,
 ];
 
-export function tourFor(portal: 'discover' | 'academy' | 'teacher' | 'admin'): TourStep[] {
-  if (portal === 'discover') return DISCOVER_TOUR;
-  if (portal === 'academy') return ACADEMY_TOUR;
-  return TEACHER_TOUR;
+/**
+ * Los pasos ya traducidos, listos para el componente.
+ *
+ * Recibe el traductor del espacio `tour` en vez de pedirlo: quien lo llama es un
+ * layout -que ya es asincrono y ya lo tiene-, y asi esta funcion sigue siendo
+ * pura y se puede usar igual desde un componente de cliente.
+ */
+export function tourFor(
+  portal: 'discover' | 'academy' | 'teacher' | 'admin',
+  t: (key: string, values?: TranslationValues) => string,
+): TourStep[] {
+  const specs = portal === 'discover' ? DISCOVER : portal === 'academy' ? ACADEMY : TEACHER;
+
+  return specs.map((spec) => ({
+    target: spec.target,
+    title: t(`${spec.key}.titulo`),
+    body: t(`${spec.key}.cuerpo`),
+  }));
 }

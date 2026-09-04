@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { KitIcon, LibraryIcon } from '@glexco/icons';
 import {
   contentTypeLabel,
@@ -33,23 +34,22 @@ export async function KitLibrary({
   kitId?: string;
 }) {
   const { kits, failed } = await fetchMyKits();
+  const t = await getTranslations('biblioteca');
+  // Sin espacio: `gradeLabel` y `contentTypeLabel` traducen vocabulario, que
+  // vive en su propia seccion y con la clave que guarda el backend.
+  const vocab = await getTranslations();
 
   if (failed) {
-    return (
-      <EmptyState
-        title="No pudimos cargar tu biblioteca"
-        description="Vuelve a intentarlo en un momento. Si sigue pasando, avisa a tu docente."
-      />
-    );
+    return <EmptyState title={t('falloTitulo')} description={t('falloDescripcion')} />;
   }
 
   if (kits.length === 0) {
     return (
       <EmptyState
         icon={<LibraryIcon size={32} />}
-        title="Todavía no tienes material"
-        description="Activa el código que viene dentro de tu libro para desbloquear su biblioteca."
-        action={{ href: `/${portal}/activar`, label: 'Activar mi código' }}
+        title={t('sinMaterialTitulo')}
+        description={t('sinMaterialDescripcion')}
+        action={{ href: `/${portal}/activar`, label: vocab('sinKit.accion') }}
       />
     );
   }
@@ -66,7 +66,7 @@ export async function KitLibrary({
       {/* El selector solo aparece con mas de un kit. Con uno solo es una lista
           desplegable de un elemento: ruido que hace pensar que falta algo. */}
       {kits.length > 1 ? (
-        <nav aria-label="Elige tu kit" className="flex flex-wrap gap-2" data-kits={kits.length}>
+        <nav aria-label={t('eligeKit')} className="flex flex-wrap gap-2" data-kits={kits.length}>
           {kits.map((kit) => {
             const active = kit.kitId === selected.kitId;
             return (
@@ -81,7 +81,7 @@ export async function KitLibrary({
                 }`}
               >
                 {kit.name}
-                {active ? <span className="sr-only"> (seleccionado)</span> : null}
+                {active ? <span className="sr-only"> {t('seleccionado')}</span> : null}
               </a>
             );
           })}
@@ -90,15 +90,19 @@ export async function KitLibrary({
 
       <section aria-labelledby="biblioteca" data-library={items.length}>
         <SectionTitle id="biblioteca">
-          {kits.length > 1 ? selected.name : `Material de ${selected.name}`}
+          {kits.length > 1 ? selected.name : t('materialDe', { kit: selected.name })}
         </SectionTitle>
-        <p className="-mt-2 mb-4 text-sm text-ink-500">{gradeLabel(selected.grade)}</p>
+        <p className="-mt-2 mb-4 text-sm text-ink-500">
+          {gradeLabel(vocab, selected.grade)}
+        </p>
 
         {items.length === 0 ? (
           <EmptyState
             icon={<KitIcon size={32} />}
-            title="Tu kit todavía no tiene material publicado"
-            description="Estamos preparándolo. Vuelve en unos días o pregúntale a tu docente."
+            title={t('sinPublicarTitulo')}
+            description={t('sinPublicarDescripcion')}
+            // Dentro de la seccion "Material de X", que ya es un h2.
+            level={3}
           />
         ) : (
           // `items-stretch` mas `h-full` en la tarjeta: las dos columnas de una
@@ -108,7 +112,7 @@ export async function KitLibrary({
           <ul className="grid items-stretch gap-[var(--portal-gap)] sm:grid-cols-2">
             {items.map((item) => (
               <li key={item.id} className="h-full">
-                <LibraryCard portal={portal} item={item} />
+                <LibraryCard portal={portal} item={item} vocab={vocab} />
               </li>
             ))}
           </ul>
@@ -118,7 +122,23 @@ export async function KitLibrary({
   );
 }
 
-function LibraryCard({ portal, item }: { portal: 'discover' | 'academy'; item: LibraryItem }) {
+/**
+ * Una tarjeta de la biblioteca.
+ *
+ * Recibe el traductor por PROPS y no lo pide dentro. Podria ser `async` -es un
+ * componente de servidor-, pero entonces cada una de las treinta tarjetas de la
+ * pagina abriria su propio punto de suspension y la lista se pintaria a trozos.
+ * El traductor ya lo tiene el padre.
+ */
+function LibraryCard({
+  portal,
+  item,
+  vocab,
+}: {
+  portal: 'discover' | 'academy';
+  item: LibraryItem;
+  vocab: (key: string) => string;
+}) {
   const duration = durationLabel(item.durationSeconds);
   const size = sizeLabel(item.sizeBytes);
 
@@ -144,7 +164,9 @@ function LibraryCard({ portal, item }: { portal: 'discover' | 'academy'; item: L
                 documento y de presentacion se distinguen mal a tamano pequeno, y
                 un lector de pantalla no lee ninguno de los dos. */}
             <p className="mt-0.5 text-sm text-ink-500">
-              {[contentTypeLabel(item.type), duration, size].filter(Boolean).join(' · ')}
+              {[contentTypeLabel(vocab, item.type), duration, size]
+                .filter(Boolean)
+                .join(' · ')}
             </p>
             {/* Dos lineas SIEMPRE, tenga descripcion o no. Igualar el alto de la
                 tarjeta no basta: sin reservar el hueco, una sin descripcion deja

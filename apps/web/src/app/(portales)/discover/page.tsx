@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { getTranslations } from 'next-intl/server';
 import { requireSession } from '../../../lib/session';
 import { CardSkeleton } from '../../../components/ui';
 import { HeroFigureSkeleton, PortalHero } from '../../../components/portal-hero';
@@ -24,6 +25,7 @@ export const metadata: Metadata = { title: 'Discover' };
  */
 export default async function DiscoverHome() {
   const session = await requireSession();
+  const t = await getTranslations('portada');
 
   return (
     <>
@@ -31,10 +33,10 @@ export default async function DiscoverHome() {
           cifras y el nombre del curso esperan al servicio de aprendizaje, y lo
           hacen sobre huecos de su misma altura para que la banda no salte. */}
       <PortalHero
-        greeting={`¡Hola, ${session.firstName}!`}
+        greeting={t('saludo', { nombre: session.firstName })}
         subtitle={
-          <Suspense fallback="Continúa tu aventura donde la dejaste.">
-            <HeroSubtitle />
+          <Suspense fallback={t('aventuraGenerica')}>
+            <HeroSubtitle portal="discover" />
           </Suspense>
         }
         action={
@@ -49,9 +51,9 @@ export default async function DiscoverHome() {
           <Suspense
             fallback={
               <>
-                <HeroFigureSkeleton label="cursos" />
-                <HeroFigureSkeleton label="insignias" />
-                <HeroFigureSkeleton label="puntos" />
+                <HeroFigureSkeleton label={t('cifraCursos')} />
+                <HeroFigureSkeleton label={t('cifraInsignias')} />
+                <HeroFigureSkeleton label={t('cifraPuntos')} />
               </>
             }
           >

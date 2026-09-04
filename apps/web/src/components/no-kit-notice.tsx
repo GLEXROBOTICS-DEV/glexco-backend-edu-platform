@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { KitIcon } from '@glexco/icons';
 import { fetchMyKits } from '../lib/catalog';
 import { EmptyState } from './ui';
@@ -17,6 +18,7 @@ import { EmptyState } from './ui';
  */
 export async function NoKitNotice({ portal }: { portal: 'discover' | 'academy' }) {
   const { kits, failed } = await fetchMyKits();
+  const t = await getTranslations('sinKit');
 
   // Si la llamada fallo no se dice "no tienes kits": seria acusar al alumno de
   // no haber activado nada cuando el problema es nuestro.
@@ -25,13 +27,9 @@ export async function NoKitNotice({ portal }: { portal: 'discover' | 'academy' }
   return (
     <EmptyState
       icon={<KitIcon size={32} />}
-      title={
-        portal === 'discover'
-          ? 'Todavía no tienes ningún kit'
-          : 'Aún no tienes contenido activado'
-      }
-      description="Activa el código que viene dentro de tu libro para desbloquear tu contenido."
-      action={{ href: `/${portal}/activar`, label: 'Activar mi código' }}
+      title={portal === 'discover' ? t('tituloDiscover') : t('tituloAcademy')}
+      description={t('descripcion')}
+      action={{ href: `/${portal}/activar`, label: t('accion') }}
     />
   );
 }

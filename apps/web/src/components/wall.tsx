@@ -56,6 +56,8 @@ export async function ClassroomWall({
 
       {items.length === 0 ? (
         <EmptyState
+          // Dentro de la seccion del muro, que ya tiene su h2.
+          level={3}
           icon={<AnnouncementIcon size={32} />}
           title={
             only === 'announcement'
@@ -90,12 +92,25 @@ function Post({ post }: { post: Announcement }) {
   return (
     <article
       data-post={post.kind}
-      className="rounded-[var(--portal-radius)] border border-line-200 bg-white p-[var(--portal-card-padding)]"
+      // La marca de fijado se perdio al sustituir la lista de anuncios por el
+      // muro: el aviso seguia fijandose en el backend -y ordenandose primero-
+      // pero en pantalla no se distinguia de los demas, asi que el docente no
+      // podia saber cual habia dejado arriba. Lo delato una comprobacion del
+      // portal, que es justo para lo que existe.
+      data-pinned={post.pinned ? '1' : undefined}
+      className={`rounded-[var(--portal-radius)] border bg-white p-[var(--portal-card-padding)] ${
+        post.pinned ? 'border-brand-400' : 'border-line-200'
+      }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-display text-lg font-semibold">{post.title}</h3>
           <p className="mt-0.5 text-xs text-ink-500">
+            {/* La PALABRA junto al borde de color. Un estado nunca se comunica
+                solo con color: el par que distingue el borde fijado del normal
+                queda muy por debajo del umbral para una vision con deficiencia
+                de rojo, y ahi el aviso importante deja de destacar. */}
+            {post.pinned ? <span className="font-medium text-brand-700">Fijado · </span> : null}
             {post.authorName ?? (question ? 'Un compañero' : 'Tu docente')} ·{' '}
             {relativeDate(post.publishedAt)}
           </p>

@@ -67,5 +67,197 @@
     "cierraHoy": "Closes today",
     "cierraManana": "Closes tomorrow",
     "cierraEnDias": "Closes in {dias} days"
+  },
+  "niveles": {
+    "1": "Explorer",
+    "2": "Inventor",
+    "3": "Builder",
+    "4": "Innovator",
+    "5": "Robotics Master"
+  },
+  "portada": {
+    "saludo": "Hi, {nombre}!",
+    "saludoAcademy": "Hello, {nombre}",
+    "aventuraGenerica": "Pick up your adventure where you left it.",
+    "aventuraEnCurso": "Pick up your adventure in <curso></curso>.",
+    "retomaGenerica": "Pick up your training where you left it.",
+    "retomaEnCurso": "Pick up your training in <curso></curso>.",
+    "cifraCursos": "courses",
+    "cifraInsignias": "badges",
+    "cifraLogros": "achievements",
+    "cifraPuntos": "points",
+    "continuaDondeLoDejaste": "Pick up where you left off",
+    "continuarAprendiendo": "Keep learning",
+    "verTodosLosCursos": "See all courses",
+    "verTodosMisKits": "See all my kits",
+    "leccionDe": "Lesson {actual} of {total}",
+    "avanceDe": "Progress in {curso}",
+    "porcentajeCompletado": "{porcentaje}% complete",
+    "continuar": "Continue",
+    "tuNivel": "Your level",
+    "puntosAcumulados": "{puntos} points earned",
+    "ptsParaSiguiente": "{puntos} pts to {nivel}",
+    "nivelDeCinco": "Level {nivel} of 5. {insignias} badges earned."
+  },
+  "proximas": {
+    "tituloRetos": "Upcoming challenges",
+    "tituloActividades": "Upcoming activities",
+    "vacioRetos": "Nothing pending right now. Your teacher will post the next challenge soon.",
+    "vacioActividades": "You have no pending activities. When your teacher posts one, it will show up here.",
+    "preguntas": "{count, plural, one {# question} other {# questions}}",
+    "puntos": "{puntos} pts",
+    "fueraDePlazo": "past due",
+    "venceHoy": "due today",
+    "venceManana": "due tomorrow",
+    "venceEnDias": "due in {dias} days",
+    "venceElDia": "due {fecha}",
+    "logrosRecientes": "Recent achievements",
+    "sinLogros": "Your first badge arrives when you finish a lesson. Almost there.",
+    "hoy": "today",
+    "ayer": "yesterday",
+    "haceDias": "{dias} days ago",
+    "haceUnaSemana": "1 week ago",
+    "haceSemanas": "{semanas} weeks ago",
+    "haceMeses": "{meses, plural, one {# month ago} other {# months ago}}"
+  },
+  "cabecera": {
+    "anunciosVacio": "Announcements: none",
+    "anunciosCuenta": "{count, plural, one {Announcements: # unread} other {Announcements: # unread}}",
+    "muroVacio": "Your class wall: no questions",
+    "muroCuenta": "{count, plural, one {Your class wall: # question} other {Your class wall: # questions}}"
+  },
+  "sinKit": {
+    "tituloDiscover": "You don't have a kit yet",
+    "tituloAcademy": "You have no content activated yet",
+    "descripcion": "Enter the code inside your book to unlock your content.",
+    "accion": "Activate my code"
+  },
+  "academy": {
+    "miFormacion": "My training",
+    "resumen": "Summary of your training",
+    "cursosActivos": "Active courses",
+    "completados": "Completed",
+    "logros": "Achievements"
+  },
+  "grados": {
+    "primary_1": "Primary 1",
+    "primary_2": "Primary 2",
+    "primary_3": "Primary 3",
+    "primary_4": "Primary 4",
+    "primary_5": "Primary 5",
+    "primary_6": "Primary 6",
+    "secondary_1": "Secondary 1",
+    "secondary_2": "Secondary 2",
+    "secondary_3": "Secondary 3",
+    "secondary_4": "Secondary 4",
+    "secondary_5": "Secondary 5",
+    "technical_program": "Technical programme",
+    "higher_program": "Higher programme"
+  },
+  "tiposContenido": {
+    "video": "Video",
+    "document": "Document",
+    "presentation": "Presentation",
+    "worksheet": "Worksheet",
+    "guide": "Guide",
+    "manual": "Manual",
+    "tutorial": "Tutorial",
+    "webinar": "Webinar",
+    "masterclass": "Masterclass",
+    "code_sample": "Code sample",
+    "build_instruction": "Build instructions",
+    "external_link": "Link"
+  },
+  "biblioteca": {
+    "falloTitulo": "We couldn't load your library",
+    "falloDescripcion": "Try again in a moment. If it keeps happening, tell your teacher.",
+    "sinMaterialTitulo": "You don't have any material yet",
+    "sinMaterialDescripcion": "Enter the code inside your book to unlock its library.",
+    "eligeKit": "Choose your kit",
+    "seleccionado": "(selected)",
+    "materialDe": "{kit} material",
+    "sinPublicarTitulo": "Your kit has no published material yet",
+    "sinPublicarDescripcion": "We're preparing it. Come back in a few days or ask your teacher."
+  },
+  "laboratorio": {
+    "titulo": "Lab",
+    "subtitulo": "The robots you can build and program with your kits.",
+    "falloTitulo": "We couldn't load your robots",
+    "falloDescripcion": "Try again in a moment. If it keeps happening, tell your teacher.",
+    "sinRobotTitulo": "You don't have a robot yet",
+    "sinRobotDescripcion": "Enter the code inside your book and your kit's robot will show up here.",
+    "verContenido": "See its content",
+    "fichaFabricante": "Manufacturer page",
+    "programaTitulo": "Program your robot",
+    "programaDescripcion": "UBTECH's official environments, the same ones your robot uses. They open in another tab and may ask for the account your school gave you.",
+    "bloquesTitulo": "uCode · blocks",
+    "bloquesDescripcion": "Drag blocks and the robot does what they say. This is where you start, and it works for every kit.",
+    "pythonTitulo": "uCode Python",
+    "pythonDescripcion": "The same robot, writing real code. For when blocks are no longer enough.",
+    "abrir": "Open",
+    "tituloAcademy": "Robotics lab",
+    "subtituloAcademy": "The robotics platforms you have access to."
+  },
+  "tour": {
+    "cuenta": {
+      "titulo": "Your account",
+      "cuerpo": "This is where you change your password, pick your language and see which devices are signed in. If you see one you don't recognise, close it."
+    },
+    "portadaDiscover": {
+      "titulo": "Your home",
+      "cuerpo": "The first thing you see: the course you left half-finished, your points and what's still pending."
+    },
+    "laboratorio": {
+      "titulo": "Lab",
+      "cuerpo": "The robots you can build with your kits, and the two official environments for programming them."
+    },
+    "biblioteca": {
+      "titulo": "Library",
+      "cuerpo": "Your kit's tutorials and worksheets. Almost everything you'll do starts here."
+    },
+    "actividades": {
+      "titulo": "Activities",
+      "cuerpo": "Your challenges and assessments. Opening one to see how you did costs no attempt: an attempt is only used when you press to answer."
+    },
+    "logros": {
+      "titulo": "My achievements",
+      "cuerpo": "Your badges and your level, with what's left to reach the next one. You only compare against yourself."
+    },
+    "portadaAcademy": {
+      "titulo": "My training",
+      "cuerpo": "Your figures, your technology path and what lies ahead."
+    },
+    "cursos": {
+      "titulo": "Courses",
+      "cuerpo": "The content you have activated, with your progress lesson by lesson."
+    },
+    "evaluacionesAlumno": {
+      "titulo": "Assessments",
+      "cuerpo": "Opening one to see your grade uses no attempt: an attempt is only used when you press to answer."
+    },
+    "progreso": {
+      "titulo": "My progress",
+      "cuerpo": "Your average in the kit's assessments and in your teacher's, kept apart, and how much you have improved since your first attempt."
+    },
+    "panelDocente": {
+      "titulo": "Main panel",
+      "cuerpo": "Your classrooms, how many seats are left and how many submissions you have to grade."
+    },
+    "crearSalon": {
+      "titulo": "Create a classroom",
+      "cuerpo": "The grade you choose decides which kit its students can activate, so it pays to get it right first time."
+    },
+    "evaluacionesDocente": {
+      "titulo": "Assessments",
+      "cuerpo": "The GLEXCO bank comes with the kit and is the same in every school: it can't be edited, but you can duplicate it to adapt it."
+    },
+    "anunciosDocente": {
+      "titulo": "Announcements",
+      "cuerpo": "Whatever you post here, your students see on their home screen."
+    },
+    "clase": {
+      "titulo": "Your class",
+      "cuerpo": "Who has activated their kit and who has fallen behind. These are the two signals that arrive before the first exam, while there is still something to be done."
+    }
   }
 }

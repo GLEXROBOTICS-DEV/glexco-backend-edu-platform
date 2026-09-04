@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { getTranslations } from 'next-intl/server';
 import { requireSession } from '../../../lib/session';
 import { fetchLearningProgress } from '../../../lib/learning';
 import { CardSkeleton, Stat } from '../../../components/ui';
@@ -24,11 +25,12 @@ export const metadata: Metadata = { title: 'Academy' };
  */
 export default async function AcademyHome() {
   const session = await requireSession();
+  const t = await getTranslations('academy');
 
   return (
     <>
       <PageHeader
-        title="Mi formación"
+        title={t('miFormacion')}
         subtitle={`${session.firstName} ${session.lastName}`}
         actions={
           <Suspense fallback={<>
@@ -46,7 +48,11 @@ export default async function AcademyHome() {
         <NoKitNotice portal="academy" />
       </Suspense>
 
-      <Suspense fallback={<CifrasSkeleton />}>
+      <Suspense
+        fallback={
+          <CifrasSkeleton labels={[t('cursosActivos'), t('completados'), t('logros')]} />
+        }
+      >
         <Cifras />
       </Suspense>
 
@@ -92,24 +98,35 @@ async function Cifras() {
   const { data, failed } = await fetchLearningProgress();
   if (failed) return null;
 
+  const t = await getTranslations('academy');
+
   const activos = data.courses.filter((c) => c.lessonsCompleted < c.lessonCount).length;
 
   return (
     <section aria-labelledby="resumen" className="grid gap-[var(--portal-gap)] sm:grid-cols-3">
       <h2 id="resumen" className="sr-only">
-        Resumen de tu formación
+        {t('resumen')}
       </h2>
-      <Stat value={String(activos)} label="Cursos activos" />
-      <Stat value={String(data.coursesCompleted)} label="Completados" />
-      <Stat value={String(data.badges.length)} label="Logros" />
+      <Stat value={String(activos)} label={t('cursosActivos')} />
+      <Stat value={String(data.coursesCompleted)} label={t('completados')} />
+      <Stat value={String(data.badges.length)} label={t('logros')} />
     </section>
   );
 }
 
-function CifrasSkeleton() {
+/**
+ * Hueco de las cifras.
+ *
+ * Recibe las etiquetas por PROPS y no las traduce dentro. Un `fallback` de
+ * `Suspense` no puede suspender: si este componente fuera `async` -que es lo que
+ * exige `getTranslations`-, el hueco se quedaria esperando y la pantalla no
+ * pintaria nada mientras llegan las cifras, que es justo lo contrario de para lo
+ * que existe. La portada ya es asincrona, asi que traduce ella y las pasa.
+ */
+function CifrasSkeleton({ labels }: { labels: string[] }) {
   return (
     <div className="grid gap-[var(--portal-gap)] sm:grid-cols-3" aria-hidden="true">
-      {['Cursos activos', 'Completados', 'Logros'].map((label) => (
+      {labels.map((label) => (
         <div
           key={label}
           className="rounded-[var(--portal-radius)] border border-line-200 bg-white p-[var(--portal-card-padding)]"

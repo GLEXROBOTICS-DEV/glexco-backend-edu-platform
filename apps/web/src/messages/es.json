@@ -67,5 +67,197 @@
     "cierraHoy": "Cierra hoy",
     "cierraManana": "Cierra mañana",
     "cierraEnDias": "Cierra en {dias} días"
+  },
+  "niveles": {
+    "1": "Explorador",
+    "2": "Inventor",
+    "3": "Constructor",
+    "4": "Innovador",
+    "5": "Maestro Robótico"
+  },
+  "portada": {
+    "saludo": "¡Hola, {nombre}!",
+    "saludoAcademy": "Hola, {nombre}",
+    "aventuraGenerica": "Continúa tu aventura donde la dejaste.",
+    "aventuraEnCurso": "Continúa tu aventura en <curso></curso>.",
+    "retomaGenerica": "Retoma tu formación donde la dejaste.",
+    "retomaEnCurso": "Retoma tu formación en <curso></curso>.",
+    "cifraCursos": "cursos",
+    "cifraInsignias": "insignias",
+    "cifraLogros": "logros",
+    "cifraPuntos": "puntos",
+    "continuaDondeLoDejaste": "Continúa donde lo dejaste",
+    "continuarAprendiendo": "Continuar aprendiendo",
+    "verTodosLosCursos": "Ver todos los cursos",
+    "verTodosMisKits": "Ver todos mis kits",
+    "leccionDe": "Lección {actual} de {total}",
+    "avanceDe": "Avance de {curso}",
+    "porcentajeCompletado": "{porcentaje} % completado",
+    "continuar": "Continuar",
+    "tuNivel": "Tu nivel",
+    "puntosAcumulados": "{puntos} puntos acumulados",
+    "ptsParaSiguiente": "{puntos} pts para {nivel}",
+    "nivelDeCinco": "Nivel {nivel} de 5. {insignias} insignias conseguidas."
+  },
+  "proximas": {
+    "tituloRetos": "Próximos retos",
+    "tituloActividades": "Próximas actividades",
+    "vacioRetos": "Ahora mismo no tienes nada pendiente. Tu docente publicará el próximo reto pronto.",
+    "vacioActividades": "No tienes actividades pendientes. Cuando tu docente publique una, aparecerá aquí.",
+    "preguntas": "{count, plural, one {# pregunta} other {# preguntas}}",
+    "puntos": "{puntos} pts",
+    "fueraDePlazo": "fuera de plazo",
+    "venceHoy": "vence hoy",
+    "venceManana": "vence mañana",
+    "venceEnDias": "vence en {dias} días",
+    "venceElDia": "vence el {fecha}",
+    "logrosRecientes": "Logros recientes",
+    "sinLogros": "Tu primera insignia llega al terminar una lección. Ya casi.",
+    "hoy": "hoy",
+    "ayer": "ayer",
+    "haceDias": "hace {dias} días",
+    "haceUnaSemana": "hace 1 semana",
+    "haceSemanas": "hace {semanas} semanas",
+    "haceMeses": "{meses, plural, one {hace # mes} other {hace # meses}}"
+  },
+  "cabecera": {
+    "anunciosVacio": "Anuncios: no hay ninguno",
+    "anunciosCuenta": "{count, plural, one {Anuncios: # sin leer} other {Anuncios: # sin leer}}",
+    "muroVacio": "El muro de tu clase: no hay preguntas",
+    "muroCuenta": "{count, plural, one {El muro de tu clase: # pregunta} other {El muro de tu clase: # preguntas}}"
+  },
+  "sinKit": {
+    "tituloDiscover": "Todavía no tienes ningún kit",
+    "tituloAcademy": "Aún no tienes contenido activado",
+    "descripcion": "Activa el código que viene dentro de tu libro para desbloquear tu contenido.",
+    "accion": "Activar mi código"
+  },
+  "academy": {
+    "miFormacion": "Mi formación",
+    "resumen": "Resumen de tu formación",
+    "cursosActivos": "Cursos activos",
+    "completados": "Completados",
+    "logros": "Logros"
+  },
+  "grados": {
+    "primary_1": "1.º de primaria",
+    "primary_2": "2.º de primaria",
+    "primary_3": "3.º de primaria",
+    "primary_4": "4.º de primaria",
+    "primary_5": "5.º de primaria",
+    "primary_6": "6.º de primaria",
+    "secondary_1": "1.º de secundaria",
+    "secondary_2": "2.º de secundaria",
+    "secondary_3": "3.º de secundaria",
+    "secondary_4": "4.º de secundaria",
+    "secondary_5": "5.º de secundaria",
+    "technical_program": "Programa técnico",
+    "higher_program": "Programa superior"
+  },
+  "tiposContenido": {
+    "video": "Vídeo",
+    "document": "Documento",
+    "presentation": "Presentación",
+    "worksheet": "Ficha",
+    "guide": "Guía",
+    "manual": "Manual",
+    "tutorial": "Tutorial",
+    "webinar": "Webinar",
+    "masterclass": "Clase magistral",
+    "code_sample": "Código de ejemplo",
+    "build_instruction": "Instrucciones de montaje",
+    "external_link": "Enlace"
+  },
+  "biblioteca": {
+    "falloTitulo": "No pudimos cargar tu biblioteca",
+    "falloDescripcion": "Vuelve a intentarlo en un momento. Si sigue pasando, avisa a tu docente.",
+    "sinMaterialTitulo": "Todavía no tienes material",
+    "sinMaterialDescripcion": "Activa el código que viene dentro de tu libro para desbloquear su biblioteca.",
+    "eligeKit": "Elige tu kit",
+    "seleccionado": "(seleccionado)",
+    "materialDe": "Material de {kit}",
+    "sinPublicarTitulo": "Tu kit todavía no tiene material publicado",
+    "sinPublicarDescripcion": "Estamos preparándolo. Vuelve en unos días o pregúntale a tu docente."
+  },
+  "laboratorio": {
+    "titulo": "Laboratorio",
+    "subtitulo": "Los robots que puedes construir y programar con tus kits.",
+    "falloTitulo": "No pudimos cargar tus robots",
+    "falloDescripcion": "Vuelve a intentarlo en un momento. Si sigue pasando, avisa a tu docente.",
+    "sinRobotTitulo": "Todavía no tienes ningún robot",
+    "sinRobotDescripcion": "Activa el código que viene dentro de tu libro y aquí aparecerá el robot de tu kit.",
+    "verContenido": "Ver su contenido",
+    "fichaFabricante": "Ficha del fabricante",
+    "programaTitulo": "Programa tu robot",
+    "programaDescripcion": "Los entornos oficiales de UBTECH, los mismos que usa tu robot. Se abren en otra pestaña y pueden pedirte la cuenta que te dio tu colegio.",
+    "bloquesTitulo": "uCode · por bloques",
+    "bloquesDescripcion": "Arrastras bloques y el robot hace lo que dicen. Es por donde se empieza, y sirve para todos los kits.",
+    "pythonTitulo": "uCode Python",
+    "pythonDescripcion": "El mismo robot, escribiendo código de verdad. Para cuando los bloques se quedan cortos.",
+    "abrir": "Abrir",
+    "tituloAcademy": "Laboratorio de robots",
+    "subtituloAcademy": "Las plataformas robóticas a las que tienes acceso."
+  },
+  "tour": {
+    "cuenta": {
+      "titulo": "Tu cuenta",
+      "cuerpo": "Aquí cambias tu contraseña, eliges el idioma y ves desde qué dispositivos tienes la sesión abierta. Si ves uno que no reconoces, ciérralo."
+    },
+    "portadaDiscover": {
+      "titulo": "Tu portada",
+      "cuerpo": "Lo primero que ves al entrar: el curso que dejaste a medias, tus puntos y lo que tienes pendiente."
+    },
+    "laboratorio": {
+      "titulo": "Laboratorio",
+      "cuerpo": "Los robots que puedes construir con tus kits, y los dos entornos oficiales para programarlos."
+    },
+    "biblioteca": {
+      "titulo": "Biblioteca",
+      "cuerpo": "Los tutoriales y las fichas de trabajo de tu kit. Es de donde sale casi todo lo que vas a hacer."
+    },
+    "actividades": {
+      "titulo": "Actividades",
+      "cuerpo": "Tus retos y evaluaciones. Entrar a mirar cómo te fue no te gasta ningún intento: solo se gasta cuando pulsas para responder."
+    },
+    "logros": {
+      "titulo": "Mis logros",
+      "cuerpo": "Tus insignias y tu nivel, con lo que falta para el siguiente. Solo te comparas contigo mismo."
+    },
+    "portadaAcademy": {
+      "titulo": "Mi formación",
+      "cuerpo": "Tus cifras, tu ruta tecnológica y lo que tienes por delante."
+    },
+    "cursos": {
+      "titulo": "Cursos",
+      "cuerpo": "El contenido que has activado, con el avance de cada curso lección a lección."
+    },
+    "evaluacionesAlumno": {
+      "titulo": "Evaluaciones",
+      "cuerpo": "Abrir una para ver tu nota no consume intentos: solo se consume al pulsar para responder."
+    },
+    "progreso": {
+      "titulo": "Mi progreso",
+      "cuerpo": "Tu media en las evaluaciones del kit y en las de tu docente, por separado, y cuánto has mejorado desde tu primer intento."
+    },
+    "panelDocente": {
+      "titulo": "Panel principal",
+      "cuerpo": "Tus salones, cuántas plazas quedan y cuántas entregas tienes por corregir."
+    },
+    "crearSalon": {
+      "titulo": "Crear un salón",
+      "cuerpo": "El grado que elijas decide qué kit pueden activar sus alumnos, así que conviene acertar a la primera."
+    },
+    "evaluacionesDocente": {
+      "titulo": "Evaluaciones",
+      "cuerpo": "El banco de GLEXCO viene con el kit y es igual en todos los colegios: no se edita, pero se duplica para adaptarlo."
+    },
+    "anunciosDocente": {
+      "titulo": "Anuncios",
+      "cuerpo": "Lo que publiques aquí lo ven tus alumnos en su portada."
+    },
+    "clase": {
+      "titulo": "Tu clase",
+      "cuerpo": "Quién ha activado su kit y quién se ha descolgado. Son las dos señales que llegan antes del primer examen, cuando todavía se puede hacer algo."
+    }
   }
 }

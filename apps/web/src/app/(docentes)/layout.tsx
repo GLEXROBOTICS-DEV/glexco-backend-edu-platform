@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import {
   AnnouncementIcon,
   ClassroomIcon,
@@ -71,7 +72,7 @@ export default async function DocentesLayout({ children }: { children: React.Rea
       session={session}
       subtitle={portal === 'admin' ? 'GLEXCO' : isAdmin ? 'Dirección' : 'Docente'}
       onLogout={logout}
-      tour={tourFor(portal)}
+      tour={tourFor(portal, await getTranslations('tour'))}
     >
       {children}
     </AppShell>

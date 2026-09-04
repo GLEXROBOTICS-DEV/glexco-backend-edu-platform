@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { GRADES } from '@glexco/contracts';
 import { getSession } from '../../lib/session';
 import { portalPath } from '../../lib/portal';
@@ -63,6 +64,7 @@ export default async function RegistroPage({ searchParams }: PageProps) {
       : null;
 
   const ready = grade !== '' && (accountType === 'independent' || institution !== null);
+  const vocab = await getTranslations();
 
   if (!ready) {
     return (
@@ -89,7 +91,7 @@ export default async function RegistroPage({ searchParams }: PageProps) {
           {institution ? institution.name : 'Cuenta independiente'}
         </p>
         <p className="mt-0.5 text-ink-500">
-          {gradeLabel(grade)}
+          {gradeLabel(vocab, grade)}
           {institution ? ` · ${institution.city}` : ' · sin colegio'}
         </p>
         {/* Un enlace y no un boton "atras": conserva la URL del paso 1 con lo
@@ -123,7 +125,7 @@ export default async function RegistroPage({ searchParams }: PageProps) {
  * tiene su propio enlace igual de visible: hay familias que compran el libro por
  * su cuenta y son la mitad del modelo de negocio, no una excepcion a tolerar.
  */
-function PrimerPaso({
+async function PrimerPaso({
   accountType,
   institutionCode,
   grade,
@@ -135,6 +137,7 @@ function PrimerPaso({
   notFound: boolean;
 }) {
   const isInstitutional = accountType === 'institutional';
+  const vocab = await getTranslations();
 
   return (
     <>
@@ -211,7 +214,7 @@ function PrimerPaso({
             <option value="">Elige tu grado…</option>
             {ORDERED_GRADES.map((value) => (
               <option key={value} value={value}>
-                {gradeLabel(value)}
+                {gradeLabel(vocab, value)}
               </option>
             ))}
           </select>

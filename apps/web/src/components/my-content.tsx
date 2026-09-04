@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { robotLabel } from '@glexco/contracts';
 import { KitIcon, RobotIcon } from '@glexco/icons';
 import { fetchMyKits, gradeLabel, type MyKit } from '../lib/catalog';
@@ -23,6 +24,7 @@ export async function MyContent({ portal }: { portal: 'discover' | 'academy' }) 
     fetchMyKits(),
     fetchLearningProgress(),
   ]);
+  const vocab = await getTranslations();
 
   if (failed) {
     return (
@@ -68,6 +70,7 @@ export async function MyContent({ portal }: { portal: 'discover' | 'academy' }) 
           // esta distincion, un kit recien activado -que legitimamente no tiene
           // cursos todavia- se veria como un error del sistema.
           progressFailed={progress.failed}
+          vocab={vocab}
         />
       ))}
     </div>
@@ -79,11 +82,14 @@ function KitCard({
   courses,
   portal,
   progressFailed,
+  vocab,
 }: {
   kit: MyKit;
   courses: readonly CourseProgress[];
   portal: 'discover' | 'academy';
   progressFailed: boolean;
+  /** Por props y no pidiendolo dentro: ver la nota de `LibraryCard`. */
+  vocab: (key: string) => string;
 }) {
   return (
     <article
@@ -100,7 +106,7 @@ function KitCard({
 
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-lg font-semibold">{kit.name}</h2>
-          <p className="mt-0.5 text-sm text-ink-500">{gradeLabel(kit.grade)}</p>
+          <p className="mt-0.5 text-sm text-ink-500">{gradeLabel(vocab, kit.grade)}</p>
 
           {kit.robotPlatforms.length > 0 ? (
             <ul className="mt-2.5 flex flex-wrap gap-1.5">

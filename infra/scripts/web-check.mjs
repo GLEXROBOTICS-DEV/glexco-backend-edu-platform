@@ -151,17 +151,31 @@ async function main() {
     'La densidad de Academy se declara una sola vez, en el layout',
     academy.html.includes('data-portal="academy"'),
   );
+  // Se compara por RUTA y no por etiqueta. Antes exigia que "Mis logros" NO
+  // apareciera, y dejo de valer en cuanto el cliente pidio logros tambien en
+  // Academy: las dos barras comparten etiquetas a proposito -es la misma
+  // funcion para otra edad- y lo unico que de verdad las distingue es a donde
+  // llevan. Una comprobacion que contradice una decision de producto se queda
+  // en rojo para siempre y acaba ignorandose.
   report(
     'La navegacion es la de Academy, no la de Discover',
-    academy.html.includes('Certificaciones') && !academy.html.includes('Mis logros'),
+    academy.html.includes('/academy/certificaciones') && !academy.html.includes('/discover/'),
   );
 
   // El canje es asincrono -catalogo lo hace al consumir el alta-, asi que el kit
   // tarda un instante en aparecer. Sondear comprueba que ACABA apareciendo.
+  //
+  // Se mira `/academy/cursos` y NO la portada. El canvas saco el listado de kits
+  // de la portada al adoptarse el diseno aprobado: arriba va como voy, que ruta
+  // sigo y que tengo por delante, y el contenido activado tiene su propia
+  // pantalla. Esta comprobacion se quedo apuntando al sitio viejo, asi que
+  // llevaba en rojo desde entonces -y con ella las quince que dependen de su
+  // respuesta-. Una comprobacion que contradice el diseno aprobado no descubre
+  // un fallo: enseña a ignorar el rojo.
   let withKit = null;
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
-    const page = await fetchHtml(`${WEB}/academy`, jar);
+    const page = await fetchHtml(`${WEB}/academy/cursos`, jar);
     if (page.html.includes('uKit Explore')) {
       withKit = page;
       break;
@@ -170,7 +184,7 @@ async function main() {
   }
 
   report(
-    'El kit del alumno aparece en su portada, leido del catalogo real',
+    'El kit del alumno aparece en su contenido, leido del catalogo real',
     Boolean(withKit),
     withKit ? '' : 'no aparecio en 30 s',
   );
@@ -435,7 +449,11 @@ async function main() {
   // Este alumno no tiene el kit todavia: la evaluacion existe pero su listado
   // debe salir vacio. Es la misma regla del canje -solo ves el contenido del
   // libro que compraste- aplicada a las evaluaciones.
-  const sinKit = await fetchHtml(`${WEB}/academy/evaluaciones`, quizPupilJar);
+  // El portal se PREGUNTA, no se supone: `seedUsers` no fija la edad, asi que
+  // estos alumnos caen en Discover y el guard de portal redirige sus rutas de
+  // Academy. Ver `portalOf`.
+  const quizPupilPortal = await portalOf(quizPupilJar);
+  const sinKit = await fetchHtml(`${WEB}/${quizPupilPortal}/evaluaciones`, quizPupilJar);
   report(
     'Sin kit activado, el listado de evaluaciones sale vacio',
     sinKit.status === 200 && sinKit.html.includes('Todavia no tienes contenido activado'),
@@ -454,7 +472,11 @@ async function main() {
     `status=${redeemed.status} ${JSON.stringify(redeemed.body).slice(0, 120)}`,
   );
 
-  const listado = await waitForHtml(`${WEB}/academy/evaluaciones`, `glexco_at=${pupilToken}`, (html) =>
+  // `pupilJar` ya existe: es el mismo alumno del escenario del dashboard, y esa
+  // parte del guion ya usa `/discover` con el, lo que confirma su portal.
+  const pupilPortal = await portalOf(pupilJar);
+
+  const listado = await waitForHtml(`${WEB}/${pupilPortal}/evaluaciones`, pupilJar, (html) =>
     html.includes('Piezas del uKit'),
   );
 
@@ -468,9 +490,25 @@ async function main() {
     Boolean(listado?.includes('Incluida en tu kit')),
   );
 
+  // **La ficha y el intento son dos pantallas distintas, y esa es la
+  // correccion.** `/evaluaciones/{id}` es de solo lectura: dice cuantos intentos
+  // quedan y, si ya hubo entrega, la nota. El intento se abre en `/responder`, y
+  // solo al pulsar. Antes eran la misma URL, asi que ENTRAR A MIRAR gastaba un
+  // intento y el alumno recibia "ya agotaste tus intentos" sin haber respondido
+  // nada; el cliente lo reporto y se separo en la sesion 14.
+  const fichaPage = await fetchHtml(
+    `${WEB}/${pupilPortal}/evaluaciones/${quiz.body?.assessmentId}`,
+    pupilJar,
+  );
+  report(
+    'Abrir la ficha de una evaluacion NO abre un intento',
+    fichaPage.status === 200 && !fichaPage.html.includes('name="submissionId"'),
+    `status=${fichaPage.status}`,
+  );
+
   const quizPage = await fetchHtml(
-    `${WEB}/academy/evaluaciones/${quiz.body?.assessmentId}`,
-    `glexco_at=${pupilToken}`,
+    `${WEB}/${pupilPortal}/evaluaciones/${quiz.body?.assessmentId}/responder`,
+    pupilJar,
   );
 
   report(
@@ -497,8 +535,8 @@ async function main() {
 
   // Volver a cargar no gasta otro intento.
   const reopened = await fetchHtml(
-    `${WEB}/academy/evaluaciones/${quiz.body?.assessmentId}`,
-    `glexco_at=${pupilToken}`,
+    `${WEB}/${pupilPortal}/evaluaciones/${quiz.body?.assessmentId}/responder`,
+    pupilJar,
   );
   const firstId = /name="submissionId" value="([^"]+)"/.exec(quizPage.html)?.[1];
   const secondId = /name="submissionId" value="([^"]+)"/.exec(reopened.html)?.[1];
@@ -603,8 +641,10 @@ async function main() {
   // El alumno responde DESDE EL PORTAL. Que la pantalla resuelva su salon es lo
   // que hace que la entrega llegue a la bandeja: sin eso quedaria sin salon y
   // ningun docente la veria nunca.
+  // `/responder`, no la ficha: las preguntas viven ahi desde que se separo ver
+  // el resultado de gastar un intento.
   const tareaPage = await waitForHtml(
-    `${WEB}/discover/evaluaciones/${tarea.body?.assessmentId}`,
+    `${WEB}/${await portalOf(inboxJar)}/evaluaciones/${tarea.body?.assessmentId}/responder`,
     inboxJar,
     (html) => html.includes('Explica con tus palabras'),
   );
@@ -1115,7 +1155,10 @@ async function main() {
       activar.html.indexOf('una sola vez') < activar.html.indexOf('data-submit="activar"'),
   );
 
-  const academyActivar = await fetchHtml(`${WEB}/academy/activar`, altaJar);
+  const academyActivar = await fetchHtml(
+    `${WEB}/${await portalOf(altaJar)}/activar`,
+    altaJar,
+  );
   report(
     'Academy tiene la misma pantalla, y ya no un enlace muerto',
     academyActivar.status === 200 && academyActivar.html.includes('name="activationCode"'),
@@ -1180,13 +1223,19 @@ async function main() {
     `status=${rescatado.status} first=${rescatado.body?.firstRedemption}`,
   );
 
-  const portada = await waitForHtml(`${WEB}/discover`, altaJar, (html) =>
-    html.includes('5.º de primaria'),
+  // En "Mis kits", no en la portada: el canvas dejo arriba lo que el alumno
+  // viene a HACER -el curso a medias, sus cifras y lo que tiene pendiente- y
+  // movio el inventario de kits a su propia pantalla. Mismo caso que el listado
+  // de Academy, unas comprobaciones mas arriba.
+  const misKits = await waitForHtml(
+    `${WEB}/${await portalOf(altaJar)}/kits`,
+    altaJar,
+    (html) => html.includes('5.º de primaria'),
   );
   report(
-    'El kit recien activado aparece en la portada del alumno',
-    Boolean(portada),
-    portada ? '' : 'no aparecio en 40 s',
+    'El kit recien activado aparece en el contenido del alumno',
+    Boolean(misKits),
+    misKits ? '' : 'no aparecio en 40 s',
   );
 
 
@@ -1302,6 +1351,7 @@ async function main() {
   );
 
   // --- Las pantallas ---
+  // Sin sesion la ruta da igual: lo que se comprueba es que exige entrar.
   const bibSinSesion = await fetch(`${WEB}/academy/biblioteca`, { redirect: 'manual' });
   report(
     'La biblioteca exige sesion',
@@ -1309,7 +1359,9 @@ async function main() {
     `status=${bibSinSesion.status}`,
   );
 
-  const bibPagina = await waitForHtml(`${WEB}/academy/biblioteca`, bibJar, (html) =>
+  const bibPortal = await portalOf(bibJar);
+
+  const bibPagina = await waitForHtml(`${WEB}/${bibPortal}/biblioteca`, bibJar, (html) =>
     html.includes('Monta tu primer robot'),
   );
 
@@ -1337,7 +1389,7 @@ async function main() {
   );
 
   const visorVideo = await fetchHtml(
-    `${WEB}/academy/biblioteca/${bibKit.videoAssetId}`,
+    `${WEB}/${bibPortal}/biblioteca/${bibKit.videoAssetId}`,
     bibJar,
   );
   report(
@@ -1348,13 +1400,16 @@ async function main() {
     `status=${visorVideo.status}`,
   );
 
-  const visorDoc = await fetchHtml(`${WEB}/academy/biblioteca/${bibKit.assetId}`, bibJar);
+  const visorDoc = await fetchHtml(`${WEB}/${bibPortal}/biblioteca/${bibKit.assetId}`, bibJar);
   report(
     'Un documento descargable ofrece su enlace de descarga firmado',
     visorDoc.html.includes('data-download="1"') && /X-Amz-Signature/.test(visorDoc.html),
   );
 
-  const visorEnlace = await fetchHtml(`${WEB}/academy/biblioteca/${bibKit.linkAssetId}`, bibJar);
+  const visorEnlace = await fetchHtml(
+    `${WEB}/${bibPortal}/biblioteca/${bibKit.linkAssetId}`,
+    bibJar,
+  );
   report(
     'Un enlace externo se abre fuera, con noopener, y no se incrusta',
     visorEnlace.html.includes('data-delivery="external"') &&
@@ -1362,17 +1417,18 @@ async function main() {
       !visorEnlace.html.includes('<iframe'),
   );
 
-  const visorAjeno = await fetch(`${WEB}/academy/biblioteca/${bibKit.videoAssetId}`, {
-    headers: { cookie: `glexco_at=${otroToken}` },
-    redirect: 'manual',
-  });
+  const otroJar = `glexco_at=${otroToken}`;
+  const visorAjeno = await fetch(
+    `${WEB}/${await portalOf(otroJar)}/biblioteca/${bibKit.videoAssetId}`,
+    { headers: { cookie: otroJar }, redirect: 'manual' },
+  );
   report(
     'Un alumno sin el kit no ve el recurso: misma pantalla que si no existiera',
     visorAjeno.status === 404,
     `status=${visorAjeno.status}`,
   );
 
-  const visorBorrador = await fetch(`${WEB}/academy/biblioteca/${bibKit.draftAssetId}`, {
+  const visorBorrador = await fetch(`${WEB}/${bibPortal}/biblioteca/${bibKit.draftAssetId}`, {
     headers: { cookie: bibJar },
     redirect: 'manual',
   });
@@ -1795,7 +1851,7 @@ async function main() {
 
   // La portada del alumno NO pinta un bloque vacio cuando no hay anuncios: seria
   // ruido diario en la pantalla que mas se abre.
-  const portadaSinAnuncios = await fetchHtml(`${WEB}/academy`, bibJar);
+  const portadaSinAnuncios = await fetchHtml(`${WEB}/${await portalOf(bibJar)}`, bibJar);
   report(
     'Sin anuncios, la portada del alumno no muestra un bloque vacio',
     portadaSinAnuncios.status === 200 && !portadaSinAnuncios.html.includes('No hay anuncios'),
@@ -2127,6 +2183,35 @@ async function waitForHtml(url, cookie, matches, timeoutMs = 40_000) {
     await sleep(1_500);
   }
   return null;
+}
+
+/**
+ * A que portal pertenece esta sesion.
+ *
+ * **No se da por supuesto que un alumno es de Academy.** Desde que existe el
+ * guard de portal -que el cliente pidio porque las rutas se rompian y un alumno
+ * de Academy acababa en pantallas de Discover-, pedir `/academy/...` con la
+ * sesion de un alumno de primaria devuelve un 307 a su portal. Este guion
+ * sembraba alumnos sin fijar su edad y luego los mandaba a rutas de Academy, asi
+ * que veintisiete comprobaciones caian por un redirect que es EL COMPORTAMIENTO
+ * CORRECTO.
+ *
+ * Se resuelve preguntando una vez por sesion y se cachea: el portal de un
+ * usuario no cambia a mitad de comprobacion.
+ */
+const portalCache = new Map();
+
+async function portalOf(cookie) {
+  if (portalCache.has(cookie)) return portalCache.get(cookie);
+
+  const probe = await fetch(`${WEB}/academy`, { headers: { cookie }, redirect: 'manual' });
+  // 200 = es suyo. Cualquier redirect = el guard lo manda al que le toca.
+  const portal = probe.status === 200 ? 'academy' : 'discover';
+  // El cuerpo se descarta, pero hay que consumirlo o la conexion queda abierta.
+  await probe.text().catch(() => undefined);
+
+  portalCache.set(cookie, portal);
+  return portal;
 }
 
 async function fetchHtml(url, cookie) {

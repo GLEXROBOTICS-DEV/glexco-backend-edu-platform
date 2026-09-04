@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import { requireSession } from '../../../../lib/session';
 import {
@@ -50,6 +51,7 @@ export default async function InstitucionPage() {
 
 /** "¿Cómo va mi colegio?" */
 async function Overview({ institutionId }: { institutionId: string }) {
+  const vocab = await getTranslations();
   const { data, failed } = await fetchInstitutionDashboard(institutionId);
 
   if (failed || !data) {
@@ -118,7 +120,7 @@ async function Overview({ institutionId }: { institutionId: string }) {
         data={data.byGrade.map((entry) => {
           const { tone, label } = scoreTone(entry.averagePercentage);
           return {
-            label: gradeLabel(entry.grade),
+            label: gradeLabel(vocab, entry.grade),
             value: Math.round(entry.averagePercentage ?? 0),
             meta: `${entry.classrooms} ${entry.classrooms === 1 ? 'salón' : 'salones'}`,
             tone,
@@ -144,6 +146,7 @@ async function Overview({ institutionId }: { institutionId: string }) {
  * que ver qué mide y qué no antes de leer la primera fila.
  */
 async function Teaching({ institutionId }: { institutionId: string }) {
+  const vocab = await getTranslations();
   const { data, failed } = await fetchTeachingReport(institutionId);
 
   if (failed || !data) return null;
@@ -173,7 +176,7 @@ async function Teaching({ institutionId }: { institutionId: string }) {
         unit=" pts"
         max={40}
         data={data.rows.map((row) => ({
-          label: `${row.grade ? gradeLabel(row.grade) : 'Salón'} · ${row.classroomId.slice(0, 8)}`,
+          label: `${row.grade ? gradeLabel(vocab, row.grade) : 'Salón'} · ${row.classroomId.slice(0, 8)}`,
           value: Math.round(row.averageGain ?? 0),
           meta: `${row.sampleSize} alumnos`,
           // El aviso de muestra insuficiente va POR FILA, no una vez arriba:

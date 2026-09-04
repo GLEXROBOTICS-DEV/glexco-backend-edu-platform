@@ -106,24 +106,24 @@ export async function openLibraryAsset(assetId: string): Promise<OpenedAsset | n
   return result.data;
 }
 
-/** Nombre en pantalla de cada tipo de recurso. El backend guarda la clave. */
-const CONTENT_TYPE_LABELS: Record<string, string> = {
-  video: 'Vídeo',
-  document: 'Documento',
-  presentation: 'Presentación',
-  worksheet: 'Ficha',
-  guide: 'Guía',
-  manual: 'Manual',
-  tutorial: 'Tutorial',
-  webinar: 'Webinar',
-  masterclass: 'Clase magistral',
-  code_sample: 'Código de ejemplo',
-  build_instruction: 'Instrucciones de montaje',
-  external_link: 'Enlace',
-};
-
-export function contentTypeLabel(type: string): string {
-  return CONTENT_TYPE_LABELS[type] ?? type;
+/**
+ * Nombre en pantalla de cada tipo de recurso.
+ *
+ * Recibe el traductor en vez de tener el mapa dentro. El mapa vivia aqui en
+ * espanol, asi que al cambiar a ingles la biblioteca seguia diciendo "Vídeo" y
+ * "Instrucciones de montaje" rodeados de texto en ingles: media pantalla
+ * traducida se lee peor que ninguna.
+ *
+ * El vocabulario vive en `messages/*.json` bajo `tiposContenido`, con la MISMA
+ * clave que guarda el backend. Si llega un tipo nuevo que nadie ha traducido, se
+ * devuelve la clave cruda -"code_sample"- y eso se ve; con un `??` a un mapa en
+ * espanol no se veria nada raro y se quedaria asi para siempre.
+ */
+export function contentTypeLabel(
+  t: (key: string) => string,
+  type: string,
+): string {
+  return safeLabel(t, 'tiposContenido', type);
 }
 
 /** Duracion en minutos y segundos. `null` cuando el recurso no dura nada -un
@@ -149,23 +149,30 @@ export function sizeLabel(bytes: number | null): string | null {
   return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
 }
 
-/** Grados peruanos en texto legible. El backend guarda la clave estable. */
-const GRADE_LABELS: Record<string, string> = {
-  primary_1: '1.º de primaria',
-  primary_2: '2.º de primaria',
-  primary_3: '3.º de primaria',
-  primary_4: '4.º de primaria',
-  primary_5: '5.º de primaria',
-  primary_6: '6.º de primaria',
-  secondary_1: '1.º de secundaria',
-  secondary_2: '2.º de secundaria',
-  secondary_3: '3.º de secundaria',
-  secondary_4: '4.º de secundaria',
-  secondary_5: '5.º de secundaria',
-  technical_program: 'Programa técnico',
-  higher_program: 'Programa superior',
-};
+/**
+ * Grado en texto legible.
+ *
+ * El backend guarda la clave estable (`primary_3`) y la pantalla la traduce, por
+ * lo mismo que los tipos de contenido: son vocabulario visible y cambian con el
+ * idioma del usuario, no con el del dominio.
+ */
+export function gradeLabel(t: (key: string) => string, grade: string): string {
+  return safeLabel(t, 'grados', grade);
+}
 
-export function gradeLabel(grade: string): string {
-  return GRADE_LABELS[grade] ?? grade;
+/**
+ * Traduce una clave de vocabulario sin reventar si no existe.
+ *
+ * `t()` de next-intl LANZA cuando la clave falta, asi que un tipo de contenido
+ * nuevo en el backend tumbaria la pantalla entera de la biblioteca en vez de
+ * mostrar una etiqueta fea. Aqui se prefiere la etiqueta fea: el alumno ve su
+ * material y quien mantenga esto ve la clave sin traducir.
+ */
+function safeLabel(t: (key: string) => string, space: string, key: string): string {
+  if (!key) return '';
+  try {
+    return t(space + '.' + key);
+  } catch {
+    return key;
+  }
 }

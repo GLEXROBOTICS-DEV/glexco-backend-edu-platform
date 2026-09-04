@@ -82,12 +82,26 @@ export function EmptyState({
   title,
   description,
   action,
+  level = 2,
 }: {
   icon?: React.ReactNode;
   title: string;
   description: string;
   action?: { href: string; label: string };
+  /**
+   * Nivel del encabezado. **2 por defecto y no 3.**
+   *
+   * Estaba clavado en `h3`, asi que cuando el estado vacio era lo primero bajo
+   * el titulo de la pagina -que es el caso mas frecuente, porque una pantalla
+   * vacia no tiene secciones- el documento saltaba de `h1` a `h3`. Quien navega
+   * por encabezados con un lector de pantalla lee ese salto como "me he perdido
+   * un apartado" y vuelve atras a buscarlo.
+   *
+   * Se pasa `3` cuando el vacio va DENTRO de una seccion que ya tiene su `h2`.
+   */
+  level?: 2 | 3;
 }) {
+  const Heading = level === 3 ? 'h3' : 'h2';
   return (
     <div
       className="border border-dashed border-line-300 bg-white text-center"
@@ -98,7 +112,7 @@ export function EmptyState({
           {icon}
         </span>
       ) : null}
-      <h3 className="font-display text-lg font-semibold">{title}</h3>
+      <Heading className="font-display text-lg font-semibold">{title}</Heading>
       <p className="mx-auto mt-2 max-w-sm text-sm text-ink-500">{description}</p>
       {action ? (
         <a

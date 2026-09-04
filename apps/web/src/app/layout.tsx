@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import type { AbstractIntlMessages } from 'next-intl';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import './globals.css';
@@ -71,8 +72,43 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
           {t('saltarAlContenido')}
         </a>
-        <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
+        {/* SOLO los espacios que usa un componente de cliente.
+
+            `messages` completo se serializa dentro del HTML de CADA pagina, y a
+            medida que se traduce el portal ese bloque crece sin techo: con el
+            catalogo entero ya son decenas de kilobytes que viajan para que el
+            cliente use cuatro claves. Estas pantallas las abren equipos de
+            laboratorio escolar, y es el mismo criterio por el que los graficos
+            son SVG propio en vez de una libreria de 150 KB.
+
+            Todo lo demas se traduce en el SERVIDOR con `getTranslations`, que no
+            manda nada al navegador.
+
+            **Al escribir un componente de cliente que traduzca, su espacio va
+            aqui.** Si falta, next-intl no rompe la pagina: pinta la clave sin
+            traducir y lo registra en consola. Es visible, pero solo si alguien
+            mira, asi que la lista se comprueba con `grep useTranslations`. */}
+        <NextIntlClientProvider messages={forClient(messages)}>
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );
+}
+
+/**
+ * Los espacios de traduccion que necesita el navegador.
+ *
+ * Se declara la lista en vez de deducirla: no hay forma de saber en compilacion
+ * que claves pide un componente de cliente, y una heuristica que se equivocara
+ * en silencio es peor que una lista que hay que mantener a mano.
+ */
+const CLIENT_NAMESPACES = ['comun', 'tema', 'idioma', 'nav', 'evaluacion'] as const;
+
+function forClient(messages: AbstractIntlMessages): AbstractIntlMessages {
+  const subset: AbstractIntlMessages = {};
+  for (const space of CLIENT_NAMESPACES) {
+    if (messages[space] !== undefined) subset[space] = messages[space];
+  }
+  return subset;
 }

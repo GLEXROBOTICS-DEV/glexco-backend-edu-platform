@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { getTranslations } from 'next-intl/server';
 import { ClassroomIcon } from '@glexco/icons';
 import { requireSession } from '../../../lib/session';
 import { fetchMyClassrooms } from '../../../lib/classrooms';
@@ -113,6 +114,7 @@ function CifrasSkeleton() {
 }
 
 async function Classrooms({ manages }: { manages: boolean }) {
+  const vocab = await getTranslations();
   const { items, failed } = await fetchMyClassrooms();
 
   if (failed) {
@@ -146,7 +148,7 @@ async function Classrooms({ manages }: { manages: boolean }) {
               <div className="min-w-0">
                 <h3 className="truncate font-display text-lg font-semibold">{classroom.name}</h3>
                 <p className="mt-0.5 text-sm text-ink-500">
-                  {gradeLabel(classroom.grade)}
+                  {gradeLabel(vocab, classroom.grade)}
                   {manages && classroom.teacherName ? ` · ${classroom.teacherName}` : ''}
                 </p>
               </div>
