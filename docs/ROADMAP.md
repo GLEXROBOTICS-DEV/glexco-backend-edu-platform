@@ -231,7 +231,14 @@ frontend o clientes reales:
 - [x] Registro de alumno y activación de código desde el portal.
 - [x] El alumno responde los cuestionarios desde el portal, sin JavaScript si
       hace falta, y ve su nota al instante.
-- [ ] i18n es/en con next-intl (hoy los textos están en español en el código).
+- [x] **i18n es/en montado**, sin enrutado por idioma: el idioma sale del perfil
+      del usuario —que es donde ya vivía y lo que usan los correos— y de una
+      cookie en las pantallas públicas. Traducidos el acceso, el cromo de la
+      aplicación y la navegación.
+- [ ] i18n: **traducir el cuerpo de las pantallas**. Es continuación mecánica
+      sobre la infraestructura ya montada: `getTranslations` en los componentes
+      de servidor, `useTranslations` en los de cliente, y las claves nuevas en
+      `apps/web/src/messages/{es,en}.json`.
 - [ ] Auditoría de accesibilidad WCAG 2.1 AA completa y navegación por teclado
       verificada pantalla a pantalla.
 

@@ -221,8 +221,15 @@ tráfico real son cientos de megas por vídeo desde nuestro ancho de banda.
    de protección de menores, y lo convierte en una extensión de los anuncios que
    ya existen en `engagement`: el mismo agregado, abriendo la publicación a los
    alumnos del salón y añadiendo respuestas. **Está sin empezar.**
-2. **i18n es/en con next-intl.** Es lo único que le queda a la Fase 4 junto con
-   la auditoría de accesibilidad. Hoy los textos están en español en el código.
+2. **i18n: traducir el cuerpo de las pantallas.** La infraestructura está
+   montada y funcionando —acceso, cromo y navegación ya son bilingües—, así que
+   lo que queda es mecánico: `getTranslations` en los componentes de servidor,
+   `useTranslations` en los de cliente, y las claves en
+   `apps/web/src/messages/{es,en}.json`.
+
+   Dos decisiones que conviene NO deshacer: el idioma sale del **perfil** del
+   usuario y no de la URL (si no, la interfaz y los correos acabarían en idiomas
+   distintos), y **las rutas no se traducen** (van en correos ya enviados).
 3. **Auditoría WCAG 2.1 AA** pantalla a pantalla, con navegación por teclado.
 
 ### Después, por valor
