@@ -63,6 +63,13 @@ async function main() {
   console.log(`${colors.dim}web: ${WEB} · gateway: ${GATEWAY}${colors.reset}`);
 
   // ------------------------------------------------------------------
+  section('0. Coherencia del catalogo de traducciones');
+  // ------------------------------------------------------------------
+  // Antes de tocar la red: es estatica, es instantanea, y si falla lo que sigue
+  // se pinta con las claves crudas.
+  await comprobarEspaciosDeCliente();
+
+  // ------------------------------------------------------------------
   section('1. Paginas publicas y proteccion de rutas');
   // ------------------------------------------------------------------
   const loginPage = await fetch(`${WEB}/ingresar`);
@@ -2131,7 +2138,8 @@ async function main() {
   const portadaSinAnuncios = await fetchHtml(`${WEB}/${await portalOf(bibJar)}`, bibJar);
   report(
     'Sin anuncios, la portada del alumno no muestra un bloque vacio',
-    portadaSinAnuncios.status === 200 && !portadaSinAnuncios.html.includes('No hay anuncios'),
+    portadaSinAnuncios.status === 200 &&
+      !visible(portadaSinAnuncios.html).includes('No hay anuncios'),
     `status=${portadaSinAnuncios.status}`,
   );
 
@@ -2514,6 +2522,120 @@ async function fetchEsperandoLimite(url, init, intentos = 3) {
   }
 
   return fetch(url, init);
+}
+
+/**
+ * Los espacios de traduccion que piden los componentes de CLIENTE.
+ *
+ * Se lee el codigo, no el HTML servido, porque es lo unico que responde a la
+ * pregunta: al navegador solo se le mandan los espacios de `CLIENT_NAMESPACES`,
+ * y si un componente de cliente pide uno que no esta en esa lista, `next-intl`
+ * no lo encuentra y la pantalla se cae o pinta la clave cruda.
+ *
+ * Es la trampa que abrio el propio recorte del catalogo: acotar lo que viaja
+ * ahorra kilobytes en cada pagina, pero convierte "anadir un componente de
+ * cliente que traduzca" en dos pasos, y el segundo se olvida. Paso a la primera:
+ * el muro pedia `muro` y la lista no lo llevaba.
+ *
+ * Se comprueba aqui y no con una prueba unitaria porque `apps/web` no tiene
+ * ninguna: esta es la suite del portal.
+ */
+async function comprobarEspaciosDeCliente() {
+  const { readdirSync, readFileSync, statSync } = await import('node:fs');
+  const { join } = await import('node:path');
+
+  const raiz = 'apps/web/src';
+  const archivos = [];
+
+  const recorrer = (dir) => {
+    for (const entrada of readdirSync(dir)) {
+      const ruta = join(dir, entrada);
+      if (statSync(ruta).isDirectory()) recorrer(ruta);
+      else if (ruta.endsWith('.tsx') || ruta.endsWith('.ts')) archivos.push(ruta);
+    }
+  };
+
+  try {
+    recorrer(raiz);
+  } catch {
+    // Ejecutado desde otra carpeta: no se puede leer el codigo y se dice, en vez
+    // de dar por bueno lo que no se comprobo.
+    report('No se pudo leer el codigo para comprobar los espacios de i18n', false, raiz);
+    return;
+  }
+
+  const layout = readFileSync(join(raiz, 'app', 'layout.tsx'), 'utf8');
+  const declarados = new Set(
+    (/const CLIENT_NAMESPACES = \[([\s\S]*?)\]/.exec(layout)?.[1] ?? '')
+      .split(',')
+      .map((parte) => parte.trim().replace(/^'|'$/g, ''))
+      .filter(Boolean),
+  );
+
+  const faltantes = new Map();
+
+  for (const ruta of archivos) {
+    const contenido = readFileSync(ruta, 'utf8');
+    if (!contenido.includes("'use client'")) continue;
+
+    for (const coincidencia of contenido.matchAll(/useTranslations\('([a-zA-Z]+)'\)/g)) {
+      const espacio = coincidencia[1];
+      if (!declarados.has(espacio)) faltantes.set(espacio, ruta);
+    }
+  }
+
+  report(
+    'Todo espacio que pide un componente de cliente viaja al navegador',
+    faltantes.size === 0,
+    faltantes.size === 0
+      ? `${declarados.size} declarados`
+      : [...faltantes].map(([espacio, ruta]) => `${espacio} (${ruta})`).join(', '),
+  );
+
+  // --- Y la trampa que va con ello ---
+  //
+  // Todo lo que viaja al cliente se serializa DENTRO de un `<script>` de cada
+  // pagina. Una afirmacion del tipo "esta pantalla no dice X" que mire el HTML
+  // completo se pone roja en cuanto X entra en el catalogo, aunque la pantalla
+  // no lo muestre. Paso TRES veces: con "Posicion" al anadir la pregunta de
+  // ordenar, y con "No hay anuncios" al traducir el muro.
+  //
+  // En vez de recordarlo, se comprueba: se cruzan los literales de las
+  // afirmaciones negativas con los valores del catalogo que si viaja. Lo que
+  // coincida tiene que mirar `visible()`, y esta comprobacion lo dice por su
+  // nombre.
+  const catalogo = [];
+  for (const idioma of ['es', 'en']) {
+    const mensajes = JSON.parse(readFileSync(join(raiz, 'messages', `${idioma}.json`), 'utf8'));
+    const recoger = (nodo) => {
+      for (const valor of Object.values(nodo)) {
+        if (valor && typeof valor === 'object') recoger(valor);
+        else if (typeof valor === 'string') catalogo.push(valor);
+      }
+    };
+    for (const espacio of declarados) if (mensajes[espacio]) recoger(mensajes[espacio]);
+  }
+
+  const propio = readFileSync('infra/scripts/web-check.mjs', 'utf8');
+  const enRiesgo = [];
+
+  // Solo las que NO usan ya `visible(...)`: las que lo usan estan a salvo por
+  // construccion. Las de seguridad -que la clave de correccion no aparezca en
+  // NINGUN sitio, ni en un script- tienen que seguir mirando el HTML entero, y
+  // sus literales no estan en el catalogo, asi que no salen aqui.
+  for (const linea of propio.split('\n')) {
+    if (linea.includes('visible(')) continue;
+    for (const coincidencia of linea.matchAll(/!\s*[A-Za-z]+(?:\.html)?\??\.includes\('([^']+)'\)/g)) {
+      const literal = coincidencia[1];
+      if (catalogo.some((valor) => valor.includes(literal))) enRiesgo.push(literal);
+    }
+  }
+
+  report(
+    'Ninguna afirmacion de "no dice X" choca con el catalogo serializado',
+    enRiesgo.length === 0,
+    enRiesgo.length === 0 ? '' : `usa visible() con: ${[...new Set(enRiesgo)].join(', ')}`,
+  );
 }
 
 /**

@@ -459,6 +459,19 @@ export interface MyAttemptSummary {
   feedback: string | null;
   submittedAt: string | null;
   gradedAt: string | null;
+  /**
+   * Lo que EL MISMO alumno entrego como evidencia, por id de recurso.
+   *
+   * Es lo unico de sus respuestas que sale por aqui, y sale porque es suyo: sin
+   * esto, el portafolio -la pantalla que existe para ENSENAR el trabajo- no
+   * puede mostrar el trabajo. Ver la foto de tu propio montaje no filtra nada.
+   *
+   * No se devuelven ni las opciones marcadas ni el texto escrito: eso no lo pide
+   * ninguna pantalla, y la regla de este caso de uso es armar la salida a mano y
+   * no volcar el agregado. La clave de correccion sigue sin cruzar esta
+   * frontera por ningun camino.
+   */
+  evidenceAssetIds: string[];
 }
 
 export interface MyResultOutput {
@@ -553,6 +566,9 @@ function toSummary(submission: Submission): MyAttemptSummary {
     feedback: state.feedback,
     submittedAt: state.submittedAt ? state.submittedAt.toISOString() : null,
     gradedAt: state.gradedAt ? state.gradedAt.toISOString() : null,
+    evidenceAssetIds: state.answers
+      .map((answer) => answer.mediaAssetId)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0),
   };
 }
 

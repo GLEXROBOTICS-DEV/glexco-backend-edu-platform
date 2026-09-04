@@ -108,6 +108,42 @@ export function ChallengeIcon(props: IconProps) {
   );
 }
 
+/**
+ * Zona de retos: construir con las manos.
+ *
+ * Una pieza encajando sobre una base, no un trofeo. Un trofeo dice "premio" y
+ * lo que hay detras es trabajo: montar el brazo, programar el recorrido. Y el
+ * premio ya tiene su icono, que es la insignia.
+ */
+export function BuildIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="14" width="8" height="7" rx="1.5" />
+      <rect x="13" y="14" width="8" height="7" rx="1.5" />
+      <rect x="8" y="4" width="8" height="7" rx="1.5" />
+      <path d="M12 11v3" />
+    </Icon>
+  );
+}
+
+/**
+ * Portafolio: lo que ya construyo, para ensenarlo.
+ *
+ * Una carpeta con asa, no un archivador. Un portafolio se lleva encima y se
+ * abre delante de alguien; eso es lo que distingue esta pantalla de "mi
+ * progreso", que es una tabla de cifras.
+ */
+export function PortfolioIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="2.5" y="7" width="19" height="13" rx="2.5" />
+      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7" />
+      <path d="M2.5 12.5h19" />
+      <path d="M10.5 12.5h3" />
+    </Icon>
+  );
+}
+
 /** Codigo de activacion del libro. */
 export function ActivationCodeIcon(props: IconProps) {
   return (

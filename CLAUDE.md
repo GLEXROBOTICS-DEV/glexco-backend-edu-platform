@@ -64,7 +64,7 @@ Verificado:
 | `pnpm test` | **206 pruebas** en memoria |
 | `pnpm smoke` | **96 comprobaciones** de punta a punta |
 | `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
-| `pnpm smoke:web` | **186 comprobaciones** del portal contra el backend |
+| `pnpm smoke:web` | **197 comprobaciones** del portal contra el backend |
 
 Las de concurrencia son las que justifican la arquitectura: un solo canje de
 veinte simultáneos, cinco plazas de veinte solicitudes, la outbox reteniendo el
@@ -140,7 +140,7 @@ pnpm seed                                  # kit, lote de codigos, institucion y
 pnpm smoke                                 # 96 comprobaciones de punta a punta
 pnpm concurrency                           # las 4 garantias de concurrencia real
 pnpm --filter @glexco/web dev              # portal (3010)
-pnpm smoke:web                             # 186 comprobaciones del portal
+pnpm smoke:web                             # 197 comprobaciones del portal
 pnpm projections:check                     # las proyecciones cuadran con su origen?
 pnpm projections                           # reconstruir las que no
 ```

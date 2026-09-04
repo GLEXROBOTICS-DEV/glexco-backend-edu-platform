@@ -71,18 +71,25 @@ export function ThemeToggle() {
   return (
     <fieldset className="min-w-0">
       <legend className="sr-only">{t('leyenda')}</legend>
-      <div className="flex gap-1 rounded-[var(--nav-radius)] bg-white/[0.09] p-1">
+
+      {/* Los MISMOS controles que el selector de idioma, que esta justo encima.
+          No es solo coherencia: este selector vivia en la barra lateral de marca
+          y estaba pintado para ella -`text-white` sobre un fondo oscuro-. Al
+          moverlo al perfil quedo texto casi blanco sobre una tarjeta blanca, y
+          en modo claro no se leia ninguna de las tres opciones. Lo reporto el
+          cliente con una captura.
+
+          Con `.btn` hereda la altura, el radio y el foco de todo el resto de la
+          plataforma, y el activo se distingue por RELLENO y no solo por un
+          matiz: `aria-pressed` lo dice para quien no ve el color. */}
+      <div className="flex flex-wrap gap-2">
         {options.map((option) => (
           <button
             key={option.value}
             type="button"
             onClick={() => apply(option.value)}
             aria-pressed={theme === option.value}
-            className={`flex-1 rounded-[calc(var(--nav-radius)*0.75)] px-2 py-1.5 text-[11px] font-medium transition ${
-              theme === option.value
-                ? 'bg-white/[0.18] text-white'
-                : 'text-onbrand-300 hover:text-white'
-            }`}
+            className={`btn btn-sm ${theme === option.value ? 'btn-primary' : 'btn-secondary'}`}
           >
             {option.label}
           </button>

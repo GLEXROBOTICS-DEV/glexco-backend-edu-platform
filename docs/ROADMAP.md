@@ -329,7 +329,36 @@ frontend o clientes reales:
       decisión:** el progreso solo se compara con uno mismo. La propuesta ya lo
       pide para el ranking —*celebra logros, no señala rezagos*— y entre menores
       vale igual.
-- [ ] Retos de construcción y programación, misiones semanales, portafolio.
+- [x] **Retos de construcción y portafolio.** «Zona de retos» en Discover y
+      «Proyectos y desafíos» en Academy, más «Mi portafolio» en los dos, con su
+      sitio en la barra y sus iconos propios.
+
+      **No hay dominio nuevo, y esa es la decisión.** Un reto de construcción ES
+      una evaluación de tipo `practical`; un proyecto final, una de tipo
+      `project`. Ya se publican, ya tienen plazo, ya llegan a la bandeja del
+      docente y ya cuentan en los dashboards. Crear un agregado `Challenge`
+      aparte habría duplicado publicación, intentos, corrección y analítica, y el
+      día que las dos copias se despegaran nadie sabría cuál es la buena.
+
+      Lo que faltaba era la **pantalla que los separa de los cuestionarios**:
+      mezclados en «Mis actividades», un examen de marcar y un montaje que ocupa
+      una tarde se leían igual, y son dos cosas que el alumno planifica distinto.
+
+      El portafolio se arma con las entregas corregidas de esos retos, con la
+      evidencia y el comentario del docente. Tampoco tiene tabla propia: una
+      pieza de portafolio es una entrega, no una copia de una entrega.
+- [x] **Evidencia de los retos**: el alumno sube una foto o comparte el enlace a
+      su vídeo, y el docente la **abre** en su pantalla de corrección —antes
+      decía «entregó un archivo» y no lo enseñaba—.
+
+      Como trabajan de verdad, y lo precisó el cliente: la evidencia es
+      **opcional** porque lo normal es que el docente revise el montaje en clase
+      y solo registre la nota; y el **vídeo no se sube**, se publica en YouTube o
+      Drive y se envía el enlace. Cerrado en el dominio (`SCOPE_TYPES` de medios)
+      y no solo en la pantalla.
+- [ ] **Misiones semanales.** Es lo único que falta de la fase y lo único que
+      pide algo nuevo: una rotación con calendario, que no existe en ningún
+      servicio. Todo lo demás de «gamificación» ya está.
 - [x] **Certificados con firma Ed25519, QR y verificación pública** sin iniciar
       sesión. La firma es asimétrica y no un HMAC a propósito: cualquiera puede
       comprobar un certificado con la clave pública, sin pedirnos permiso y sin

@@ -137,6 +137,9 @@ export interface MyAttempt {
   feedback: string | null;
   submittedAt: string | null;
   gradedAt: string | null;
+  /** La evidencia que entregó el propio alumno. Vacío si no entregó ninguna,
+   *  que es lo normal cuando el docente lo revisó en clase. */
+  evidenceAssetIds?: string[];
 }
 
 export interface MyResult {

@@ -25,6 +25,8 @@ const TOKEN = process.env.GLEXCO_TOKEN ?? '';
 const PUBLICAS = ['/ingresar', '/registro', '/recuperar'];
 const PRIVADAS = [
   '/discover',
+  '/discover/retos',
+  '/discover/portafolio',
   '/discover/kits',
   '/discover/logros',
   '/discover/progreso',

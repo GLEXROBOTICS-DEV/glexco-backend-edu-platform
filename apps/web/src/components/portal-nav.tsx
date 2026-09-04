@@ -1,5 +1,6 @@
 import {
   BadgeIcon,
+  BuildIcon,
   CertificateIcon,
   ChallengeIcon,
   CourseIcon,
@@ -7,6 +8,7 @@ import {
   KitIcon,
   LevelIcon,
   LibraryIcon,
+  PortfolioIcon,
   RobotIcon,
 } from '@glexco/icons';
 import { getTranslations } from 'next-intl/server';
@@ -51,7 +53,12 @@ export async function portalNavItems(
       { href: '/academy/cursos', label: t('cursos'), icon: <CourseIcon /> },
       { href: '/academy/progreso', label: t('miProgreso'), icon: <LevelIcon /> },
       { href: '/academy/evaluaciones', label: t('evaluaciones'), icon: <ChallengeIcon /> },
+      // Los entregables van SEPARADOS de los cuestionarios: un examen de marcar
+      // y un proyecto que ocupa dos semanas se planifican de forma distinta, y
+      // mezclados en la misma lista se leian igual.
+      { href: '/academy/proyectos', label: t('proyectosYDesafios'), icon: <BuildIcon /> },
       { href: '/academy/biblioteca', label: t('biblioteca'), icon: <LibraryIcon /> },
+      { href: '/academy/portafolio', label: t('miPortafolio'), icon: <PortfolioIcon /> },
       { href: '/academy/logros', label: t('misLogros'), icon: <BadgeIcon /> },
       { href: '/academy/certificaciones', label: t('certificaciones'), icon: <CertificateIcon /> },
     ];
@@ -63,7 +70,9 @@ export async function portalNavItems(
     { href: '/discover/kits', label: t('misKits'), icon: <KitIcon /> },
     { href: '/discover/progreso', label: t('miProgreso'), icon: <LevelIcon /> },
     { href: '/discover/evaluaciones', label: t('actividades'), icon: <ChallengeIcon /> },
+    { href: '/discover/retos', label: t('zonaDeRetos'), icon: <BuildIcon /> },
     { href: '/discover/biblioteca', label: t('biblioteca'), icon: <LibraryIcon /> },
+    { href: '/discover/portafolio', label: t('miPortafolio'), icon: <PortfolioIcon /> },
     { href: '/discover/logros', label: t('misLogros'), icon: <BadgeIcon /> },
     { href: '/discover/certificados', label: t('misCertificados'), icon: <CertificateIcon /> },
   ];

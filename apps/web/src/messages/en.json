@@ -43,7 +43,10 @@
     "miInstitucion": "My school",
     "plataforma": "Platform",
     "miCuenta": "My account",
-    "comoFunciona": "How it works"
+    "comoFunciona": "How it works",
+    "zonaDeRetos": "Challenge zone",
+    "proyectosYDesafios": "Projects and challenges",
+    "miPortafolio": "My portfolio"
   },
   "ingreso": {
     "titulo": "Welcome back",
@@ -475,5 +478,52 @@
     "temaPista": "Remembered on this device, not in your account: every screen has its own light.",
     "salir": "Sign out",
     "salirPista": "It only closes on this device. The others stay open."
+  },
+  "retos": {
+    "titulo": "Challenge zone",
+    "subtitulo": "What you build with your hands. Your teacher reviews every challenge.",
+    "tituloAcademy": "Projects and challenges",
+    "subtituloAcademy": "Your courses' deliverables, with their closing date.",
+    "falloTitulo": "We couldn't load your challenges",
+    "falloDescripcion": "Try again in a moment. If it keeps happening, tell your teacher.",
+    "sinRetosTitulo": "No challenges published yet",
+    "sinProyectosTitulo": "No projects published yet",
+    "sinRetosDescripcion": "When your teacher or GLEXCO publish one for your kit, it will show up here.",
+    "puntos": "{puntos} points",
+    "incluidoEnTuKit": "Included in your kit",
+    "deTuDocente": "From your teacher",
+    "abrir": "Open",
+    "cerrado": "Closed",
+    "cierraHoy": "Closes today",
+    "cierraManana": "Closes tomorrow",
+    "cierraEnDias": "Closes in {dias} days",
+    "cierraElDia": "Closes {fecha}",
+    "tipo": {
+      "practical": "Build challenge",
+      "project": "Project",
+      "stem_activity": "STEM activity",
+      "quiz": "Quiz"
+    }
+  },
+  "portafolio": {
+    "titulo": "My portfolio",
+    "subtitulo": "Everything you have built, with what your teacher said. It's yours to show.",
+    "falloTitulo": "We couldn't load your portfolio",
+    "falloDescripcion": "Try again in a moment. If it keeps happening, tell your teacher.",
+    "vacioTitulo": "Your portfolio starts with your first challenge",
+    "vacioDescripcion": "As soon as you hand one in and your teacher reviews it, it will show up here for you to show.",
+    "verRetos": "See my challenges",
+    "entregadoEl": "handed in {fecha}",
+    "enRevision": "Under review",
+    "logrado": "Achieved",
+    "porMejorar": "To improve",
+    "deTuDocente": "From your teacher",
+    "verDetalle": "See the detail",
+    "tipo": {
+      "practical": "Build challenge",
+      "project": "Project",
+      "stem_activity": "STEM activity",
+      "quiz": "Quiz"
+    }
   }
 }

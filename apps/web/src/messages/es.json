@@ -43,7 +43,10 @@
     "miInstitucion": "Mi institución",
     "plataforma": "Plataforma",
     "miCuenta": "Mi cuenta",
-    "comoFunciona": "Cómo funciona"
+    "comoFunciona": "Cómo funciona",
+    "zonaDeRetos": "Zona de retos",
+    "proyectosYDesafios": "Proyectos y desafíos",
+    "miPortafolio": "Mi portafolio"
   },
   "ingreso": {
     "titulo": "Bienvenido de vuelta",
@@ -475,5 +478,52 @@
     "temaPista": "Se recuerda en este dispositivo, no en tu cuenta: cada pantalla tiene su luz.",
     "salir": "Cerrar sesión",
     "salirPista": "Se cierra solo en este dispositivo. Los demás siguen abiertos."
+  },
+  "retos": {
+    "titulo": "Zona de retos",
+    "subtitulo": "Lo que construyes con las manos. Cada reto lo revisa tu docente.",
+    "tituloAcademy": "Proyectos y desafíos",
+    "subtituloAcademy": "Los entregables de tus cursos, con su fecha de cierre.",
+    "falloTitulo": "No pudimos cargar tus retos",
+    "falloDescripcion": "Vuelve a intentarlo en un momento. Si sigue pasando, avisa a tu docente.",
+    "sinRetosTitulo": "Todavía no hay retos publicados",
+    "sinProyectosTitulo": "Todavía no hay proyectos publicados",
+    "sinRetosDescripcion": "Cuando tu docente o GLEXCO publiquen uno de tu kit, aparecerá aquí.",
+    "puntos": "{puntos} puntos",
+    "incluidoEnTuKit": "Incluido en tu kit",
+    "deTuDocente": "De tu docente",
+    "abrir": "Abrir",
+    "cerrado": "Cerrado",
+    "cierraHoy": "Cierra hoy",
+    "cierraManana": "Cierra mañana",
+    "cierraEnDias": "Cierra en {dias} días",
+    "cierraElDia": "Cierra el {fecha}",
+    "tipo": {
+      "practical": "Reto de construcción",
+      "project": "Proyecto",
+      "stem_activity": "Actividad STEM",
+      "quiz": "Cuestionario"
+    }
+  },
+  "portafolio": {
+    "titulo": "Mi portafolio",
+    "subtitulo": "Todo lo que has construido, con lo que te dijo tu docente. Es tuyo para enseñarlo.",
+    "falloTitulo": "No pudimos cargar tu portafolio",
+    "falloDescripcion": "Vuelve a intentarlo en un momento. Si sigue pasando, avisa a tu docente.",
+    "vacioTitulo": "Tu portafolio empieza con tu primer reto",
+    "vacioDescripcion": "En cuanto entregues uno y tu docente lo revise, aparecerá aquí para que puedas enseñarlo.",
+    "verRetos": "Ver mis retos",
+    "entregadoEl": "entregado el {fecha}",
+    "enRevision": "En revisión",
+    "logrado": "Logrado",
+    "porMejorar": "Por mejorar",
+    "deTuDocente": "De tu docente",
+    "verDetalle": "Ver el detalle",
+    "tipo": {
+      "practical": "Reto de construcción",
+      "project": "Proyecto",
+      "stem_activity": "Actividad STEM",
+      "quiz": "Cuestionario"
+    }
   }
 }

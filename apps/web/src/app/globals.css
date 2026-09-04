@@ -328,18 +328,33 @@ html {
   }
 }
 
-body {
-  background: var(--color-surface-100);
-  color: var(--color-ink-900);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-}
+/**
+ * Los estilos base van en `@layer base`, y NO sueltos.
+ *
+ * En Tailwind v4 el CSS **sin capa gana a las utilidades**, sin que la
+ * especificidad importe. Escritos sueltos, estos selectores de elemento anulaban
+ * cualquier `text-*` de cualquier `h1`, `h2` o `h3` de toda la plataforma: la
+ * cabecera de Discover llevaba `text-white` desde que se escribio y el titulo
+ * salia en tinta oscura sobre la banda azul. En modo oscuro no se notaba porque
+ * `--color-ink-900` se aclara, asi que el fallo solo aparecia en modo claro.
+ *
+ * Lo reporto el cliente con una captura. Dentro de `base`, las utilidades vuelven
+ * a mandar, que es todo el contrato de escribir clases en el JSX.
+ */
+@layer base {
+  body {
+    background: var(--color-surface-100);
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
 
-h1,
-h2,
-h3 {
-  font-family: var(--font-display);
-  color: var(--color-ink-900);
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    color: var(--color-ink-900);
+  }
 }
 
 /**
