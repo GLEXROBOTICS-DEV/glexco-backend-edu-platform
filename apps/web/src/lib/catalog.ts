@@ -59,6 +59,45 @@ export async function fetchMyKits(): Promise<{ kits: MyKit[]; failed: boolean }>
   return { kits: result.data.kits ?? [], failed: false };
 }
 
+export interface CatalogKit {
+  kitId: string;
+  code: string;
+  name: string;
+  program: string;
+  grade: string;
+  /** Solo lo trae la ruta de gestión. */
+  status?: string;
+}
+
+/**
+ * El catálogo de kits.
+ *
+ * Dos rutas y no una, porque son dos preguntas distintas: `GET /catalog/kits` es
+ * el índice de lo publicado -lo puede leer cualquier docente- y
+ * `GET /catalog/kits/manage` trae también los borradores y exige el permiso de
+ * quien decide qué llega a un aula. Una pantalla que solo lista lo publicado no
+ * puede publicar nada.
+ */
+export async function fetchAllKits(
+  options: { includeUnpublished?: boolean } = {},
+): Promise<{ items: CatalogKit[]; failed: boolean }> {
+  const ruta = options.includeUnpublished ? '/catalog/kits/manage' : '/catalog/kits';
+  const result = await api<{ items: CatalogKit[] }>(`${ruta}?limit=100`);
+
+  if (!result.ok) {
+    // Lista vacía y no un error: la pantalla se pinta y dice que no hay nada que
+    // gestionar, en vez de dejar al operador con un error sin acción.
+    console.error('No se pudo leer el catálogo de kits', {
+      status: result.status,
+      code: result.error.code,
+      correlationId: result.error.correlationId,
+    });
+    return { items: [], failed: true };
+  }
+
+  return { items: result.data.items ?? [], failed: false };
+}
+
 export async function fetchLibrary(kitId: string): Promise<LibraryItem[]> {
   const result = await api<{ items: LibraryItem[] }>(
     `/catalog/library?kitId=${encodeURIComponent(kitId)}&limit=100`,

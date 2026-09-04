@@ -2318,6 +2318,162 @@ async function main() {
 
 
   // ------------------------------------------------------------------
+  section('12b. Portal Admin: lo que solo se podia hacer con curl');
+  // ------------------------------------------------------------------
+  //
+  // Cuatro capacidades llevaban fases construidas en el backend -con sus
+  // permisos, sus validaciones y sus eventos- y NINGUNA tenia pantalla: dar de
+  // alta un colegio, concederle su licencia, crear una cuenta de personal y
+  // generar un lote de codigos. Lo que se comprueba aqui es que ahora se llega
+  // por el portal, y que quien no tiene el permiso NO llega.
+  const [operador] = await seedUsers(1, { roles: [ROLES.PLATFORM_ADMIN] });
+  const operadorToken = mintAccessToken({ userId: operador.id, roles: operador.roles });
+  const operadorJar = `glexco_at=${operadorToken}`;
+
+  for (const [ruta, titulo] of [
+    ['/admin/instituciones', 'Dar de alta un colegio'],
+    ['/admin/usuarios', 'Crear una cuenta'],
+    ['/admin/codigos', 'Generar un lote'],
+    ['/admin/contenidos', 'Kits'],
+  ]) {
+    const pantalla = await fetchHtml(`${WEB}${ruta}`, operadorJar);
+    report(
+      `${ruta} responde y trae su formulario`,
+      pantalla.status === 200 && pantalla.html.includes(titulo),
+      `status=${pantalla.status}`,
+    );
+  }
+
+  // El alta de colegio, por la via real y de punta a punta.
+  const codigoNuevo = `WEB${Date.now().toString(36).toUpperCase().slice(-6)}`;
+  const colegioNuevo = await postJson(`${INSTITUTIONS}/api/v1/institutions`, operadorToken, {
+    code: codigoNuevo,
+    name: 'Colegio de la comprobacion del portal',
+    shortName: 'Comprobacion',
+    educationLevels: ['primary'],
+    responsibleName: 'Ana Perez',
+    contactEmail: `direccion.${Date.now()}@colegio.pe`,
+    city: 'Lima',
+  });
+
+  report(
+    'Un operador de GLEXCO da de alta un colegio',
+    colegioNuevo.status === 201 && Boolean(colegioNuevo.body?.institutionId),
+    `status=${colegioNuevo.status} ${JSON.stringify(colegioNuevo.body).slice(0, 120)}`,
+  );
+
+  // El codigo se guarda NORMALIZADO, sin guiones. Es lo que costo dos siembras
+  // muertas y una institucion duplicada: quien lo escribe con guion y luego lo
+  // busca tal cual no lo encuentra.
+  const buscado = await fetch(
+    `${GATEWAY}/api/v1/institutions/by-code/${encodeURIComponent(codigoNuevo)}`,
+  );
+  report(
+    'Y su codigo sirve para que un alumno lo encuentre al registrarse',
+    buscado.status === 200,
+    `status=${buscado.status}`,
+  );
+
+  const licencia = await postJson(
+    `${INSTITUTIONS}/api/v1/institutions/${colegioNuevo.body?.institutionId}/licenses`,
+    operadorToken,
+    {
+      seats: 25,
+      startsAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 365 * 86_400_000).toISOString(),
+      reference: 'OC-COMPROBACION',
+    },
+  );
+  report(
+    'Y le concede su licencia con plazas y periodo',
+    licencia.status === 201,
+    `status=${licencia.status} ${JSON.stringify(licencia.body).slice(0, 120)}`,
+  );
+
+  // El periodo al reves se rechaza: una licencia que caduca antes de empezar
+  // deja al colegio sin poder activar y nadie sabria por que.
+  const periodoAlReves = await postJson(
+    `${INSTITUTIONS}/api/v1/institutions/${colegioNuevo.body?.institutionId}/licenses`,
+    operadorToken,
+    {
+      seats: 10,
+      startsAt: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      expiresAt: new Date().toISOString(),
+    },
+  );
+  report(
+    'Una licencia que caduca antes de empezar se rechaza',
+    periodoAlReves.status === 400 || periodoAlReves.status === 422,
+    `status=${periodoAlReves.status}`,
+  );
+
+  // Alta de personal: la matriz de roles decide, no la pantalla.
+  const docenteNuevo = await postJson(`${GATEWAY}/api/v1/users/staff`, operadorToken, {
+    email: `docente.admin.${Date.now()}@colegio.pe`,
+    firstName: 'Lucia',
+    lastName: 'Mendoza',
+    role: ROLES.TEACHER,
+    institutionId: colegioNuevo.body?.institutionId,
+  });
+  report(
+    'Crea la cuenta de un docente sin elegirle la contrasena',
+    docenteNuevo.status === 201,
+    `status=${docenteNuevo.status} ${JSON.stringify(docenteNuevo.body ?? {}).slice(0, 120)}`,
+  );
+
+  // Y devuelve una temporal, UNA vez. No se manda ningun correo: quien crea la
+  // cuenta es quien la entrega, y la pantalla tiene que decir eso o la persona
+  // se queda esperando algo que no existe.
+  report(
+    'Y devuelve una contrasena temporal para entregarla en persona',
+    typeof docenteNuevo.body?.temporaryPassword === 'string' &&
+      docenteNuevo.body.temporaryPassword.length >= 10,
+    `tiene temporal=${Boolean(docenteNuevo.body?.temporaryPassword)}`,
+  );
+
+  // Un lote de codigos: la operacion con mas consecuencias del panel.
+  const lote = await postJson(
+    `${CATALOG}/api/v1/catalog/batches`,
+    operadorToken,
+    {
+      kitId: dashKit.kitId,
+      size: 5,
+      distributedTo: colegioNuevo.body?.institutionId,
+      reference: 'OC-COMPROBACION',
+    },
+  );
+  report(
+    'Genera un lote de codigos para ese colegio',
+    lote.status === 201 && (lote.body?.codes ?? []).length === 5,
+    `status=${lote.status} codigos=${(lote.body?.codes ?? []).length}`,
+  );
+
+  // LA garantia del lote: los codigos vienen UNA vez y en la base solo queda su
+  // hash. Sin esto, un volcado de la tabla se convierte en miles de accesos
+  // vendibles.
+  const codigosDeLote = await getJson(
+    `${CATALOG}/api/v1/catalog/batches/${lote.body?.batchId}/codes`,
+    operadorToken,
+  );
+  const enClaro = JSON.stringify(codigosDeLote.body ?? {});
+  report(
+    'Los codigos NO se pueden volver a descargar: solo su sufijo',
+    codigosDeLote.status === 200 &&
+      (lote.body?.codes ?? []).every((code) => !enClaro.includes(code)),
+    `status=${codigosDeLote.status}`,
+  );
+
+  // Y el aislamiento: un docente no gestiona la plataforma.
+  for (const ruta of ['/admin/instituciones', '/admin/codigos', '/admin/contenidos']) {
+    const negada = await fetchHtml(`${WEB}${ruta}`, teacherJar);
+    report(
+      `Un docente NO entra en ${ruta}`,
+      negada.status === 307 || negada.status === 302,
+      `status=${negada.status}`,
+    );
+  }
+
+  // ------------------------------------------------------------------
   section('13. El gateway corta en el borde lo que no lleva credencial');
   // ------------------------------------------------------------------
 

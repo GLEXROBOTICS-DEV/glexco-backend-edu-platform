@@ -1,13 +1,16 @@
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import {
+  ActivationCodeIcon,
   AnnouncementIcon,
   ClassroomIcon,
+  CourseIcon,
   DashboardIcon,
   GradingIcon,
   InstitutionIcon,
+  StudentsIcon,
 } from '@glexco/icons';
-import { PERMISSIONS } from '@glexco/contracts';
+import { PERMISSIONS, ROLE_CREATION_MATRIX, type Role } from '@glexco/contracts';
 import { getSession } from '../../lib/session';
 import { logout } from '../../lib/auth.actions';
 import { tourFor } from '../../lib/tour-steps';
@@ -59,7 +62,29 @@ export default async function DocentesLayout({ children }: { children: React.Rea
     items.push({ href: '/docentes/institucion', label: 'Mi institución', icon: <InstitutionIcon /> });
   }
   if (isPlatform) {
-    items.push({ href: '/admin', label: 'Plataforma', icon: <DashboardIcon /> });
+    items.push({ href: '/admin', label: 'Plataforma', icon: <DashboardIcon />, exact: true });
+  }
+
+  // Las pantallas de gestion se anaden POR PERMISO y una a una, no en bloque
+  // con `isPlatform`. El rol `admin` incluye perfiles internos que no gestionan
+  // todo: el equipo de contenidos publica kits y no da de alta colegios, y el
+  // comercial genera codigos y no publica contenido. Un enlace que acaba en una
+  // redireccion es peor que no darlo.
+  if (session.permissions.includes(PERMISSIONS.INSTITUTION_CREATE)) {
+    items.push({
+      href: '/admin/instituciones',
+      label: 'Instituciones',
+      icon: <InstitutionIcon />,
+    });
+  }
+  if (creaAlgunRol(session.roles)) {
+    items.push({ href: '/admin/usuarios', label: 'Personal', icon: <StudentsIcon /> });
+  }
+  if (session.permissions.includes(PERMISSIONS.ACTIVATION_CODE_GENERATE)) {
+    items.push({ href: '/admin/codigos', label: 'Codigos', icon: <ActivationCodeIcon /> });
+  }
+  if (session.permissions.includes(PERMISSIONS.CONTENT_PUBLISH)) {
+    items.push({ href: '/admin/contenidos', label: 'Contenidos', icon: <CourseIcon /> });
   }
 
   return (
@@ -77,4 +102,16 @@ export default async function DocentesLayout({ children }: { children: React.Rea
       {children}
     </AppShell>
   );
+}
+
+/**
+ * Si esta persona puede crear ALGUNA cuenta de personal.
+ *
+ * Se pregunta a la misma tabla que el backend usa para rechazar, y no a un
+ * permiso: crear cuentas no tiene uno propio -lo gobierna la matriz de roles-,
+ * asi que comprobar `USER_CREATE` daria el enlace a quien despues no puede
+ * crear nada.
+ */
+function creaAlgunRol(roles: readonly string[]): boolean {
+  return roles.some((role) => (ROLE_CREATION_MATRIX[role as Role] ?? []).length > 0);
 }

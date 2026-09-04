@@ -207,6 +207,37 @@ export class CatalogController {
   }
 
   /**
+   * El catalogo COMPLETO, con su estado de publicacion.
+   *
+   * Ruta aparte y no un filtro en `GET kits`, a proposito. Esa lista es un
+   * indice para elegir -lo dice su comentario- y devuelve solo lo publicado y
+   * nada de gestion; anadirle un parametro `status` convertiria un endpoint que
+   * cualquier docente puede leer en uno que, segun el parametro, ensena
+   * borradores. Aqui el permiso es otro: `CONTENT_PUBLISH`, el de quien decide
+   * que llega a un aula.
+   *
+   * Existe porque gestionar contenido exige ver lo que NO esta publicado: una
+   * pantalla que solo lista lo publicado no puede publicar nada.
+   */
+  @Get('kits/manage')
+  @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
+  async listKitsForManagement(@Query(zodQuery(kitsQuerySchema)) query: { limit: number }) {
+    const page = await this.kits.list({}, { limit: query.limit });
+
+    return {
+      items: page.items.map((kit) => ({
+        kitId: kit.id,
+        code: kit.code,
+        name: kit.name,
+        program: kit.program,
+        grade: kit.grade,
+        status: kit.status,
+      })),
+      nextCursor: page.nextCursor,
+    };
+  }
+
+  /**
    * Biblioteca multimedia de un kit.
    *
    * Comprueba el derecho ANTES de leer nada. Es la mitad que el guard no puede
