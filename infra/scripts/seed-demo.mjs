@@ -114,6 +114,23 @@ function ubtechPageFor(platform) {
   return UBTECH_PAGES[platform] ?? 'https://www.ubtrobot.com/en/ai-education';
 }
 
+/**
+ * El codigo tal y como lo GUARDA el servicio de instituciones.
+ *
+ * `InstitutionCode` normaliza quitando separadores y pasando a mayusculas
+ * -en el papel se escribe "DEMO-SMP" y en la web lo teclean "demo smp"-, asi que
+ * la fila lleva `DEMOSMP`. Toda consulta SQL directa de este guion tiene que
+ * usar esta forma: buscar `DEMO-SMP` no encuentra nada, y de ahi salieron una
+ * institucion duplicada, un archivado de la fila equivocada y dos siembras
+ * muertas con errores que apuntaban a otro sitio.
+ *
+ * Se copia la regla en vez de importarla porque este guion no compila con el
+ * monorepo. Si cambia el objeto de valor, hay que cambiarla aqui.
+ */
+function storedCode(raw) {
+  return raw.trim().toUpperCase().replace(/[\s\-_.]/g, '');
+}
+
 const KITS = [
   {
     id: idFor('kit', 'UKIT-EXPLORE-P4'),
@@ -292,7 +309,7 @@ async function createInstitution(glexco) {
   // que cuelga de el apuntando a una fila que no esta.
   const existing = await admin.query(
     'SELECT id FROM institutions.institutions WHERE code = $1',
-    [INSTITUTION.code],
+    [storedCode(INSTITUTION.code)],
   );
   if (existing.rows[0]) {
     INSTITUTION.id = existing.rows[0].id;
@@ -308,7 +325,7 @@ async function createInstitution(glexco) {
     'SELECT id, code, status FROM institutions.institutions ORDER BY created_at DESC LIMIT 10',
   );
   console.log(`  ! institucion: ${created.status} ${JSON.stringify(created.body).slice(0, 140)}`);
-  console.log(`    buscando code=${JSON.stringify(INSTITUTION.code)}; en la base hay:`);
+  console.log(`    buscando code=${JSON.stringify(storedCode(INSTITUTION.code))}; en la base hay:`);
   for (const row of all.rows) {
     console.log(`      ${row.id} code=${JSON.stringify(row.code)} status=${row.status}`);
   }
@@ -415,8 +432,8 @@ async function resetDemo() {
   // institucion con ese codigo" y la siembra muere buscando una fila que borro.
   await admin.query(
     `DELETE FROM institutions.institutions
-      WHERE code = $1 OR code LIKE $1 || '-OLD-%'`,
-    [INSTITUTION.code],
+      WHERE code = $1 OR code LIKE $1 || 'OLD%'`,
+    [storedCode(INSTITUTION.code)],
   );
 
   await admin.query(`DELETE FROM identity.users WHERE id = ANY($1::uuid[])`, [userIds]);
@@ -669,16 +686,16 @@ async function reconcileDemoInstitution(people) {
   // codigo con sufijo dice a las claras que esa fila esta retirada.
   await admin.query(
     `UPDATE institutions.institutions
-        SET code = code || '-OLD-' || left(id::text, 4), updated_at = now()
+        SET code = code || 'OLD' || upper(left(id::text, 4)), updated_at = now()
       WHERE code = $1 AND id <> $2`,
-    [INSTITUTION.code, canonical],
+    [storedCode(INSTITUTION.code), canonical],
   );
 
   await admin.query(
     `UPDATE institutions.institutions
         SET code = $2, name = $3, short_name = $4, city = $5, status = 'active', updated_at = now()
       WHERE id = $1`,
-    [canonical, INSTITUTION.code, INSTITUTION.name, INSTITUTION.shortName, INSTITUTION.city],
+    [canonical, storedCode(INSTITUTION.code), INSTITUTION.name, INSTITUTION.shortName, INSTITUTION.city],
   );
 
   if (others.length > 0) {
