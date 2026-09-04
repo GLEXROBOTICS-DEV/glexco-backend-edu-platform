@@ -197,6 +197,26 @@ const admin = new pg.Client({
   ssl: ADMIN_URL.includes('localhost') ? false : { rejectUnauthorized: false },
 });
 
+/**
+ * Como se ejecuta esto en Railway.
+ *
+ * Como "comando previo al despliegue" del servicio de identidad, que es el
+ * unico sitio desde el que se alcanza PostgreSQL sin exponerlo a internet.
+ *
+ * Dos trampas, las dos comprobadas a base de perder despliegues:
+ *
+ * 1. **El comando previo NO pasa por un interprete.** Encadenar con `&&` no
+ *    funciona: se ejecuta el primero y el resto se ignora en silencio, con el
+ *    despliegue marcado como correcto. Hay que poner UNA sola orden.
+ * 2. **`railway redeploy` no recoge un comando previo nuevo.** Reutiliza la
+ *    instantanea de configuracion del despliegue anterior, asi que hay que
+ *    provocar una construccion de verdad -un commit que toque alguna de las
+ *    rutas vigiladas del servicio- para que el cambio surta efecto.
+ *
+ * Al terminar hay que BORRAR las cuatro variables temporales: la credencial de
+ * administrador de PostgreSQL no debe vivir en un servicio de aplicacion, y la
+ * pimienta permite reconstruir el hash de cualquier codigo de activacion.
+ */
 async function main() {
   await admin.connect();
   console.log('Sembrando el colegio de demostracion...\n');
