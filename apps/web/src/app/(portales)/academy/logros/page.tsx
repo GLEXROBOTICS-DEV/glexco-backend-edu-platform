@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { CardSkeleton } from '../../../../components/ui';
 import { PageHeader } from '../../../../components/page-header';
@@ -16,12 +17,14 @@ export const metadata: Metadata = { title: 'Logros' };
  *
  * Sigue sin haber ninguna comparación con nadie, igual que en Discover.
  */
-export default function AcademyLogros() {
+export default async function AcademyLogros() {
+  const t = await getTranslations('pantallas');
+
   return (
     <>
       <PageHeader
-        title="Logros"
-        subtitle="Lo que has conseguido, y lo que viene después."
+        title={t('logros')}
+        subtitle={t('logrosSubtitulo')}
       />
 
       <Suspense fallback={<CardSkeleton />}>

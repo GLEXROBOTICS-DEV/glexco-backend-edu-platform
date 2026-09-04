@@ -1,3 +1,5 @@
+import type { TranslationValues } from 'next-intl';
+import { getFormatter, getTranslations } from 'next-intl/server';
 import { BadgeIcon, LevelIcon } from '@glexco/icons';
 import { fetchLearningCatalogue, fetchLearningProgress } from '../lib/learning';
 import { EmptyState, SectionTitle } from './ui';
@@ -21,13 +23,14 @@ export async function Achievements({ portal }: { portal: 'discover' | 'academy' 
     fetchLearningCatalogue(),
   ]);
 
+  const t = await getTranslations('logros');
+  const format = await getFormatter();
+  // Los nombres de nivel se traducen por numero, como en la portada: el servicio
+  // los devuelve en espanol porque el dominio no tiene idioma de usuario.
+  const raiz = await getTranslations();
+
   if (failed && catalogue.failed) {
-    return (
-      <EmptyState
-        title="No pudimos cargar tus logros"
-        description="Vuelve a intentarlo en un momento. Si sigue pasando, avisa a tu docente."
-      />
-    );
+    return <EmptyState title={t('falloTitulo')} description={t('falloDescripcion')} />;
   }
 
   const earned = new Map(data.badges.map((badge) => [badge.code, badge]));
@@ -55,14 +58,16 @@ export async function Achievements({ portal }: { portal: 'discover' | 'academy' 
         currentLevel={data.explorerLevel}
         totalXp={data.totalXp}
         portal={portal}
+        t={t}
+        raiz={raiz}
       />
 
       <section aria-labelledby="insignias" data-badges={earned.size}>
         <SectionTitle id="insignias">
-          {portal === 'discover' ? 'Mis insignias' : 'Insignias'}
+          {portal === 'discover' ? t('misInsignias') : t('insignias')}
         </SectionTitle>
         <p className="-mt-2 mb-4 text-sm text-ink-500">
-          {earned.size} de {badges.length} conseguidas.
+          {t('conseguidasDeTotal', { conseguidas: earned.size, total: badges.length })}
         </p>
 
         <ul className="grid gap-[var(--portal-gap)] sm:grid-cols-2 lg:grid-cols-3">
@@ -100,10 +105,10 @@ export async function Achievements({ portal }: { portal: 'discover' | 'academy' 
                       lector de pantalla, y a distancia tampoco se distinguen. */}
                   {mine ? (
                     <p className="mt-2 text-xs font-medium text-state-done-fg">
-                      Conseguida el {formatDate(mine.awardedAt)}
+                      {t('conseguidaEl', { fecha: formatDate(mine.awardedAt, format) })}
                     </p>
                   ) : (
-                    <p className="mt-2 text-xs font-medium text-ink-400">Todavía por conseguir</p>
+                    <p className="mt-2 text-xs font-medium text-ink-400">{t('porConseguir')}</p>
                   )}
                 </div>
               </li>
@@ -127,18 +132,22 @@ function Niveles({
   currentLevel,
   totalXp,
   portal,
+  t,
+  raiz,
 }: {
   levels: readonly { level: number; name: string; minXp: number }[];
   currentLevel: number;
   totalXp: number;
   portal: 'discover' | 'academy';
+  t: (key: string, values?: TranslationValues) => string;
+  raiz: (key: string) => string;
 }) {
   if (levels.length === 0) return null;
 
   return (
     <section aria-labelledby="niveles" data-level={currentLevel}>
       <SectionTitle id="niveles">
-        {portal === 'discover' ? 'Niveles de Explorador' : 'Niveles'}
+        {portal === 'discover' ? t('nivelesExplorador') : t('niveles')}
       </SectionTitle>
 
       <ol className="grid gap-2 sm:grid-cols-5">
@@ -168,12 +177,16 @@ function Niveles({
               >
                 {reached ? <LevelIcon size={18} /> : level.level}
               </span>
-              <p className="mt-2.5 font-display text-sm font-semibold">{level.name}</p>
+              <p className="mt-2.5 font-display text-sm font-semibold">
+                {levelName(raiz, level.level, level.name)}
+              </p>
               <p className="mt-0.5 text-xs tabular-nums text-ink-500">
-                {level.minXp === 0 ? 'Desde el inicio' : `${level.minXp} pts`}
+                {level.minXp === 0
+                  ? t('desdeElInicio')
+                  : t('puntosMinimos', { puntos: level.minXp })}
               </p>
               {current ? (
-                <p className="mt-1.5 text-xs font-medium text-state-doing-fg">Estás aquí</p>
+                <p className="mt-1.5 text-xs font-medium text-state-doing-fg">{t('estasAqui')}</p>
               ) : null}
             </li>
           );
@@ -190,14 +203,23 @@ function Niveles({
  * insignia conseguida a las 21:00 en Lima aparece con la fecha del dia
  * siguiente, que al alumno le parece sencillamente un error.
  */
-function formatDate(iso: string): string {
+function formatDate(
+  iso: string,
+  format: Awaited<ReturnType<typeof getFormatter>>,
+): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '—';
 
-  return new Intl.DateTimeFormat('es-PE', {
+  return format.dateTime(date, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
     timeZone: 'America/Lima',
-  }).format(date);
+  });
+}
+
+/** Ver la nota de `levelNameOf` en `continue-learning.tsx`. */
+function levelName(t: (key: string) => string, level: number, fallback: string): string {
+  if (level < 1 || level > 5) return fallback;
+  return t('niveles.' + level);
 }

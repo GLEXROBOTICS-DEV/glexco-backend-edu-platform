@@ -1,3 +1,5 @@
+import type { TranslationValues } from 'next-intl';
+import { getFormatter, getTranslations } from 'next-intl/server';
 import { ChallengeIcon } from '@glexco/icons';
 import { fetchMyKits } from '../lib/catalog';
 import { fetchAvailableAssessments } from '../lib/assessments';
@@ -13,22 +15,19 @@ import { Card, EmptyState, SectionTitle, StatePill } from './ui';
  */
 export async function AssessmentList({ portal }: { portal: 'discover' | 'academy' }) {
   const { kits, failed } = await fetchMyKits();
+  const t = await getTranslations('evaluacion');
+  const format = await getFormatter();
 
   if (failed) {
-    return (
-      <EmptyState
-        title="No pudimos cargar tus evaluaciones"
-        description="Vuelve a intentarlo en un momento."
-      />
-    );
+    return <EmptyState title={t('falloTitulo')} description={t('falloDescripcion')} />;
   }
 
   if (kits.length === 0) {
     return (
       <EmptyState
         icon={<ChallengeIcon size={32} />}
-        title="Todavia no tienes contenido activado"
-        description="Activa el codigo de tu libro para acceder a tus actividades."
+        title={t('sinKitTitulo')}
+        description={t('sinKitDescripcion')}
       />
     );
   }
@@ -46,8 +45,8 @@ export async function AssessmentList({ portal }: { portal: 'discover' | 'academy
     return (
       <EmptyState
         icon={<ChallengeIcon size={32} />}
-        title={portal === 'discover' ? 'Aun no hay actividades' : 'Aun no hay evaluaciones'}
-        description="Cuando tu docente publique alguna, aparecera aqui."
+        title={portal === 'discover' ? t('sinActividadesTitulo') : t('sinEvaluacionesTitulo')}
+        description={t('sinPublicarDescripcion')}
       />
     );
   }
@@ -72,9 +71,10 @@ export async function AssessmentList({ portal }: { portal: 'discover' | 'academy
                         {assessment.title}
                       </h3>
                       <p className="mt-0.5 text-sm text-ink-500">
-                        {assessment.questionCount}{' '}
-                        {assessment.questionCount === 1 ? 'pregunta' : 'preguntas'} ·{' '}
-                        {assessment.totalPoints} puntos
+                        {t('preguntasYPuntos', {
+                          preguntas: assessment.questionCount,
+                          puntos: assessment.totalPoints,
+                        })}
                       </p>
                       {/*
                         Se dice de donde viene. Un alumno tiene derecho a saber
@@ -90,13 +90,15 @@ export async function AssessmentList({ portal }: { portal: 'discover' | 'academy
                       {assessment.dueAt ? (
                         <p className="mt-2">
                           <StatePill state={dueState(assessment.dueAt)}>
-                            {dueLabel(assessment.dueAt)}
+                            {dueLabel(assessment.dueAt, t, format)}
                           </StatePill>
                         </p>
                       ) : null}
 
                       <p className="mt-2 text-xs text-ink-400">
-                        {assessment.origin === 'glexco' ? 'Incluida en tu kit' : 'De tu docente'}
+                        {assessment.origin === 'glexco'
+                          ? t('incluidaEnTuKit')
+                          : t('deTuDocente')}
                       </p>
                     </div>
                   </div>
@@ -110,7 +112,7 @@ export async function AssessmentList({ portal }: { portal: 'discover' | 'academy
                     href={`/${portal}/evaluaciones/${assessment.assessmentId}`}
                     className="btn btn-primary mt-5"
                   >
-                    {portal === 'discover' ? 'Abrir actividad' : 'Abrir evaluación'}
+                    {portal === 'discover' ? t('abrirActividad') : t('abrirEvaluacion')}
                   </a>
                 </Card>
               ))}
@@ -136,19 +138,32 @@ function dueState(iso: string): 'late' | 'warn' | 'idle' {
   return 'idle';
 }
 
-function dueLabel(iso: string): string {
+/**
+ * "Cierra manana", "Cierra el 18 de septiembre".
+ *
+ * Recibe el traductor y el formateador, como el resto de fechas del portal: una
+ * funcion suelta no puede pedirlos, y la fecha larga iba con `es-PE` escrito a
+ * mano, asi que en ingles salia media frase traducida y la fecha en espanol.
+ */
+function dueLabel(
+  iso: string,
+  t: (key: string, values?: TranslationValues) => string,
+  format: Awaited<ReturnType<typeof getFormatter>>,
+): string {
   const days = daysLeft(iso);
   if (days === null) return '';
-  if (days < 0) return 'Cerrada';
-  if (days === 0) return 'Cierra hoy';
-  if (days === 1) return 'Cierra mañana';
-  if (days <= 7) return `Cierra en ${days} días`;
+  if (days < 0) return t('cerrada');
+  if (days === 0) return t('cierraHoy');
+  if (days === 1) return t('cierraManana');
+  if (days <= 7) return t('cierraEnDias', { dias: days });
 
-  return `Cierra el ${new Intl.DateTimeFormat('es-PE', {
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'America/Lima',
-  }).format(new Date(iso))}`;
+  return t('cierraElDia', {
+    fecha: format.dateTime(new Date(iso), {
+      day: 'numeric',
+      month: 'long',
+      timeZone: 'America/Lima',
+    }),
+  });
 }
 
 function daysLeft(iso: string): number | null {

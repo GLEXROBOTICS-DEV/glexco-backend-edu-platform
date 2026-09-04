@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { fetchAnnouncements, relativeDate, type Announcement } from '../lib/announcements';
 import { Card, EmptyState, SectionTitle } from './ui';
 
@@ -32,14 +33,15 @@ export async function AnnouncementList({
   hideWhenEmpty?: boolean;
 }) {
   const items = await fetchAnnouncements(classroomId);
+  const t = await getTranslations('anuncios');
 
   if (items.length === 0) {
     if (hideWhenEmpty) return null;
 
     return (
       <EmptyState
-        title="No hay anuncios"
-        description={emptyMessage ?? 'Cuando tu docente publique algo, aparecerá aquí.'}
+        title={t('sinAnunciosTitulo')}
+        description={emptyMessage ?? t('sinAnunciosDescripcion')}
       />
     );
   }

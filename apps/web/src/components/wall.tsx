@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { AnnouncementIcon } from '@glexco/icons';
 import { fetchAnnouncements, relativeDate, type Announcement } from '../lib/announcements';
 import { fetchMyClassroom } from '../lib/classrooms';
@@ -18,11 +19,12 @@ import { EmptyState, StatePill } from './ui';
  */
 export async function ClassroomWall({
   canAsk = true,
-  title = 'El muro de tu clase',
+  title,
   only,
 }: {
   /** El docente publica avisos desde su panel, no preguntas desde aquí. */
   canAsk?: boolean;
+  /** Por defecto, "El muro de tu clase" traducido. */
   title?: string;
   /**
    * Filtra por tipo de publicación.
@@ -35,6 +37,7 @@ export async function ClassroomWall({
   only?: 'announcement' | 'question';
 }) {
   const all = await fetchAnnouncements();
+  const t = await getTranslations('muro');
   const items = only ? all.filter((post) => post.kind === only) : all;
 
   // El salón solo hace falta para PREGUNTAR: el docente ve el muro de todos los
@@ -49,7 +52,7 @@ export async function ClassroomWall({
   return (
     <section aria-labelledby="muro" className="grid gap-[var(--portal-gap)]">
       <h2 id="muro" className="sr-only">
-        {title}
+        {title ?? t('tituloPorDefecto')}
       </h2>
 
       {canAsk && classroomId ? <AskForm classroomId={classroomId} /> : null}
@@ -59,24 +62,20 @@ export async function ClassroomWall({
           // Dentro de la seccion del muro, que ya tiene su h2.
           level={3}
           icon={<AnnouncementIcon size={32} />}
-          title={
-            only === 'announcement'
-              ? 'No hay anuncios todavía'
-              : 'Todavía no hay preguntas'
-          }
+          title={only === 'announcement' ? t('sinAnunciosTitulo') : t('sinPreguntasTitulo')}
           description={
             only === 'announcement'
-              ? 'Cuando tu docente publique un aviso, aparecerá aquí.'
+              ? t('sinAnunciosDescripcion')
               : canAsk
-                ? 'Sé el primero en preguntar. Tu docente y tus compañeros lo verán.'
-                : 'Cuando alguien de tus salones pregunte, aparecerá aquí.'
+                ? t('sePrimeroEnPreguntar')
+                : t('sinPreguntasDescripcion')
           }
         />
       ) : (
         <ul className="grid gap-[var(--portal-gap)]" data-wall={items.length}>
           {items.map((post) => (
             <li key={post.announcementId}>
-              <Post post={post} />
+              <Post post={post} t={t} />
             </li>
           ))}
         </ul>
@@ -85,7 +84,19 @@ export async function ClassroomWall({
   );
 }
 
-function Post({ post }: { post: Announcement }) {
+/**
+ * Una publicacion del muro.
+ *
+ * Recibe el traductor por props: es una lista, y pedirlo dentro de cada tarjeta
+ * abriria un punto de suspension por publicacion.
+ */
+function Post({
+  post,
+  t,
+}: {
+  post: Announcement;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}) {
   const question = post.kind === 'question';
   const replies = post.replies ?? [];
 
@@ -110,8 +121,10 @@ function Post({ post }: { post: Announcement }) {
                 solo con color: el par que distingue el borde fijado del normal
                 queda muy por debajo del umbral para una vision con deficiencia
                 de rojo, y ahi el aviso importante deja de destacar. */}
-            {post.pinned ? <span className="font-medium text-brand-700">Fijado · </span> : null}
-            {post.authorName ?? (question ? 'Un compañero' : 'Tu docente')} ·{' '}
+            {post.pinned ? (
+              <span className="font-medium text-brand-700">{t('fijado')} · </span>
+            ) : null}
+            {post.authorName ?? (question ? t('unCompanero') : t('tuDocente'))} ·{' '}
             {relativeDate(post.publishedAt)}
           </p>
         </div>
@@ -119,7 +132,7 @@ function Post({ post }: { post: Announcement }) {
         {/* De quién viene, en texto. Un aviso del docente y la duda de un
             compañero se leen distinto, y el color solo no lo dice. */}
         <StatePill state={question ? 'doing' : 'warn'}>
-          {question ? 'Pregunta' : 'Aviso'}
+          {question ? t('pregunta') : t('aviso')}
         </StatePill>
       </div>
 
@@ -132,7 +145,7 @@ function Post({ post }: { post: Announcement }) {
           {replies.map((reply) => (
             <li key={reply.id} className="text-sm">
               <p className="text-xs font-medium text-ink-500">
-                {reply.authorName ?? 'Alguien de tu clase'} ·{' '}
+                {reply.authorName ?? t('alguienDeTuClase')} ·{' '}
                 {relativeDate(reply.createdAt)}
               </p>
               <p className="mt-0.5 whitespace-pre-line text-ink-700">{reply.body}</p>

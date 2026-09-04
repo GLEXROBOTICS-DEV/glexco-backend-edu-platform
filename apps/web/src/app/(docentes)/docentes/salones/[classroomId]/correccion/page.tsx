@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getFormatter } from 'next-intl/server';
 import { Suspense } from 'react';
 import { requireSession } from '../../../../../../lib/session';
 import { fetchPendingSubmissions, fetchRoster, studentLabel } from '../../../../../../lib/grading';
@@ -47,6 +48,7 @@ export default async function GradingInboxPage({
  * la primera para nada: una trae las entregas y la otra los nombres.
  */
 async function Inbox({ classroomId }: { classroomId: string }) {
+  const format = await getFormatter();
   const [pending, roster] = await Promise.all([
     fetchPendingSubmissions(classroomId),
     fetchRoster(classroomId),
@@ -115,7 +117,7 @@ async function Inbox({ classroomId }: { classroomId: string }) {
                   {item.pendingQuestions === 1 ? 'pregunta' : 'preguntas'}
                 </p>
                 <p className="text-ink-400">
-                  {item.submittedAt ? `Entregó el ${shortDate(item.submittedAt)}` : 'Sin fecha'}
+                  {item.submittedAt ? `Entregó el ${shortDate(format, item.submittedAt)}` : 'Sin fecha'}
                 </p>
               </div>
             </a>

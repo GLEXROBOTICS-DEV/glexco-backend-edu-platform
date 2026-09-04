@@ -238,12 +238,25 @@ frontend o clientes reales:
       del usuario —que es donde ya vivía y lo que usan los correos— y de una
       cookie en las pantallas públicas. Traducidos el acceso, el cromo de la
       aplicación y la navegación.
-- [ ] i18n: **traducir el cuerpo de las pantallas**. Al cambiar a inglés hoy
-      cambian la barra lateral y el acceso, y el cuerpo sigue en español: no es
-      un fallo del montaje, es que solo esas superficies están traducidas. Es
-      continuación mecánica: `getTranslations` en los componentes de servidor,
-      `useTranslations` en los de cliente, y las claves nuevas en
-      `apps/web/src/messages/{es,en}.json`.
+- [x] **i18n: el cuerpo de las pantallas del alumno, traducido.** Portadas de
+      los dos portales, biblioteca, laboratorio, evaluaciones, resultado, muro,
+      anuncios, logros, progreso, contenido y la visita guiada entera. **345
+      claves en paridad es/en.**
+
+      Tres decisiones que conviene no deshacer: los **nombres de nivel** se
+      traducen en el portal por número de nivel y no en el servicio —el dominio
+      no tiene idioma de usuario—; el **vocabulario** (grados, tipos de
+      contenido, estados de nota) vive en `messages/*.json` con la clave que
+      guarda el backend, y no en mapas en español dentro de `lib/`; y las
+      **fechas** reciben el formateador en vez de fijar `es-PE`, que dejaba media
+      frase traducida y la fecha en español.
+
+      Al cliente solo se le mandan los espacios que usa un componente de cliente
+      (`CLIENT_NAMESPACES` en `app/layout.tsx`): el catálogo entero se serializa
+      en el HTML de cada página y crece sin techo según avanza la traducción.
+
+      **Queda el portal del docente y el de admin**, que es la misma mecánica
+      sobre las piezas compartidas ya convertidas.
 - [x] **Auditoría WCAG 2.1 AA automatizada** (`pnpm a11y`): audita el HTML que
       sirve el servidor, no el código, que es donde de verdad aparecen los
       fallos. 13 pantallas sin hallazgos. Queda por revisar **a mano** el

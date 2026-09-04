@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
+import { useTranslations } from 'next-intl';
 import { askQuestion, replyToPost, type WallState } from '../lib/wall.actions';
 
 /**
@@ -12,6 +13,7 @@ import { askQuestion, replyToPost, type WallState } from '../lib/wall.actions';
  */
 export function AskForm({ classroomId }: { classroomId: string }) {
   const [state, formAction, pending] = useActionState<WallState, FormData>(askQuestion, {});
+  const t = useTranslations('muro');
 
   return (
     <form
@@ -21,11 +23,8 @@ export function AskForm({ classroomId }: { classroomId: string }) {
       <input type="hidden" name="classroomId" value={classroomId} />
 
       <div>
-        <h2 className="font-display text-lg font-semibold">Pregunta a tu clase</h2>
-        <p className="mt-1 text-sm text-ink-500">
-          Lo verán tu docente y tus compañeros. Si tú tienes la duda, seguramente alguien más
-          también.
-        </p>
+        <h2 className="font-display text-lg font-semibold">{t('preguntaATuClase')}</h2>
+        <p className="mt-1 text-sm text-ink-500">{t('loVeranTodos')}</p>
       </div>
 
       {state.error ? (
@@ -35,7 +34,7 @@ export function AskForm({ classroomId }: { classroomId: string }) {
       ) : null}
       {state.done ? (
         <p role="status" className="text-sm text-state-done-fg">
-          Publicada. Ya la ve tu clase.
+          {t('publicada')}
         </p>
       ) : null}
 
@@ -44,30 +43,30 @@ export function AskForm({ classroomId }: { classroomId: string }) {
           el campo- y varios lectores de pantalla no lo anuncian. Va en
           `sr-only` porque el título del bloque ya explica de qué va. */}
       <label>
-        <span className="sr-only">Tu pregunta, en una línea</span>
+        <span className="sr-only">{t('etiquetaTitulo')}</span>
         <input
           type="text"
           name="title"
           required
           maxLength={120}
-          placeholder="¿Qué quieres preguntar?"
+          placeholder={t('tituloDeLaPregunta')}
           className="field"
         />
       </label>
 
       <label>
-        <span className="sr-only">Explica tu pregunta</span>
+        <span className="sr-only">{t('etiquetaCuerpo')}</span>
         <textarea
           name="body"
           required
           maxLength={4000}
-          placeholder="Cuenta un poco más: qué has intentado y dónde te has quedado."
+          placeholder={t('pistaCuerpo')}
           className="field"
         />
       </label>
 
       <button type="submit" disabled={pending} className="btn btn-primary justify-self-start">
-        {pending ? 'Publicando…' : 'Publicar'}
+        {pending ? t('publicando') : t('publicar')}
       </button>
     </form>
   );
@@ -82,25 +81,26 @@ export function AskForm({ classroomId }: { classroomId: string }) {
  */
 export function ReplyForm({ announcementId }: { announcementId: string }) {
   const [state, formAction, pending] = useActionState<WallState, FormData>(replyToPost, {});
+  const t = useTranslations('muro');
 
   return (
     <form action={formAction} className="mt-3 flex flex-wrap items-start gap-2">
       <input type="hidden" name="announcementId" value={announcementId} />
 
       <label className="min-w-0 flex-1">
-        <span className="sr-only">Tu respuesta</span>
+        <span className="sr-only">{t('tuRespuesta')}</span>
         <input
           type="text"
           name="body"
           required
           maxLength={4000}
-          placeholder="Responde a tu compañero…"
+          placeholder={t('pistaRespuesta')}
           className="field"
         />
       </label>
 
       <button type="submit" disabled={pending} className="btn btn-secondary">
-        {pending ? 'Enviando…' : 'Responder'}
+        {pending ? t('enviando') : t('responder')}
       </button>
 
       {state.error ? (

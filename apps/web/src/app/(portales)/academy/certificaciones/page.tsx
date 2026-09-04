@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { CardSkeleton } from '../../../../components/ui';
 import { PageHeader } from '../../../../components/page-header';
@@ -11,12 +12,14 @@ export const metadata: Metadata = { title: 'Certificaciones' };
  *
  * Cierra el ultimo destino de la barra que llevaba a un 404.
  */
-export default function Certificaciones() {
+export default async function Certificaciones() {
+  const t = await getTranslations('pantallas');
+
   return (
     <>
       <PageHeader
-        title="Certificaciones"
-        subtitle="Se emiten al terminar todas las lecciones de un curso. Cualquiera puede comprobar que son auténticos con el código QR."
+        title={t('certificaciones')}
+        subtitle={t('certificadosSubtitulo')}
       />
 
       <Suspense fallback={<CardSkeleton />}>

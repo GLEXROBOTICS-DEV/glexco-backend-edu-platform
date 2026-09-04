@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getFormatter, getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { requireSession } from '../../../../../../../lib/session';
 import { fetchStudentInClassroom, scoreTone, shortDate } from '../../../../../../../lib/analytics';
@@ -48,6 +49,8 @@ export default async function StudentDetail({
 }
 
 async function Detail({ classroomId, studentId }: { classroomId: string; studentId: string }) {
+  const vocab = await getTranslations();
+  const format = await getFormatter();
   // El nombre viene de la matrícula y no del dashboard: la analítica es una
   // proyección de resultados y no tiene por qué saber cómo se llama nadie.
   const [{ data, failed }, roster] = await Promise.all([
@@ -67,8 +70,8 @@ async function Detail({ classroomId, studentId }: { classroomId: string; student
     );
   }
 
-  const glexco = scoreTone(data.averageGlexco);
-  const institution = scoreTone(data.averageInstitution);
+  const glexco = scoreTone(vocab, data.averageGlexco);
+  const institution = scoreTone(vocab, data.averageInstitution);
 
   return (
     <>
@@ -153,7 +156,7 @@ async function Detail({ classroomId, studentId }: { classroomId: string; student
               title="Resultados en orden"
               passingScore={60}
               points={data.timeline.map((entry) => ({
-                label: `${entry.origin === 'glexco' ? 'GLEXCO' : 'Tuya'} · ${shortDate(entry.gradedAt)}`,
+                label: `${entry.origin === 'glexco' ? 'GLEXCO' : 'Tuya'} · ${shortDate(format, entry.gradedAt)}`,
                 value: Math.round(entry.percentage),
                 passed: entry.passed,
               }))}

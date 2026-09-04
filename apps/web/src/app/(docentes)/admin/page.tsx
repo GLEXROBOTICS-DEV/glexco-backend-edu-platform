@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { PERMISSIONS } from '@glexco/contracts';
@@ -148,8 +149,8 @@ async function Plataforma() {
   );
 }
 
-function Fila({ row }: { row: InstitutionDashboard }) {
-  const { label } = scoreTone(row.averagePercentage);
+async function Fila({ row }: { row: InstitutionDashboard }) {
+  const { label } = scoreTone(await getTranslations(), row.averagePercentage);
   const activacion =
     row.codesIssued > 0 ? Math.round((row.codesRedeemed / row.codesIssued) * 100) : null;
 
@@ -213,6 +214,7 @@ function Fila({ row }: { row: InstitutionDashboard }) {
  * comparables entre centros.
  */
 async function KitsDebiles() {
+  const vocab = await getTranslations();
   const { items, failed } = await fetchWeakestKits(10);
 
   if (failed || items.length === 0) {
@@ -250,7 +252,7 @@ async function KitsDebiles() {
       <BarList
         title="Media por kit"
         data={solidos.map((kit) => {
-          const { tone, label } = scoreTone(kit.averagePercentage);
+          const { tone, label } = scoreTone(vocab, kit.averagePercentage);
           return {
             label: `${kitLabel(kit)} · ${kit.studentsMeasured} alumnos`,
             value: kit.averagePercentage === null ? 0 : Math.round(kit.averagePercentage),

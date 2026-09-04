@@ -63,7 +63,7 @@ async function Overview({ institutionId }: { institutionId: string }) {
     );
   }
 
-  const level = scoreTone(data.averagePercentage);
+  const level = scoreTone(vocab, data.averagePercentage);
 
   // Códigos comprados que nadie activó. Es la métrica comercial y la señal más
   // temprana de que un colegio no va a renovar: se paga por libros que no se
@@ -118,7 +118,7 @@ async function Overview({ institutionId }: { institutionId: string }) {
         unit="%"
         emptyMessage="Todavía no hay resultados por grado."
         data={data.byGrade.map((entry) => {
-          const { tone, label } = scoreTone(entry.averagePercentage);
+          const { tone, label } = scoreTone(vocab, entry.averagePercentage);
           return {
             label: gradeLabel(vocab, entry.grade),
             value: Math.round(entry.averagePercentage ?? 0),

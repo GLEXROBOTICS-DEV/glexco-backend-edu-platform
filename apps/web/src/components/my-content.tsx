@@ -25,13 +25,11 @@ export async function MyContent({ portal }: { portal: 'discover' | 'academy' }) 
     fetchLearningProgress(),
   ]);
   const vocab = await getTranslations();
+  const t = await getTranslations('contenido');
 
   if (failed) {
     return (
-      <EmptyState
-        title="No pudimos cargar tu contenido"
-        description="Vuelve a intentarlo en un momento. Si sigue pasando, avisa a tu docente."
-      />
+      <EmptyState title={t('falloTitulo')} description={t('falloDescripcion')} />
     );
   }
 
@@ -41,11 +39,11 @@ export async function MyContent({ portal }: { portal: 'discover' | 'academy' }) 
         icon={<KitIcon size={32} />}
         title={
           portal === 'discover'
-            ? 'Todavía no tienes ningún kit'
-            : 'Aún no tienes contenido activado'
+            ? vocab('sinKit.tituloDiscover')
+            : vocab('sinKit.tituloAcademy')
         }
-        description="Activa el código que viene dentro de tu libro para desbloquear tu contenido."
-        action={{ href: `/${portal}/activar`, label: 'Activar mi código' }}
+        description={vocab('sinKit.descripcion')}
+        action={{ href: `/${portal}/activar`, label: vocab('sinKit.accion') }}
       />
     );
   }
@@ -71,6 +69,7 @@ export async function MyContent({ portal }: { portal: 'discover' | 'academy' }) 
           // cursos todavia- se veria como un error del sistema.
           progressFailed={progress.failed}
           vocab={vocab}
+          t={t}
         />
       ))}
     </div>
@@ -83,6 +82,7 @@ function KitCard({
   portal,
   progressFailed,
   vocab,
+  t,
 }: {
   kit: MyKit;
   courses: readonly CourseProgress[];
@@ -90,6 +90,7 @@ function KitCard({
   progressFailed: boolean;
   /** Por props y no pidiendolo dentro: ver la nota de `LibraryCard`. */
   vocab: (key: string) => string;
+  t: (key: string, values?: Record<string, string | number>) => string;
 }) {
   return (
     <article
@@ -123,28 +124,32 @@ function KitCard({
         </div>
 
         <a href={`/${portal}/biblioteca?kit=${encodeURIComponent(kit.kitId)}`} className="btn btn-secondary">
-          Ver la biblioteca
+          {t('verLaBiblioteca')}
         </a>
       </div>
 
       {courses.length > 0 ? (
         <ul className="mt-5 grid gap-3 border-t border-line-200 pt-5">
           {courses.map((course) => (
-            <CourseRow key={course.courseId} course={course} />
+            <CourseRow key={course.courseId} course={course} t={t} />
           ))}
         </ul>
       ) : (
         <p className="mt-5 border-t border-line-200 pt-5 text-sm text-ink-500">
-          {progressFailed
-            ? 'No pudimos leer tu avance en este kit ahora mismo. El contenido sigue disponible.'
-            : 'Todavía no has abierto ninguna lección de este kit. Empieza por la biblioteca.'}
+          {progressFailed ? t('avanceNoDisponible') : t('sinLecciones')}
         </p>
       )}
     </article>
   );
 }
 
-function CourseRow({ course }: { course: CourseProgress }) {
+function CourseRow({
+  course,
+  t,
+}: {
+  course: CourseProgress;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}) {
   const percent =
     course.lessonCount === 0
       ? 0
@@ -159,13 +164,17 @@ function CourseRow({ course }: { course: CourseProgress }) {
           {/* La etiqueta lleva su texto y no solo un color: el par verde/ambar
               es indistinguible con protanopia. */}
           <StatePill state={done ? 'done' : course.lessonsStarted > 0 ? 'doing' : 'idle'}>
-            {done ? 'Completado' : course.lessonsStarted > 0 ? 'En progreso' : 'No iniciado'}
+            {done
+              ? t('completado')
+              : course.lessonsStarted > 0
+                ? t('enProgreso')
+                : t('noIniciado')}
           </StatePill>
         </div>
 
         <ProgressBar
           percent={percent}
-          label={`Avance de ${course.title}`}
+          label={t('avanceDe', { curso: course.title })}
           className="mt-2 max-w-md"
         />
       </div>
@@ -173,7 +182,10 @@ function CourseRow({ course }: { course: CourseProgress }) {
       {/* El par y no solo el porcentaje: "3 de 12" dice cuantas lecciones
           quedan, que es lo accionable; "25 %" hay que traducirlo mentalmente. */}
       <span className="shrink-0 text-sm tabular-nums text-ink-500">
-        {course.lessonsCompleted} de {course.lessonCount} lecciones
+        {t('leccionesDeTotal', {
+          hechas: course.lessonsCompleted,
+          total: course.lessonCount,
+        })}
       </span>
     </li>
   );

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getFormatter } from 'next-intl/server';
 import { requireSession } from '../../../../../../../lib/session';
 import {
   fetchRoster,
@@ -35,6 +36,7 @@ export default async function GradeSubmissionPage({
   }
 
   const data = submission.data;
+  const format = await getFormatter();
   const studentName = studentLabel(data.studentId, roster.byId);
 
   return (
@@ -51,7 +53,7 @@ export default async function GradeSubmissionPage({
         </h1>
         <p className="mt-1 text-sm text-ink-500">
           {data.assessmentTitle} · intento {data.attemptNumber}
-          {data.submittedAt ? ` · entregó el ${shortDate(data.submittedAt)}` : ''}
+          {data.submittedAt ? ` · entregó el ${shortDate(format, data.submittedAt)}` : ''}
           {' · aprueba con '}
           {data.passingScore}%
         </p>

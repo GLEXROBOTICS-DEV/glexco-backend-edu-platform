@@ -1,3 +1,4 @@
+import { getFormatter, getTranslations } from 'next-intl/server';
 import { BadgeIcon, LevelIcon } from '@glexco/icons';
 import {
   fetchMyDashboard,
@@ -22,39 +23,35 @@ import { EmptyState, SectionTitle } from './ui';
  */
 export async function StudentDashboard({ portal }: { portal: 'discover' | 'academy' }) {
   const { data, failed } = await fetchMyDashboard();
+  const t = await getTranslations('progreso');
+  const raiz = await getTranslations();
+  const format = await getFormatter();
 
   if (failed) {
-    return (
-      <EmptyState
-        title="No pudimos cargar tu progreso"
-        description="Vuelve a intentarlo en un momento. Si sigue pasando, avisa a tu docente."
-      />
-    );
+    return <EmptyState title={t('falloTitulo')} description={t('falloDescripcion')} />;
   }
 
   if (data.assessmentsTaken === 0) {
     return (
       <EmptyState
         icon={<LevelIcon size={32} />}
-        title={portal === 'discover' ? 'Aún no has hecho ninguna actividad' : 'Aún no tienes evaluaciones'}
+        title={portal === 'discover' ? t('sinActividadTitulo') : t('sinEvaluacionTitulo')}
         description={
-          portal === 'discover'
-            ? 'Cuando completes tu primera actividad verás aquí cómo vas avanzando.'
-            : 'Cuando entregues tu primera evaluación aparecerá aquí tu progreso.'
+          portal === 'discover' ? t('sinActividadDescripcion') : t('sinEvaluacionDescripcion')
         }
       />
     );
   }
 
-  const glexco = scoreTone(data.averageGlexco);
-  const institution = scoreTone(data.averageInstitution);
-  const pass = scoreTone(data.passRate);
+  const glexco = scoreTone(raiz, data.averageGlexco);
+  const institution = scoreTone(raiz, data.averageInstitution);
+  const pass = scoreTone(raiz, data.passRate);
   const gain = data.averageGain;
 
   return (
     <section aria-labelledby="mi-progreso" className="grid gap-[var(--portal-gap)]">
       <SectionTitle id="mi-progreso">
-        {portal === 'discover' ? '¿Cómo voy?' : 'Mi progreso'}
+        {portal === 'discover' ? t('comoVoy') : t('miProgreso')}
       </SectionTitle>
 
       {/*
@@ -67,16 +64,16 @@ export async function StudentDashboard({ portal }: { portal: 'discover' | 'acade
       <div className="grid gap-[var(--portal-gap)] sm:grid-cols-2 lg:grid-cols-4">
         <DonutChart
           value={data.averageGlexco}
-          label="Nota media GLEXCO"
-          caption="Las evaluaciones que vienen con tu kit"
+          label={t('mediaGlexco')}
+          caption={t('mediaGlexcoPie')}
           tone={glexco.tone}
           toneLabel={glexco.label}
         />
 
         <DonutChart
           value={data.averageInstitution}
-          label="Nota media de tu docente"
-          caption="Las que preparó tu profesor"
+          label={t('mediaDocente')}
+          caption={t('mediaDocentePie')}
           tone={institution.tone}
           toneLabel={institution.label}
         />
@@ -88,28 +85,28 @@ export async function StudentDashboard({ portal }: { portal: 'discover' | 'acade
           aprendió más que uno que se quedó en 80.
         */}
         <StatTile
-          label="Cuánto has mejorado"
+          label={t('cuantoHasMejorado')}
           value={gain === null ? null : gain > 0 ? `+${gain}` : gain}
           unit="pts"
           tone={gain === null ? 'neutral' : gain > 0 ? 'good' : 'neutral'}
-          toneLabel={gain !== null && gain > 0 ? 'Vas mejorando' : undefined}
-          hint="Desde tu primer intento"
+          toneLabel={gain !== null && gain > 0 ? t('vasMejorando') : undefined}
+          hint={t('desdeTuPrimerIntento')}
         />
 
         <DonutChart
           value={data.passRate}
-          label="Evaluaciones aprobadas"
-          caption={`${data.assessmentsTaken} en total`}
+          label={t('aprobadas')}
+          caption={t('enTotal', { total: data.assessmentsTaken })}
           tone={pass.tone}
           toneLabel={pass.label}
         />
       </div>
 
       <TimelineChart
-        title="Tus resultados, en orden"
+        title={t('tusResultados')}
         passingScore={60}
         points={data.timeline.map((entry) => ({
-          label: `${entry.origin === 'glexco' ? 'GLEXCO' : 'Tu docente'} · ${shortDate(entry.gradedAt)}`,
+          label: `${entry.origin === 'glexco' ? 'GLEXCO' : t('tuDocente')} · ${shortDate(format, entry.gradedAt)}`,
           value: Math.round(entry.percentage),
           passed: entry.passed,
         }))}
@@ -118,7 +115,7 @@ export async function StudentDashboard({ portal }: { portal: 'discover' | 'acade
       {portal === 'discover' ? (
         <p className="flex items-center gap-2 text-sm text-ink-500">
           <BadgeIcon size={18} />
-          Sigue así: cada actividad que terminas suma a tu nivel de Explorador.
+          {t('sigueAsi')}
         </p>
       ) : null}
     </section>
@@ -132,25 +129,27 @@ export async function StudentDashboard({ portal }: { portal: 'discover' | 'acade
  * "¿voy bien?" y este es "¿en qué tengo que insistir?". Mezclarlos en una sola
  * pantalla de números hace que ninguna de las dos se lea.
  */
-export function StudentWeakSpots({
+export async function StudentWeakSpots({
   items,
 }: {
   items: { label: string; missRate: number; answered: number }[];
 }) {
+  const t = await getTranslations('progreso');
+
   return (
     <BarList
-      title="Lo que más te cuesta"
+      title={t('loQueMasTeCuesta')}
       unit="%"
-      emptyMessage="Todavía no hay suficientes respuestas para decirte esto."
+      emptyMessage={t('sinDatosSuficientes')}
       data={items.map((item) => ({
         label: item.label,
         value: item.missRate,
-        meta: `${item.answered} intentos`,
+        meta: t('intentos', { intentos: item.answered }),
         // Aqui la escala va AL REVES que en una nota: un 80 % de fallo es lo
         // peor, no lo mejor. Invertirla es justo el motivo por el que el color
         // no puede salir automatico del numero.
         tone: missTone(item.missRate),
-        toneLabel: missLabel(item.missRate),
+        toneLabel: missLabel(t, item.missRate),
       }))}
     />
   );
@@ -169,8 +168,8 @@ function missTone(missRate: number): 'good' | 'warning' | 'critical' {
   return 'good';
 }
 
-function missLabel(missRate: number): string {
-  if (missRate >= 60) return 'Repásalo con tu docente';
-  if (missRate >= 35) return 'Conviene repasarlo';
-  return 'Lo llevas bien';
+function missLabel(t: (key: string) => string, missRate: number): string {
+  if (missRate >= 60) return t('repasaloConTuDocente');
+  if (missRate >= 35) return t('convieneRepasarlo');
+  return t('loLlevasBien');
 }

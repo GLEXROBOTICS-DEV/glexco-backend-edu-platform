@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getFormatter, getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { requireSession } from '../../../../../lib/session';
 import { fetchClassroomDashboard, scoreTone, shortDate } from '../../../../../lib/analytics';
@@ -74,6 +75,8 @@ export default async function ClassroomDashboardPage({
  *   explicar el lunes.
  */
 async function Dashboard({ classroomId }: { classroomId: string }) {
+  const vocab = await getTranslations();
+  const format = await getFormatter();
   const { data, failed } = await fetchClassroomDashboard(classroomId);
 
   if (failed || !data) {
@@ -100,7 +103,7 @@ async function Dashboard({ classroomId }: { classroomId: string }) {
     );
   }
 
-  const level = scoreTone(data.averagePercentage);
+  const level = scoreTone(vocab, data.averagePercentage);
   const spread = data.stddevPercentage;
 
   return (
@@ -150,7 +153,7 @@ async function Dashboard({ classroomId }: { classroomId: string }) {
           value={data.studentsMeasured}
           hint={
             data.lastActivityAt
-              ? `Última actividad el ${shortDate(data.lastActivityAt)}`
+              ? `Última actividad el ${shortDate(format, data.lastActivityAt)}`
               : 'Sin actividad reciente'
           }
         />

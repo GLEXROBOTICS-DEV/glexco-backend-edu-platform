@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { CardSkeleton } from '../../../../components/ui';
 import { KitLibrary } from '../../../../components/library';
@@ -10,13 +11,15 @@ interface PageProps {
 }
 
 export default async function AcademyBiblioteca({ searchParams }: PageProps) {
+  const t = await getTranslations('pantallas');
+
   const params = await searchParams;
   const kit = params['kit'];
 
   return (
     <>
       <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="font-semibold">
-        Biblioteca
+        {t('biblioteca')}
       </h1>
 
       {/* El esqueleto tiene la FORMA de las tarjetas que vienen, no es un

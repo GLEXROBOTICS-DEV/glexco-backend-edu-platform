@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { CardSkeleton } from '../../../../components/ui';
 import { StudentDashboard } from '../../../../components/student-dashboard';
@@ -6,11 +7,13 @@ import { ExplorerProgress } from '../../../../components/explorer-progress';
 
 export const metadata: Metadata = { title: 'Mi progreso' };
 
-export default function DiscoverProgreso() {
+export default async function DiscoverProgreso() {
+  const t = await getTranslations('pantallas');
+
   return (
     <>
       <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="font-semibold">
-        Mi progreso
+        {t('miProgreso')}
       </h1>
 
       {/* El progreso por CONTENIDO va primero, y el de evaluaciones despues. Es

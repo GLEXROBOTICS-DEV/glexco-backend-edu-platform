@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { CardSkeleton } from '../../../../components/ui';
 import { PageHeader } from '../../../../components/page-header';
@@ -14,12 +15,14 @@ export const metadata: Metadata = { title: 'El muro' };
  * conversación se sigue a lo largo de la semana. Mezclarlas enterraba el aviso
  * importante entre las preguntas.
  */
-export default function Muro() {
+export default async function Muro() {
+  const t = await getTranslations('pantallas');
+
   return (
     <>
       <PageHeader
-        title="El muro de tu clase"
-        subtitle="Pregunta lo que no entiendas. Si tú tienes la duda, seguramente alguien más también."
+        title={t('muroTitulo')}
+        subtitle={t('muroSubtitulo')}
       />
 
       <Suspense fallback={<CardSkeleton />}>

@@ -243,19 +243,34 @@ export async function fetchWeakestKits(limit = 10): Promise<{ items: WeakKit[]; 
  * dice nada más que uno con tres, y multiplica las decisiones de diseño.
  */
 export function scoreTone(
+  t: (key: string) => string,
   percentage: number | null,
   passingScore = 60,
 ): { tone: 'neutral' | 'good' | 'warning' | 'critical'; label: string } {
   if (percentage === null) return { tone: 'neutral', label: '' };
-  if (percentage >= passingScore + 15) return { tone: 'good', label: 'Buen nivel' };
-  if (percentage >= passingScore) return { tone: 'good', label: 'Aprobado' };
-  if (percentage >= passingScore - 10) return { tone: 'warning', label: 'Justo por debajo' };
-  return { tone: 'critical', label: 'Necesita apoyo' };
+  if (percentage >= passingScore + 15) return { tone: 'good', label: t('notas.buenNivel') };
+  if (percentage >= passingScore) return { tone: 'good', label: t('notas.aprobado') };
+  if (percentage >= passingScore - 10) {
+    return { tone: 'warning', label: t('notas.justoPorDebajo') };
+  }
+  return { tone: 'critical', label: t('notas.necesitaApoyo') };
 }
 
-/** Fecha corta y legible. El ISO completo en una tarjeta no lo lee nadie. */
-export function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
+/**
+ * Fecha corta y legible. El ISO completo en una tarjeta no lo lee nadie.
+ *
+ * Recibe el formateador en vez de fijar `es-PE`: con el idioma escrito a mano,
+ * el eje de un grafico salia en espanol dentro de una pantalla en ingles.
+ */
+export function shortDate(
+  format: { dateTime(date: Date, options?: Record<string, unknown>): string },
+  iso: string,
+): string {
+  return format.dateTime(new Date(iso), {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'America/Lima',
+  });
 }
 
 /**

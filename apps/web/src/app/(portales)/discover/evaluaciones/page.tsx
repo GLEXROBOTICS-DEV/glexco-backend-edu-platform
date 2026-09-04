@@ -1,15 +1,18 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { CardSkeleton } from '../../../../components/ui';
 import { AssessmentList } from '../../../../components/assessment-list';
 
 export const metadata: Metadata = { title: 'Mis actividades' };
 
-export default function DiscoverEvaluaciones() {
+export default async function DiscoverEvaluaciones() {
+  const t = await getTranslations('pantallas');
+
   return (
     <>
       <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="font-semibold">
-        Mis actividades
+        {t('misActividades')}
       </h1>
 
       <Suspense fallback={<CardSkeleton />}>

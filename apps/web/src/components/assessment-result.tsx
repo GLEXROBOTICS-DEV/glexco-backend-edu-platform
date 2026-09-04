@@ -1,3 +1,5 @@
+import type { TranslationValues } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 import { ChallengeIcon } from '@glexco/icons';
 import { fetchMyResult, type MyAttempt } from '../lib/assessments';
 import { DonutChart } from './charts';
@@ -24,13 +26,14 @@ export async function AssessmentResult({
   portal: 'discover' | 'academy';
 }) {
   const result = await fetchMyResult(assessmentId);
+  const t = await getTranslations('resultado');
 
   if (!result) {
     return (
       <EmptyState
-        title="No pudimos cargar esta actividad"
-        description="Vuelve a intentarlo en un momento. Si sigue pasando, avisa a tu docente."
-        action={{ href: `/${portal}/evaluaciones`, label: 'Ver mis actividades' }}
+        title={t('falloTitulo')}
+        description={t('falloDescripcion')}
+        action={{ href: `/${portal}/evaluaciones`, label: t('verMisActividades') }}
       />
     );
   }
@@ -47,11 +50,11 @@ export async function AssessmentResult({
         title={result.title}
         description={
           result.attemptsLeft > 0
-            ? `Tienes ${result.maxAttempts} ${result.maxAttempts === 1 ? 'intento' : 'intentos'} para esta actividad. Cuando la abras empieza a contar.`
-            : 'Ya no te quedan intentos para esta actividad.'
+            ? t('intentosDisponibles', { intentos: result.maxAttempts })
+            : t('sinIntentos')
         }
         {...(result.attemptsLeft > 0
-          ? { action: { href: responder, label: 'Empezar' } }
+          ? { action: { href: responder, label: t('empezar') } }
           : {})}
       />
     );
@@ -70,24 +73,22 @@ export async function AssessmentResult({
         <div className="lg:col-span-1">
           {awaiting || percentage === null ? (
             <div className="rounded-[var(--portal-radius)] border border-line-200 bg-white p-[var(--portal-card-padding)] text-center">
-              <p className="font-display text-xl font-semibold">Entregado</p>
-              <p className="mt-2 text-sm text-ink-500">
-                Tu docente tiene que revisar algunas respuestas.
-              </p>
+              <p className="font-display text-xl font-semibold">{t('entregado')}</p>
+              <p className="mt-2 text-sm text-ink-500">{t('pendienteDeRevision')}</p>
             </div>
           ) : (
             <DonutChart
               value={percentage}
-              label="Tu mejor nota"
-              caption={`${best!.score} de ${best!.maxScore} puntos`}
+              label={t('tuMejorNota')}
+              caption={t('puntosDeTotal', { puntos: best!.score!, total: best!.maxScore })}
               tone={best!.passed ? 'good' : 'critical'}
-              toneLabel={best!.passed ? 'Aprobado' : 'No aprobado'}
+              toneLabel={best!.passed ? t('aprobado') : t('noAprobado')}
             />
           )}
         </div>
 
         <article className="rounded-[var(--portal-radius)] border border-line-200 bg-white p-[var(--portal-card-padding)] lg:col-span-2">
-          <p className="eyebrow mb-3">Qué te conviene hacer ahora</p>
+          <p className="eyebrow mb-3">{t('queTeConviene')}</p>
 
           {/* El comentario del docente manda sobre las recomendaciones
               automaticas: es especifico y lo escribio alguien que vio la
@@ -95,7 +96,7 @@ export async function AssessmentResult({
           {best?.feedback ? (
             <div className="mb-4 rounded-[calc(var(--portal-radius)*0.75)] bg-state-doing-bg p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-state-doing-fg">
-                De tu docente
+                {t('deTuDocente')}
               </p>
               <p className="mt-1.5 text-sm text-ink-900">{best.feedback}</p>
             </div>
@@ -111,37 +112,34 @@ export async function AssessmentResult({
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-ink-500">
-              Cuando tu docente termine de revisar verás aquí qué repasar.
-            </p>
+            <p className="text-sm text-ink-500">{t('sinRecomendaciones')}</p>
           )}
 
           <div className="mt-6 flex flex-wrap gap-3">
             {result.inProgress ? (
               <a href={responder} className="btn btn-primary">
-                Continuar el intento
+                {t('continuarIntento')}
               </a>
             ) : result.attemptsLeft > 0 && !best?.passed ? (
               <a href={responder} className="btn btn-primary">
-                Volver a intentarlo
+                {t('volverAIntentarlo')}
               </a>
             ) : null}
             <a href={`/${portal}/progreso`} className="btn btn-secondary">
-              Ver mi progreso
+              {t('verMiProgreso')}
             </a>
           </div>
 
           {/* El recuento va SIEMPRE, aprobado o no. Es la cifra por la que el
               alumno pregunta antes de pulsar nada. */}
           <p className="mt-4 text-xs text-ink-500">
-            {result.attemptsUsed} de {result.maxAttempts}{' '}
-            {result.maxAttempts === 1 ? 'intento usado' : 'intentos usados'}
-            {result.attemptsLeft === 0 ? ' · no te quedan más' : ''}
+            {t('intentosUsados', { usados: result.attemptsUsed, total: result.maxAttempts })}
+            {result.attemptsLeft === 0 ? t('noQuedanMas') : ''}
           </p>
         </article>
       </div>
 
-      {result.attempts.length > 1 ? <Historial attempts={result.attempts} /> : null}
+      {result.attempts.length > 1 ? <Historial attempts={result.attempts} t={t} /> : null}
     </div>
   );
 }
@@ -152,11 +150,18 @@ export async function AssessmentResult({
  * Solo aparece a partir del segundo: con uno solo, una tabla de una fila repite
  * lo que ya dice la tarjeta de arriba.
  */
-function Historial({ attempts }: { attempts: readonly MyAttempt[] }) {
+function Historial({
+  attempts,
+  t,
+}: {
+  attempts: readonly MyAttempt[];
+  /** Por props: es una lista y el padre ya lo tiene. */
+  t: (key: string, values?: TranslationValues) => string;
+}) {
   return (
     <section aria-labelledby="intentos">
       <h2 id="intentos" className="eyebrow mb-3">
-        Tus intentos
+        {t('tusIntentos')}
       </h2>
 
       <ul className="grid gap-2">
@@ -167,13 +172,15 @@ function Historial({ attempts }: { attempts: readonly MyAttempt[] }) {
               key={attempt.submissionId}
               className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--portal-radius)] border border-line-200 bg-white px-4 py-3"
             >
-              <span className="text-sm font-medium">Intento {attempt.attemptNumber}</span>
+              <span className="text-sm font-medium">
+                {t('intentoNumero', { numero: attempt.attemptNumber })}
+              </span>
               <span className="text-sm tabular-nums text-ink-500">
                 {attempt.status === 'in_progress'
-                  ? 'sin entregar'
+                  ? t('sinEntregar')
                   : attempt.score === null
-                    ? 'pendiente de corregir'
-                    : `${attempt.score} de ${attempt.maxScore} puntos`}
+                    ? t('pendienteDeCorregir')
+                    : t('puntosDeTotal', { puntos: attempt.score, total: attempt.maxScore })}
               </span>
             </li>
           ))}

@@ -33,7 +33,16 @@ export default async function DiscoverHome() {
           cifras y el nombre del curso esperan al servicio de aprendizaje, y lo
           hacen sobre huecos de su misma altura para que la banda no salte. */}
       <PortalHero
-        greeting={t('saludo', { nombre: session.firstName })}
+        greeting={
+          // Sin nombre se saluda igual, pero SIN la coma huerfana. Pasa de
+          // verdad: si identidad no responde, la sesion sigue adelante con lo
+          // que da el token -que no lleva el nombre- para no echar al alumno a
+          // la pantalla de ingreso por un fallo temporal. Con la plantilla a
+          // secas, la cabecera decia "Hola, !", que se lee como roto.
+          session.firstName
+            ? t('saludo', { nombre: session.firstName })
+            : t('saludoSinNombre')
+        }
         subtitle={
           <Suspense fallback={t('aventuraGenerica')}>
             <HeroSubtitle portal="discover" />
