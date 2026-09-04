@@ -91,6 +91,29 @@ const INSTITUTION = {
  * externo se abre fuera, funciona, y es ademas uno de los tres caminos de
  * entrega reales del producto.
  */
+/**
+ * Pagina oficial de cada robot en UBTECH.
+ *
+ * Los tutoriales sembrados apuntan aqui mientras no haya video propio. Es un
+ * relleno, pero un relleno HONESTO: quien abra un tutorial de la demo acaba en
+ * la ficha real del robot que tiene delante, no en un enlace de broma ni en un
+ * 404. Un enlace muerto en una demo se lee como que la plataforma esta rota.
+ *
+ * URLs comprobadas contra el sitio oficial. Si UBTECH reorganiza su web hay que
+ * revisarlas: no hay forma de detectar aqui que una empezo a devolver 404.
+ */
+const UBTECH_PAGES = {
+  ukit: 'https://www.ubtrobot.com/en/ai-education/products/ukit-explore',
+  ukit_ai: 'https://www.ubtrobot.com/en/ai-education/products/ukit-ai',
+  ugot: 'https://www.ubtrobot.com/en/ai-education/products/ugot',
+  yanshee: 'https://www.ubtrobot.com/en/ai-education/products/yanshee',
+};
+
+/** El enlace del kit, o el sitio de educacion si su robot no esta en la tabla. */
+function ubtechPageFor(platform) {
+  return UBTECH_PAGES[platform] ?? 'https://www.ubtrobot.com/en/ai-education';
+}
+
 const KITS = [
   {
     id: idFor('kit', 'UKIT-EXPLORE-P4'),
@@ -467,14 +490,21 @@ async function seedCatalog() {
            (id, kit_id, lesson_id, title, description, type, storage_kind, storage_ref,
             bucket, locale, status, order_index, downloadable, duration_seconds)
          VALUES ($1,$2,$3,$4,$5,'video','external_link',$6,NULL,'es','published',$7,false,$8)
-         ON CONFLICT (id) DO NOTHING`,
+         -- DO UPDATE y no DO NOTHING: el enlace del tutorial es justo lo que se
+         -- corrige entre siembras, y con DO NOTHING una demo ya sembrada se
+         -- quedaba con el enlace viejo para siempre por mucho que se arreglara
+         -- aqui.
+         ON CONFLICT (id) DO UPDATE SET
+           title       = EXCLUDED.title,
+           description = EXCLUDED.description,
+           storage_ref = EXCLUDED.storage_ref`,
         [
           idFor('asset-video', lesson.id),
           kit.id,
           lesson.id,
           `Tutorial: ${lesson.title}`,
-          'Video de demostracion. El equipo de GLEXCO lo reemplaza por el suyo.',
-          'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          'Ficha oficial del robot en UBTECH, como relleno. El equipo de GLEXCO la reemplaza por su propio video.',
+          ubtechPageFor(kit.platforms[0]),
           index * 2,
           lesson.minutes * 60,
         ],
