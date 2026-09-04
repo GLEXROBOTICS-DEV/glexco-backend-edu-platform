@@ -1,5 +1,6 @@
 import type { TransactionContext } from '@glexco/kernel';
 import type { XpReason } from './gamification';
+import type { Mission, StudentFacts } from './mission';
 
 export interface LessonProgressRow {
   studentId: string;
@@ -93,6 +94,29 @@ export interface LearningRepository {
   /** El curso y el kit a los que pertenece una leccion, segun el directorio
    *  propio. `null` si la leccion no esta publicada o todavia no se proyecto. */
   locateLesson(lessonId: string): Promise<{ courseId: string; kitId: string } | null>;
+}
+
+export interface MissionRepository {
+  /**
+   * Las misiones publicadas de un kit, ordenadas por semana.
+   *
+   * Devuelve las de GLEXCO mas las de la institucion del alumno, si tiene. Hoy
+   * solo hay de GLEXCO; el parametro existe desde el principio porque el
+   * alcance es lo ultimo que se debe anadir despues, cuando ya hay pantallas
+   * leyendo sin filtro.
+   */
+  publishedForKit(kitId: string, institutionId: string | null): Promise<Mission[]>;
+
+  /**
+   * Lo que la plataforma ya sabe del alumno, medido de los HECHOS.
+   *
+   * No hay tabla de progreso de misiones: esto sale de `lesson_progress` y de
+   * `xp_awards`. Ver la nota de `domain/mission.ts`.
+   */
+  factsFor(studentId: string, kitId: string): Promise<StudentFacts>;
+
+  /** Que misiones ya cobro, y cuando. Sale de `xp_awards`. */
+  completionsFor(studentId: string): Promise<Map<string, Date>>;
 }
 
 export interface GamificationRepository {

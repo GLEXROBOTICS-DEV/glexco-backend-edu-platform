@@ -11,7 +11,13 @@
  *
  * Uso:  node --env-file-if-exists=.env infra/scripts/web-check.mjs
  */
-import { mintAccessToken, seedCatalog, seedInstitution, seedUsers } from './seed-dev.mjs';
+import {
+  mintAccessToken,
+  seedCatalog,
+  seedInstitution,
+  seedMissions,
+  seedUsers,
+} from './seed-dev.mjs';
 import contracts from '@glexco/contracts';
 
 const { ROLES } = contracts;
@@ -687,6 +693,172 @@ async function main() {
     'La nota es PARCIAL: dos piezas en su sitio de cuatro valen la mitad',
     ordenEntregado.body?.score === 6,
     `score=${ordenEntregado.body?.score} de ${ordenEntregado.body?.maxScore}`,
+  );
+
+  // ------------------------------------------------------------------
+  section('6c. Misiones semanales');
+  // ------------------------------------------------------------------
+  //
+  // Se siembran DESPUES de que el alumno haya completado su leccion y aprobado
+  // su cuestionario -eso paso en las secciones 2 y 6-, asi que la mision de la
+  // semana 1 ya esta cumplida y la llamada tiene que darla por completada en el
+  // mismo paso. Es lo que de verdad hay que comprobar: no que la lista responda,
+  // sino que el avance se calcula de los hechos que ya estan escritos.
+  const misiones = await seedMissions({
+    kitId: dashKit.kitId,
+    courseId: dashKit.courseId,
+    assessmentId: quiz.body?.assessmentId,
+    lessons: 1,
+  });
+
+  report(
+    'Se publican tres misiones del kit',
+    misiones.length === 3,
+    `${misiones.length} sembradas`,
+  );
+
+  // El directorio de contenido de aprendizaje se siembra a mano, igual que en la
+  // seccion 14 y por lo mismo: llega por evento `catalog.course.published.v1`, y
+  // `seedCatalog` escribe por SQL, que no emite ninguno. Lo que aqui se verifica
+  // son las misiones, no la proyeccion -que ya se comprueba en otra seccion-.
+  await pgQuery(
+    process.env.DATABASE_URL_LEARNING,
+    `INSERT INTO learning.course_directory (course_id, kit_id, title, lesson_count)
+     VALUES ($1,$2,'Primeros pasos con uKit',1)
+     ON CONFLICT (course_id) DO UPDATE SET lesson_count = 1`,
+    [dashKit.courseId, dashKit.kitId],
+  );
+  await pgQuery(
+    process.env.DATABASE_URL_LEARNING,
+    `INSERT INTO learning.lesson_directory (lesson_id, course_id, kit_id, title, order_index)
+     VALUES ($1,$2,$3,'Conoce tu robot',0)
+     ON CONFLICT (lesson_id) DO NOTHING`,
+    [dashKit.lessonId, dashKit.courseId, dashKit.kitId],
+  );
+
+  // Y completa su leccion por la via REAL. En este punto del guion todavia no
+  // habia completado ninguna -eso pasa mas abajo-, asi que sin esto la mision de
+  // la semana 1 no tendria nada que medir y la seccion afirmaria sobre un cero.
+  const leccionDeMision = await postJson(
+    `${LEARNING}/api/v1/learning/lessons/${dashKit.lessonId}/complete`,
+    pupilToken,
+    {},
+  );
+  report(
+    'El alumno completa una leccion del kit',
+    leccionDeMision.status === 200,
+    `status=${leccionDeMision.status} ${JSON.stringify(leccionDeMision.body).slice(0, 120)}`,
+  );
+
+  const misPrimeras = await getJson(
+    `${LEARNING}/api/v1/learning/missions/${dashKit.kitId}`,
+    pupilToken,
+  );
+
+  report(
+    'El alumno ve sus misiones del kit',
+    misPrimeras.status === 200 && (misPrimeras.body?.items ?? []).length === 3,
+    `status=${misPrimeras.status} items=${(misPrimeras.body?.items ?? []).length}`,
+  );
+
+  const semana1 = (misPrimeras.body?.items ?? []).find((item) => item.weekNumber === 1);
+  const semana2 = (misPrimeras.body?.items ?? []).find((item) => item.weekNumber === 2);
+  const semana3 = (misPrimeras.body?.items ?? []).find((item) => item.weekNumber === 3);
+
+  // NO hay tabla de progreso de misiones: el avance sale de `lesson_progress` y
+  // de `xp_awards`. Si esto falla, es que se calculo de otro sitio.
+  report(
+    'El avance se calcula de los hechos, sin tabla de progreso',
+    semana1?.objectives?.[0]?.current >= 1,
+    `objetivo=${JSON.stringify(semana1?.objectives?.[0] ?? null)}`,
+  );
+
+  report(
+    'La mision cumplida se completa en la misma llamada, y paga su XP',
+    semana1?.state === 'completed' && misPrimeras.body?.awardedXp > 0,
+    `estado=${semana1?.state} xp=${misPrimeras.body?.awardedXp}`,
+  );
+
+  report(
+    'Y dice que fue a tiempo',
+    semana1?.onTime === true,
+    `onTime=${semana1?.onTime}`,
+  );
+
+  // Ir por delante no permite cobrar semanas futuras de golpe: una mision
+  // semanal que se completa entera de una vez no es semanal.
+  report(
+    'Una mision de una semana futura NO se cobra por adelantado',
+    semana3?.state === 'locked' && semana3?.completedAt === null,
+    `estado=${semana3?.state}`,
+  );
+
+  // La de la semana 2 pide la evaluacion aprobada, y este alumno la aprobo en la
+  // seccion 6: sirve para comprobar que un objetivo de evaluacion se mide con la
+  // marca que dejo el evento, sin preguntarle a evaluacion por red.
+  report(
+    'Un objetivo de evaluacion se mide con lo que ya llego por evento',
+    (semana2?.objectives ?? []).some(
+      (objective) => objective.kind === 'assessment_passed' && objective.done,
+    ),
+    JSON.stringify(semana2?.objectives ?? []),
+  );
+
+  // LA comprobacion que sostiene el diseno: abrir la pantalla dos veces no paga
+  // dos veces. La garantia esta en la base -indice unico de `xp_awards`- y no en
+  // un `if`, asi que dos pestanas a la vez tampoco.
+  const misSegundas = await getJson(
+    `${LEARNING}/api/v1/learning/missions/${dashKit.kitId}`,
+    pupilToken,
+  );
+
+  report(
+    'Volver a abrir las misiones NO vuelve a pagar',
+    misSegundas.body?.awardedXp === 0,
+    `xp en la segunda lectura=${misSegundas.body?.awardedXp}`,
+  );
+
+  report(
+    'Y la completada sigue completada, sin celebrarlo dos veces',
+    misSegundas.body?.items?.find((item) => item.weekNumber === 1)?.state === 'completed' &&
+      misSegundas.body?.items?.find((item) => item.weekNumber === 1)?.justCompleted === false,
+    '',
+  );
+
+  // Otro alumno ve SUS misiones, no las de nadie: el alcance sale del token.
+  const [sinAvance] = await seedUsers(1, { institutionId: school.institutionId });
+  const misAjenas = await getJson(
+    `${LEARNING}/api/v1/learning/missions/${dashKit.kitId}`,
+    mintAccessToken({
+      userId: sinAvance.id,
+      roles: sinAvance.roles,
+      institutionId: school.institutionId,
+    }),
+  );
+  report(
+    'Otro alumno ve las mismas misiones con SU avance, no el ajeno',
+    misAjenas.status === 200 &&
+      misAjenas.body?.items?.find((item) => item.weekNumber === 1)?.state !== 'completed',
+    `estado ajeno=${misAjenas.body?.items?.find((item) => item.weekNumber === 1)?.state}`,
+  );
+
+  // Y en la pantalla: la mision de la semana va en el dashboard, que es donde el
+  // cliente pidio que estuviera.
+  const portadaConMision = await fetchHtml(`${WEB}/${pupilPortal}`, pupilJar);
+  report(
+    'La mision de la semana aparece en el dashboard del alumno',
+    portadaConMision.html.includes('data-mission-state='),
+    `status=${portadaConMision.status}`,
+  );
+
+  const zonaDeRetos = await fetchHtml(
+    `${WEB}/${pupilPortal}/${pupilPortal === 'discover' ? 'retos' : 'proyectos'}`,
+    pupilJar,
+  );
+  report(
+    'Y la lista completa en la zona de retos, con las tres semanas',
+    zonaDeRetos.html.includes('data-missions="3"'),
+    `status=${zonaDeRetos.status}`,
   );
 
   // ------------------------------------------------------------------

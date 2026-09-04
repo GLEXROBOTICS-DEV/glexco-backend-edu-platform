@@ -9,6 +9,7 @@ import { ContinueLearning } from '../../../components/continue-learning';
 import { LearningPath } from '../../../components/learning-path';
 import { RecentBadges, UpcomingActivities } from '../../../components/upcoming';
 import { NoKitNotice } from '../../../components/no-kit-notice';
+import { WeeklyMission } from '../../../components/missions';
 
 export const metadata: Metadata = { title: 'Academy' };
 
@@ -70,6 +71,10 @@ export default async function AcademyHome() {
 
       <Suspense fallback={<CardSkeleton />}>
         <ContinueLearning portal="academy" />
+      </Suspense>
+
+      <Suspense fallback={<CardSkeleton />}>
+        <WeeklyMission portal="academy" />
       </Suspense>
 
       {/* Los logros tambien en Academy: la gamificacion no deja de motivar a los

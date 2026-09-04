@@ -11,6 +11,7 @@ import {
 } from '../../../components/continue-learning';
 import { RecentBadges, UpcomingActivities } from '../../../components/upcoming';
 import { NoKitNotice } from '../../../components/no-kit-notice';
+import { WeeklyMission } from '../../../components/missions';
 import { ActionSkeleton, ClassroomActions } from '../../../components/page-header';
 
 export const metadata: Metadata = { title: 'Discover' };
@@ -79,6 +80,13 @@ export default async function DiscoverHome() {
 
       <Suspense fallback={<CardSkeleton />}>
         <ContinueLearning portal="discover" />
+      </Suspense>
+
+      {/* La mision de la semana va DESPUES del curso a medias y ANTES de lo
+          que viene: responde "que hago ahora", que es la pregunta siguiente a
+          "donde lo deje". */}
+      <Suspense fallback={<CardSkeleton />}>
+        <WeeklyMission portal="discover" />
       </Suspense>
 
       <div className="grid gap-[var(--portal-gap)] lg:grid-cols-3">

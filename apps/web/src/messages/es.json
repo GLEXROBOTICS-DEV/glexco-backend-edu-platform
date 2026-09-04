@@ -525,5 +525,33 @@
       "stem_activity": "Actividad STEM",
       "quiz": "Cuestionario"
     }
+  },
+  "misiones": {
+    "tituloBloque": "Tu misión de la semana",
+    "verTodas": "Ver todas",
+    "tituloDeKit": "Misiones de {kit}",
+    "semana": "Semana {numero}",
+    "completadasDeTotal": "{hechas} de {total} misiones completadas",
+    "vacioTitulo": "Todavía no hay misiones para tu kit",
+    "vacioDescripcion": "Cuando GLEXCO publique las de tu kit, aparecerán aquí semana a semana.",
+    "avanceDe": "Avance de {mision}",
+    "avanceObjetivo": "{actual} de {total}",
+    "objetivoHecho": "Hecho:",
+    "objetivoPendiente": "Pendiente:",
+    "recompensa": "Al completarla ganas {puntos} puntos",
+    "completadaATiempo": "Completada a tiempo · +{puntos} puntos",
+    "completadaTarde": "Completada · +{puntos} puntos",
+    "abreEl": "Abre el {fecha}",
+    "estado": {
+      "current": "Esta semana",
+      "completed": "Completada",
+      "overdue": "Se te pasó, pero aún puedes",
+      "locked": "Todavía no abre"
+    },
+    "objetivo": {
+      "lessons_completed": "{cuantos, plural, one {Completa # lección} other {Completa # lecciones}}",
+      "assessment_passed": "Aprueba la evaluación del kit",
+      "xp_earned": "Acumula {cuantos} puntos"
+    }
   }
 }

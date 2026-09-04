@@ -23,6 +23,7 @@ import {
   GetMyProgressUseCase,
   StartLessonUseCase,
 } from '../../application/progress.usecase';
+import { MyMissionsUseCase } from '../../application/missions.usecase';
 import { BADGE_RULES, EXPLORER_LEVELS } from '../../domain/gamification';
 import {
   IssueCertificateUseCase,
@@ -72,6 +73,7 @@ export class LearningController {
     private readonly complete: CompleteLessonUseCase,
     private readonly myProgress: GetMyProgressUseCase,
     private readonly classroomProgress: GetClassroomProgressUseCase,
+    private readonly myMissions: MyMissionsUseCase,
   ) {}
 
   /**
@@ -100,6 +102,26 @@ export class LearningController {
     @Req() request: Request,
   ) {
     return this.complete.execute({ lessonId, ...input }, contextFrom(request));
+  }
+
+  /**
+   * Mis misiones de un kit, con su avance.
+   *
+   * El kit va en la ruta y el alumno NO: el alcance sale del token. Aceptar un
+   * `studentId` convertiria esta pantalla en la de cualquier alumno de la
+   * plataforma, y lo que hay detras es el progreso de un menor.
+   *
+   * **Es un `GET` que puede escribir**, y conviene saberlo: si los objetivos de
+   * una mision ya estan cumplidos, esta llamada anota su XP. La alternativa era
+   * un consumidor que reevaluara todas las misiones de un alumno con cada
+   * leccion completada -N misiones reabiertas por cada hecho del sistema para
+   * que casi ninguna cambie-. La escritura es idempotente por construccion:
+   * `xp_awards` lo garantiza por (alumno, motivo, referencia).
+   */
+  @Get('missions/:kitId')
+  @RequirePermissions(PERMISSIONS.PROGRESS_READ_OWN)
+  async missions(@Param('kitId') kitId: string, @Req() request: Request) {
+    return this.myMissions.execute({ kitId }, contextFrom(request));
   }
 
   /** El progreso propio. Sin parametro de alcance: lo decide el token. */

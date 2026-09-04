@@ -74,7 +74,18 @@ export const XP_VALUES = {
   challenge: 75,
 } as const;
 
-export type XpReason = keyof typeof XP_VALUES;
+/**
+ * Motivos cuyo valor NO es fijo: lo trae el hecho.
+ *
+ * Una mision no puede tener un precio en esta tabla porque cada una vale lo que
+ * pide: una semana de tres lecciones y un examen no vale lo mismo que una de una
+ * leccion, y GLEXCO decide ese numero al escribirla -y mas adelante lo ajustaran
+ * las instituciones-. Se declara aparte en vez de ponerle un valor de mentira
+ * aqui, que es como se acaba con un `0` que la restriccion de la tabla rechaza.
+ */
+export const VARIABLE_XP_REASONS = ['mission_completed'] as const;
+
+export type XpReason = keyof typeof XP_VALUES | (typeof VARIABLE_XP_REASONS)[number];
 
 /**
  * Insignias que se pueden conceder solas, a partir de contadores.

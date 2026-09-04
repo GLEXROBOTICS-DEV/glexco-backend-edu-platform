@@ -263,6 +263,9 @@ async function main() {
   await enrollStudents(people);
   await redeemCodes(people, codes);
   const assessments = await seedAssessments(people);
+  // Despues de las evaluaciones: la mision de la semana 2 apunta a una de
+  // ellas, y sembrarla antes la dejaria con un objetivo imposible de cumplir.
+  await seedMissions(assessments);
   await seedSubmissions(people, assessments);
   await seedProgress(people);
   await seedAnnouncements(people);
@@ -378,6 +381,8 @@ async function resetDemo() {
     `DELETE FROM assessment.submissions WHERE student_id = ANY($1::uuid[])`, [userIds]);
   await admin.query(
     `DELETE FROM assessment.assessments WHERE kit_id = ANY($1::uuid[])`, [kitIds]);
+  await admin.query(
+    `DELETE FROM learning.missions WHERE kit_id = ANY($1::uuid[])`, [kitIds]);
 
   await admin.query(
     `DELETE FROM catalog.entitlements WHERE student_id = ANY($1::uuid[])`, [userIds]);
@@ -1331,6 +1336,94 @@ async function redeemCodes(people, codes) {
   }
 
   console.log(`  canjes           ${count}/${people.students.length}`);
+}
+
+/**
+ * Las misiones semanales del kit.
+ *
+ * Se siembran por SQL y no por la API porque todavia no hay endpoint de autoria:
+ * hoy las escribe GLEXCO y vienen con el kit, y el cliente ya dijo que la
+ * pantalla para que institucion y docentes las ajusten viene mas adelante.
+ *
+ * Tres semanas por kit, y cada una pide algo que la plataforma ya observa: dos
+ * lecciones, el resto del curso mas su evaluacion, y un total de puntos. No hay
+ * progreso que sembrar: el avance se calcula de `lesson_progress` y `xp_awards`.
+ *
+ * `ON CONFLICT DO NOTHING` sobre el id determinista: sembrar dos veces no
+ * duplica: sin eso, cada ejecucion anadia una copia y el alumno veia tres
+ * "misiones de esta semana" sin saber cual era la suya. Es el mismo problema que
+ * ya paso con las evaluaciones.
+ */
+async function seedMissions(assessments) {
+  const porKit = new Map(assessments.map((entry) => [entry.kitId, entry.id]));
+  let creadas = 0;
+
+  for (const kit of KITS) {
+    const evaluacion = porKit.get(kit.id) ?? null;
+    const totalLecciones = kit.course.lessons.length;
+
+    const semanas = [
+      {
+        weekNumber: 1,
+        title: 'Conoce tu robot',
+        description: 'Abre tu kit y termina las dos primeras lecciones del curso.',
+        objectives: [
+          { kind: 'lessons_completed', target: Math.min(2, totalLecciones), courseId: kit.course.id },
+        ],
+        xpReward: 80,
+      },
+      {
+        weekNumber: 2,
+        title: 'Termina el curso y demuestralo',
+        description: 'Completa todas las lecciones y aprueba la evaluacion del kit.',
+        objectives: [
+          { kind: 'lessons_completed', target: totalLecciones, courseId: kit.course.id },
+          // Sin evaluacion sembrada, la mision pide solo las lecciones: un
+          // objetivo que apunta a una evaluacion que no existe no se puede
+          // cumplir nunca, y eso no se descubre hasta que el salon se queda sin
+          // su XP.
+          ...(evaluacion
+            ? [{ kind: 'assessment_passed', target: 1, assessmentId: evaluacion }]
+            : []),
+        ],
+        xpReward: 200,
+      },
+      {
+        weekNumber: 3,
+        title: 'Explorador constante',
+        description: 'Acumula 300 puntos con tu trabajo de estas semanas.',
+        objectives: [{ kind: 'xp_earned', target: 300 }],
+        xpReward: 120,
+      },
+    ];
+
+    for (const semana of semanas) {
+      const id = idFor('mission', `${kit.code}:${semana.weekNumber}`);
+
+      const { rowCount } = await admin.query(
+        `INSERT INTO learning.missions
+           (id, kit_id, origin, institution_id, week_number, title, description,
+            objectives, xp_reward, status)
+         VALUES ($1,$2,'glexco',NULL,$3,$4,$5,$6,$7,'published')
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          id,
+          kit.id,
+          semana.weekNumber,
+          semana.title,
+          semana.description,
+          JSON.stringify(semana.objectives),
+          semana.xpReward,
+        ],
+      );
+
+      if (rowCount === 1) creadas += 1;
+    }
+
+    console.log(`  misiones         ${kit.code}: 3 semanas`);
+  }
+
+  console.log(`  ${creadas} mision(es) nueva(s)`);
 }
 
 async function seedAssessments(people) {

@@ -1,12 +1,14 @@
 import type { Pool, PoolClient } from 'pg';
 import type { TransactionContext } from '@glexco/kernel';
 import { BADGE_RULES, isStale, levelFor } from '../../domain/gamification';
+import type { Mission, StudentFacts } from '../../domain/mission';
 import type {
   CertificateRepository,
   CertificateRow,
   ClassroomProgressRow,
   GamificationRepository,
   LearningRepository,
+  MissionRepository,
   StudentProgressView,
 } from '../../domain/repositories';
 
@@ -582,4 +584,126 @@ function toCertificate(row: CertificateDbRow): CertificateRow {
     revokedAt: row.revoked_at ? row.revoked_at.toISOString() : null,
     revokedReason: row.revoked_reason,
   };
+}
+
+/**
+ * Misiones: el catalogo se lee, el avance se CALCULA.
+ *
+ * No hay tabla de progreso de misiones y este archivo es donde se ve por que no
+ * hace falta: las tres consultas de `factsFor` salen de tablas que ya existen y
+ * que ya se mantienen solas. Una tabla mas seria una copia que hay que
+ * sincronizar con cada leccion completada.
+ */
+export class PgMissionRepository implements MissionRepository {
+  constructor(
+    private readonly readPool: Pool,
+  ) {}
+
+  async publishedForKit(kitId: string, institutionId: string | null): Promise<Mission[]> {
+    // Las de GLEXCO -que son de todos- mas las de la institucion del alumno.
+    // Hoy solo hay de GLEXCO; la condicion esta desde el principio porque
+    // anadir el alcance despues significa repasar cada pantalla que ya lee.
+    const { rows } = await this.readPool.query<{
+      id: string;
+      kit_id: string;
+      origin: 'glexco' | 'institution';
+      institution_id: string | null;
+      week_number: number;
+      title: string;
+      description: string;
+      objectives: unknown;
+      xp_reward: number;
+    }>(
+      `SELECT id, kit_id, origin, institution_id, week_number, title, description,
+              objectives, xp_reward
+         FROM learning.missions
+        WHERE kit_id = $1
+          AND status = 'published'
+          AND (origin = 'glexco' OR institution_id = $2)
+        ORDER BY week_number, created_at`,
+      [kitId, institutionId],
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      kitId: row.kit_id,
+      origin: row.origin,
+      institutionId: row.institution_id,
+      weekNumber: row.week_number,
+      title: row.title,
+      description: row.description,
+      objectives: Array.isArray(row.objectives) ? (row.objectives as Mission['objectives']) : [],
+      xpReward: row.xp_reward,
+    }));
+  }
+
+  async factsFor(studentId: string, kitId: string): Promise<StudentFacts> {
+    const [porCurso, aprobadas, resumen] = await Promise.all([
+      // Lecciones completadas del kit, agrupadas por curso. Una sola consulta
+      // da el total y el desglose: el total es la suma, y pedirlo aparte seria
+      // un segundo recorrido de las mismas filas.
+      this.readPool.query<{ course_id: string; completadas: string }>(
+        `SELECT course_id, count(*)::text AS completadas
+           FROM learning.lesson_progress
+          WHERE student_id = $1 AND kit_id = $2 AND completed_at IS NOT NULL
+          GROUP BY course_id`,
+        [studentId, kitId],
+      ),
+
+      // Las evaluaciones aprobadas salen de `xp_awards` y no de una llamada al
+      // servicio de evaluacion: el hecho "aprobo" ya llego aqui por evento y
+      // esta escrito. Preguntarlo por red convertiria la portada en una cadena
+      // de llamadas, y la portada es la pantalla que mas se abre.
+      this.readPool.query<{ reference: string }>(
+        `SELECT reference
+           FROM learning.xp_awards
+          WHERE student_id = $1 AND reason = 'assessment_passed'`,
+        [studentId],
+      ),
+
+      this.readPool.query<{ total_xp: number }>(
+        `SELECT total_xp FROM learning.student_gamification WHERE student_id = $1`,
+        [studentId],
+      ),
+    ]);
+
+    const lessonsCompletedByCourse: Record<string, number> = {};
+    let lessonsCompletedInKit = 0;
+
+    for (const row of porCurso.rows) {
+      const cuenta = Number(row.completadas);
+      lessonsCompletedByCourse[row.course_id] = cuenta;
+      lessonsCompletedInKit += cuenta;
+    }
+
+    // Cuando empezo: la PRIMERA actividad del kit, completada o no. Abrir una
+    // leccion ya es empezar, y anclar en la primera COMPLETADA castigaria a
+    // quien tarda una semana en terminar la primera.
+    const { rows: inicio } = await this.readPool.query<{ started_at: Date | null }>(
+      `SELECT min(started_at) AS started_at
+         FROM learning.lesson_progress
+        WHERE student_id = $1 AND kit_id = $2`,
+      [studentId, kitId],
+    );
+
+    return {
+      lessonsCompletedInKit,
+      lessonsCompletedByCourse,
+      passedAssessmentIds: aprobadas.rows.map((row) => row.reference),
+      totalXp: resumen.rows[0]?.total_xp ?? 0,
+      startedAt: inicio[0]?.started_at ?? null,
+    };
+  }
+
+  async completionsFor(studentId: string): Promise<Map<string, Date>> {
+    // La fecha de cobro ES la de completado: no hay dos sitios donde vivir.
+    const { rows } = await this.readPool.query<{ reference: string; awarded_at: Date }>(
+      `SELECT reference, awarded_at
+         FROM learning.xp_awards
+        WHERE student_id = $1 AND reason = 'mission_completed'`,
+      [studentId],
+    );
+
+    return new Map(rows.map((row) => [row.reference, row.awarded_at]));
+  }
 }

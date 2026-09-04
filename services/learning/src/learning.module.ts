@@ -31,6 +31,7 @@ import {
   UNIT_OF_WORK,
   LEARNING_REPOSITORY,
   GAMIFICATION_REPOSITORY,
+  MISSION_REPOSITORY,
   CERTIFICATE_REPOSITORY,
   CERTIFICATE_KEYS,
 } from './tokens';
@@ -41,10 +42,12 @@ import {
   GetMyProgressUseCase,
   StartLessonUseCase,
 } from './application/progress.usecase';
+import { MyMissionsUseCase } from './application/missions.usecase';
 import {
   PgCertificateRepository,
   PgGamificationRepository,
   PgLearningRepository,
+  PgMissionRepository,
 } from './infrastructure/persistence/pg-learning.repositories';
 import {
   IssueCertificateUseCase,
@@ -53,7 +56,11 @@ import {
   VerifyCertificateUseCase,
 } from './application/certificates.usecase';
 import { readCertificateKeys, type CertificateKeyPair } from './certificate-keys';
-import type { CertificateRepository } from './domain/repositories';
+import type {
+  CertificateRepository,
+  GamificationRepository,
+  MissionRepository,
+} from './domain/repositories';
 
 const learningEnvSchema = baseEnvSchema
   .merge(authEnvSchema.pick({ JWT_ACCESS_SECRET: true, JWT_ISSUER: true, JWT_AUDIENCE: true }))
@@ -174,6 +181,14 @@ export { CONFIG, LOGGER, LOGGER_PORT } from './tokens';
       inject: [DB_READ_POOL],
     },
     {
+      // Solo lectura: el catalogo de misiones y los hechos con los que se mide
+      // el avance. Lo unico que escribe una mision es su XP, y eso lo hace el
+      // repositorio de gamificacion dentro de la transaccion del caso de uso.
+      provide: MISSION_REPOSITORY,
+      useFactory: (readPool: Pool) => new PgMissionRepository(readPool),
+      inject: [DB_READ_POOL],
+    },
+    {
       provide: CertificatesController,
       useFactory: (...args: ConstructorParameters<typeof CertificatesController>) =>
         new CertificatesController(...args),
@@ -265,6 +280,31 @@ export { CONFIG, LOGGER, LOGGER_PORT } from './tokens';
       useFactory: (...args: ConstructorParameters<typeof GetMyProgressUseCase>) =>
         new GetMyProgressUseCase(...args),
       inject: [LEARNING_REPOSITORY],
+    },
+    {
+      provide: MyMissionsUseCase,
+      // El orden es el del constructor y NO el alfabetico: Nest inyecta por
+      // posicion. Anadir una dependencia al constructor y olvidarla aqui es el
+      // fallo que dejo el muro del salon devolviendo un 500 en la sesion 14.
+      useFactory: (
+        missions: MissionRepository,
+        gamification: GamificationRepository,
+        unitOfWork: UnitOfWork,
+        clock: Clock,
+        logger: LoggerPort,
+        random: SecureRandom,
+      ) =>
+        new MyMissionsUseCase(missions, gamification, unitOfWork, clock, logger, () =>
+          random.uuid(),
+        ),
+      inject: [
+        MISSION_REPOSITORY,
+        GAMIFICATION_REPOSITORY,
+        UNIT_OF_WORK,
+        CLOCK,
+        LOGGER_PORT,
+        SECURE_RANDOM,
+      ],
     },
     {
       provide: GetClassroomProgressUseCase,

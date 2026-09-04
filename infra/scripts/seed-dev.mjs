@@ -211,6 +211,78 @@ export async function seedCatalog({ codeCount = 30, kitCode, grade = 'primary_6'
 }
 
 /**
+ * Misiones semanales de un kit sembrado.
+ *
+ * Se escriben por SQL porque todavia no hay endpoint de autoria: hoy las publica
+ * GLEXCO y vienen con el kit. Va aparte de `seedCatalog` y no dentro porque
+ * necesita el id de la evaluacion, que se crea despues y por la API.
+ *
+ * Devuelve los ids para que quien siembre pueda afirmar sobre ellos.
+ */
+export async function seedMissions({ kitId, courseId, assessmentId = null, lessons = 1 }) {
+  const client = new pg.Client({ connectionString: requireEnv('DATABASE_URL_LEARNING') });
+  await client.connect();
+
+  try {
+    const semanas = [
+      {
+        weekNumber: 1,
+        title: 'Conoce tu robot',
+        description: 'Termina la primera leccion del curso.',
+        objectives: [{ kind: 'lessons_completed', target: Math.min(1, lessons), courseId }],
+        xpReward: 80,
+      },
+      {
+        weekNumber: 2,
+        title: 'Termina el curso y demuestralo',
+        description: 'Completa las lecciones y aprueba la evaluacion.',
+        objectives: [
+          { kind: 'lessons_completed', target: lessons, courseId },
+          // Sin evaluacion no se anade el objetivo: uno que apunta a algo que no
+          // existe no se puede cumplir nunca, y eso no se ve hasta que el
+          // alumno se queda sin su XP.
+          ...(assessmentId ? [{ kind: 'assessment_passed', target: 1, assessmentId }] : []),
+        ],
+        xpReward: 200,
+      },
+      {
+        weekNumber: 3,
+        title: 'Explorador constante',
+        description: 'Acumula 300 puntos.',
+        objectives: [{ kind: 'xp_earned', target: 300 }],
+        xpReward: 120,
+      },
+    ];
+
+    const ids = [];
+
+    for (const semana of semanas) {
+      const id = randomUUID();
+      await client.query(
+        `INSERT INTO learning.missions
+           (id, kit_id, origin, institution_id, week_number, title, description,
+            objectives, xp_reward, status)
+         VALUES ($1,$2,'glexco',NULL,$3,$4,$5,$6,$7,'published')`,
+        [
+          id,
+          kitId,
+          semana.weekNumber,
+          semana.title,
+          semana.description,
+          JSON.stringify(semana.objectives),
+          semana.xpReward,
+        ],
+      );
+      ids.push({ id, weekNumber: semana.weekNumber, xpReward: semana.xpReward });
+    }
+
+    return ids;
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
+/**
  * Crea una institucion con licencia vigente y un salon.
  *
  * `capacity` es parametro porque la comprobacion del tope de plazas necesita un

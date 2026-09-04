@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { CardSkeleton } from '../../../../components/ui';
 import { PageHeader } from '../../../../components/page-header';
 import { ChallengeList } from '../../../../components/challenges';
+import { MissionList } from '../../../../components/missions';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('retos');
@@ -24,6 +25,12 @@ export default async function AcademyProyectos() {
   return (
     <>
       <PageHeader title={t('tituloAcademy')} subtitle={t('subtituloAcademy')} />
+
+      {/* Las misiones primero: son de esta semana y tienen ventana. Los
+          retos no caducan igual, asi que van despues. */}
+      <Suspense fallback={<CardSkeleton />}>
+        <MissionList />
+      </Suspense>
 
       <Suspense fallback={<CardSkeleton />}>
         <ChallengeList portal="academy" />

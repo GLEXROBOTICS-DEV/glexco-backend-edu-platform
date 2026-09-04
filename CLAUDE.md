@@ -61,10 +61,10 @@ Verificado:
 | Comprobación | Resultado |
 |---|---|
 | `pnpm build` | 15/15 paquetes, servicios y portal |
-| `pnpm test` | **206 pruebas** en memoria |
+| `pnpm test` | **231 pruebas** en memoria |
 | `pnpm smoke` | **96 comprobaciones** de punta a punta |
 | `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
-| `pnpm smoke:web` | **197 comprobaciones** del portal contra el backend |
+| `pnpm smoke:web` | **210 comprobaciones** del portal contra el backend |
 
 Las de concurrencia son las que justifican la arquitectura: un solo canje de
 veinte simultáneos, cinco plazas de veinte solicitudes, la outbox reteniendo el
@@ -89,7 +89,7 @@ Plataforma-Glexco/
 │   ├── media/           ✅ subidas prefirmadas, tipo real, miniaturas, enlaces externos
 │   ├── assessment/      ✅ cuestionarios, banco GLEXCO vs docente, bandeja de corrección
 │   ├── analytics/       ✅ los cinco dashboards, como proyección de eventos
-│   ├── learning/        ✅ progreso, XP, insignias y CERTIFICADOS (firma Ed25519)
+│   ├── learning/        ✅ progreso, XP, insignias, MISIONES y CERTIFICADOS (Ed25519)
 │   └── engagement/      ✅ correo real (verificacion y recuperacion), anuncios de salon
 ├── apps/web/            🔄 Next.js 15: registro y activación, ingreso, portadas,
 │                        progreso, cuestionarios, panel del docente, corrección
@@ -140,7 +140,7 @@ pnpm seed                                  # kit, lote de codigos, institucion y
 pnpm smoke                                 # 96 comprobaciones de punta a punta
 pnpm concurrency                           # las 4 garantias de concurrencia real
 pnpm --filter @glexco/web dev              # portal (3010)
-pnpm smoke:web                             # 197 comprobaciones del portal
+pnpm smoke:web                             # 210 comprobaciones del portal
 pnpm projections:check                     # las proyecciones cuadran con su origen?
 pnpm projections                           # reconstruir las que no
 ```

@@ -356,9 +356,32 @@ frontend o clientes reales:
       y solo registre la nota; y el **vídeo no se sube**, se publica en YouTube o
       Drive y se envía el enlace. Cerrado en el dominio (`SCOPE_TYPES` de medios)
       y no solo en la pantalla.
-- [ ] **Misiones semanales.** Es lo único que falta de la fase y lo único que
-      pide algo nuevo: una rotación con calendario, que no existe en ningún
-      servicio. Todo lo demás de «gamificación» ya está.
+- [x] **Misiones semanales**, en el dashboard del alumno y en su zona de retos.
+
+      **Sin tabla de progreso, y eso es la decisión.** El avance se calcula de
+      `lesson_progress` y de `xp_awards`, que son los hechos; una tabla
+      `mission_progress` sería una segunda copia que habría que mantener al día
+      con cada lección completada, y el día que se despegara del original nadie
+      sabría cuál dice la verdad. Lo único que se guarda es la consecuencia: el
+      XP, en `xp_awards` con `reason = 'mission_completed'`, que ya es idempotente
+      por (alumno, motivo, referencia) — así que abrir la pantalla cien veces
+      paga una.
+
+      **Una misión vencida no reprograma nada**, por decisión del cliente: queda
+      pendiente y se puede completar tarde. Desplazar el calendario habría hecho
+      que «a tiempo» dejara de significar nada, y con ello el docente pierde la
+      señal de quién se descolgó, que es la razón de ser de este servicio. En
+      pantalla la vencida va **delante** de la bloqueada: convierte un «llegas
+      tarde» en un «todavía puedes».
+
+      La ventana de cada semana se cuenta desde la **primera actividad del alumno
+      en el kit**, no desde una fecha absoluta: quien compra el libro en mayo no
+      puede abrir la plataforma con treinta misiones vencidas.
+
+      Las escribe GLEXCO y vienen con el kit. El campo `origin` existe desde el
+      primer día porque el cliente ya dijo que institución y docentes podrán
+      ajustarlas más adelante; **la pantalla de autoría es lo que falta**, no el
+      modelo.
 - [x] **Certificados con firma Ed25519, QR y verificación pública** sin iniciar
       sesión. La firma es asimétrica y no un HMAC a propósito: cualquiera puede
       comprobar un certificado con la clave pública, sin pedirnos permiso y sin
