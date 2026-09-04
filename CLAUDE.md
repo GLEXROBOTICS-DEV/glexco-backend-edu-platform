@@ -48,7 +48,8 @@ defecto**, pero el registro independiente debe funcionar igual de bien.
 
 ## 2. Estado actual
 
-**Fases 0 a 3 completas; Fase 5 casi cerrada; Fases 4 y 7 en curso.** El backend
+**Fases 0 a 3 completas; Fase 4 cerrada salvo i18n y accesibilidad; Fases 5, 6
+y 7 en curso.** El backend
 **ya se ejecuta contra Postgres, Redis, NATS y MinIO reales**, y el portal cubre
 el ciclo completo: el alumno responde, el docente corrige, y los cinco
 dashboards muestran el resultado. Ver [docs/BITACORA.md](docs/BITACORA.md)
@@ -60,7 +61,7 @@ Verificado:
 | Comprobación | Resultado |
 |---|---|
 | `pnpm build` | 15/15 paquetes, servicios y portal |
-| `pnpm test` | **176 pruebas** en memoria |
+| `pnpm test` | **187 pruebas** en memoria |
 | `pnpm smoke` | **95 comprobaciones** de punta a punta |
 | `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
 | `pnpm smoke:web` | **177 comprobaciones** del portal contra el backend |
@@ -88,7 +89,7 @@ Plataforma-Glexco/
 │   ├── media/           ✅ subidas prefirmadas, tipo real, miniaturas, enlaces externos
 │   ├── assessment/      ✅ cuestionarios, banco GLEXCO vs docente, bandeja de corrección
 │   ├── analytics/       ✅ los cinco dashboards, como proyección de eventos
-│   ├── learning/        ✅ progreso por leccion, XP, niveles e insignias
+│   ├── learning/        ✅ progreso, XP, insignias y CERTIFICADOS (firma Ed25519)
 │   └── engagement/      ✅ correo real (verificacion y recuperacion), anuncios de salon
 ├── apps/web/            🔄 Next.js 15: registro y activación, ingreso, portadas,
 │                        progreso, cuestionarios, panel del docente, corrección

@@ -275,9 +275,8 @@ frontend o clientes reales:
 
 ## 🔄 Fase 6 — Progreso, gamificación y certificados
 
-> **En curso:** el dominio del certificado (firma Ed25519, serie legible y
-> verificación) está escrito y apartado en el borrador de la sesión; falta el
-> repositorio, el cableado HTTP y las pantallas.
+> **Certificados terminados y en producción.** Lo que queda de la fase son los
+> retos y el portafolio, que dependen de datos que todavía no existen.
 
 - [x] `learning-service`: progreso por lección y curso, con la señal de **quién
       se descolgó** antes del primer examen, que es lo que la evaluación sola no
@@ -287,8 +286,14 @@ frontend o clientes reales:
       pide para el ranking —*celebra logros, no señala rezagos*— y entre menores
       vale igual.
 - [ ] Retos de construcción y programación, misiones semanales, portafolio.
-- [ ] Certificados con plantilla, firma digital, QR y verificación pública.
-- [ ] Emisión individual y masiva.
+- [x] **Certificados con firma Ed25519, QR y verificación pública** sin iniciar
+      sesión. La firma es asimétrica y no un HMAC a propósito: cualquiera puede
+      comprobar un certificado con la clave pública, sin pedirnos permiso y sin
+      que podamos negar después haberlo emitido. Para un título que el alumno
+      enseña fuera, esa diferencia es el producto.
+- [x] **Emisión individual y masiva por salón**, idempotente y comprobando que
+      el curso esté completo: un certificado emitido a quien no terminó no es un
+      favor, es un documento falso con nuestra firma.
 
 ## 🔄 Fase 7 — Comunicación, soporte, analítica y admin
 

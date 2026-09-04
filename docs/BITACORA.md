@@ -7,6 +7,99 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 14 — 2026-09-04 — Certificados, y lo que el backend hacía sin que nadie llegara
+
+El patrón de la sesión, y conviene leerlo antes de seguir: **casi todo lo que
+faltaba estaba construido en el backend y no tenía pantalla delante.** Endpoints
+terminados hace fases enteras a los que no llegaba ningún sitio del portal.
+
+### 1. Lo que ya existía y no se podía usar
+
+- **Crear un salón.** El estado vacío enlazaba a `/docentes/salones/nuevo` desde
+  el principio y esa ruta daba 404: ni dirección ni docentes podían crear
+  ninguno, los salones solo entraban por el sembrador. El permiso y el endpoint
+  estaban desde la Fase 2.
+- **La lista de alumnos de un salón y la ficha individual de cada alumno.**
+  `GET /analytics/classrooms/{c}/students/{s}` llevaba fases construido, con su
+  doble comprobación de alcance, sin que nada lo llamara. La lista va **antes**
+  de las cifras: la pregunta que se hace un docente tras ver que la mitad va mal
+  es siempre «¿quién?».
+- **Mi cuenta**: `/account/password` y `/account/sessions`, meses construidos y
+  sin pantalla.
+- **`listByStudent` de entregas** y **`listByInstitution` del directorio de
+  docentes**, implementados y sin llamar.
+
+### 2. Certificados (cierra lo grande de la Fase 6)
+
+**Firma Ed25519, no un HMAC.** Con un HMAC, comprobar un certificado exige
+conocer el secreto: el único que puede validarlo somos nosotros, y el documento
+vale lo que valga nuestro servidor encendido. Con firma asimétrica cualquiera lo
+verifica con la clave pública. Para un título que el alumno enseña fuera, esa
+diferencia es el producto.
+
+Se firma un **texto canónico**, nunca `JSON.stringify` del objeto: el orden de
+las claves depende de cómo se construyó, y dos ejecuciones producirían dos
+cadenas distintas del mismo certificado. La verificación **recomprueba la firma**
+y no que la fila exista: si alguien con acceso a la base cambia un nombre, la
+fila sigue ahí y sin eso la página diría que el documento es bueno.
+
+La ruta de verificación es **pública**, y tiene que serlo: quien recibe un
+certificado no tiene cuenta aquí. Devuelve solo lo que ya está impreso en el
+papel que esa persona tiene delante.
+
+### 3. Errores reales encontrados
+
+1. **Entrar a una evaluación gastaba un intento.** El resultado solo vivía en el
+   estado del formulario que lo acababa de calcular, así que recargar o volver
+   abría otro intento. A los tres, la única respuesta era «ya agotaste tus
+   intentos» sin haber respondido nada más. Ahora `/evaluaciones/{id}` es la
+   pantalla de resultado, de lectura, y responder vive en `/responder`.
+2. **La columna «kit» de la lista de clase decía «sin activar» para todos,
+   siempre.** Nadie escuchaba `catalog.entitlement.granted` y el kit solo se
+   anotaba al matricular, que ocurre antes del canje. Es la señal más útil que
+   tiene un docente en las primeras semanas.
+3. **El primer certificado emitido en producción salió a nombre de nadie.** El
+   repositorio tenía escrito el comentario «sin nombre no se emite nada» y justo
+   debajo un `?? ''`. Un comentario que describe una regla que el código no
+   aplica es peor que no tenerlo.
+4. **La serie del certificado, copiada sin guiones, no se encontraba.** El
+   comentario decía que la serie «se teclea a mano cuando el QR no se deja
+   escanear» y la comparación solo cubría la mitad de ese caso.
+5. **En modo oscuro no se veía lo que escribías.** `.field` tenía el fondo
+   `#ffffff` a mano y el texto en un token: campo blanco con letra clara encima.
+   Se notó en el ingreso, el peor sitio posible.
+6. **Añadí una tabla a una migración ya aplicada.** El ejecutor las marca por
+   nombre de archivo, así que no se ejecutó nunca y el despliegue dijo que había
+   ido bien. Anotado en CLAUDE.md §5.
+7. El evento del lote de códigos se publicaba con `metadata` vacío, y el
+   consumidor **enruta por `metadata.eventName`**: llegaba y se descartaba sin
+   manejador y sin un solo error.
+
+### 4. Diseño
+
+**El modo oscuro no estaba hecho**, pese a tener un artboard entero en el canvas.
+Ahora sí, con sus tres reglas: nunca negro puro, jerarquía por elevación y no por
+borde, y los colores de marca aclarados. Y **visita guiada** que no arranca sola:
+se abre desde la barra lateral y se puede reabrir siempre.
+
+La interfaz **escala con la pantalla** a partir de 1600 px: el canvas se dibujó a
+1440 y con la raíz clavada en 16 px un monitor de 27 pulgadas no enseñaba más
+cosas, enseñaba las mismas en una columna estrecha en medio.
+
+### Estado al cerrar
+
+| Comprobación | Resultado |
+|---|---|
+| `pnpm build` | 15/15 |
+| `pnpm test` | **187** |
+| `pnpm typecheck` | 21/21 |
+
+### Qué falta
+
+Ver la sección 5 de [TRASPASO.md](TRASPASO.md), que se actualizó con esto.
+
+---
+
 ## Sesión 13 — 2026-09-03 — El portal adopta el canvas
 
 El cliente abrió la plataforma desplegada y dijo, con razón, que **no seguía el

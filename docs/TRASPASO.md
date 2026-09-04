@@ -204,44 +204,71 @@ Lo que el CLI **no** expone —watch paths, comando previo al despliegue,
 
 ## 5. Por dónde seguir
 
-Por orden de valor:
+> Actualizado al cerrar la **sesión 14**. Lo de arriba manda sobre lo de abajo.
 
-**Lo primero, y es de producto, no de código:** hay que **contratar el proveedor
-de vídeo** y **un SMTP real**. Sin el primero, `ALLOW_BUCKET_VIDEO=true` sigue
-puesto y con tráfico real eso son cientos de megas por vídeo desde nuestro ancho
-de banda. Sin el segundo, **nadie recibe el correo de verificación ni el de
-recuperación**: hoy van a Mailpit, que acepta todo y no entrega nada.
+**Lo primero sigue siendo de producto, no de código:** contratar el **proveedor
+de vídeo** y un **SMTP real**. Sin el segundo, nadie recibe el correo de
+verificación ni el de recuperación —hoy van a Mailpit, que acepta todo y no
+entrega nada—. Sin el primero, `ALLOW_BUCKET_VIDEO=true` sigue puesto y con
+tráfico real son cientos de megas por vídeo desde nuestro ancho de banda.
 
-Después, por orden de valor:
+### Lo que el cliente ha pedido y está a medias
 
-1. **Certificados** (Fase 6): plantilla, firma digital, QR y verificación pública
-   sin iniciar sesión. Es lo único grande que le queda a la fase.
-2. **Comando de reconstrucción de proyecciones.** Hoy, un servicio nuevo no puede
-   enterarse de lo que se publicó antes de que existiera: el sembrador lo esquiva
-   forzando el reanuncio de los cursos, que es un rodeo y no una solución.
-3. **Rúbricas de corrección** y los tipos de pregunta `ordering` y `matching`:
-   están en el vocabulario pero su corrección automática no está escrita.
-4. **i18n es/en con next-intl.** Hoy los textos están en español en el código.
-5. **Las pantallas que faltan de los portales**: laboratorio de robots, retos y
-   logros en Discover; proyectos, certificaciones y portafolio en Academy.
-6. **Portal Admin completo**: instituciones, usuarios, gestión académica y de
+1. **Muro del salón.** El cliente aclaró qué quería cuando se le preguntó por
+   «mensajería»: **no son mensajes privados**, es un tablón del salón donde el
+   alumno también puede preguntar y todos lo ven, para que las dudas de uno
+   sirvan al resto. Eso descarta el canal privado adulto‑menor y sus problemas
+   de protección de menores, y lo convierte en una extensión de los anuncios que
+   ya existen en `engagement`: el mismo agregado, abriendo la publicación a los
+   alumnos del salón y añadiendo respuestas. **Está sin empezar.**
+2. **i18n es/en con next-intl.** Es lo único que le queda a la Fase 4 junto con
+   la auditoría de accesibilidad. Hoy los textos están en español en el código.
+3. **Auditoría WCAG 2.1 AA** pantalla a pantalla, con navegación por teclado.
+
+### Después, por valor
+
+4. **`KIT_PUBLISHED` no lo emite nadie.** Está en el catálogo de eventos desde el
+   principio, igual que le pasaba a `COURSE_PUBLISHED`. Por eso el panel de
+   GLEXCO lista los kits por UUID en vez de por su nombre. Se arregla igual:
+   emitirlo al publicar un kit y consumirlo en un `kit_directory` de analítica,
+   como ya se hizo con las instituciones.
+5. **Comando de reconstrucción de proyecciones.** Sigue siendo la deuda de
+   fondo: JetStream no reproduce hacia atrás, así que cada consumidor nuevo nace
+   sin el pasado y hay que rellenarlo a mano desde el sembrador. Esta sesión hizo
+   ese rodeo **tres veces** (el nombre del colegio en aprendizaje, el nombre del
+   alumno, y el kit de la matrícula). Es la señal de que toca hacerlo.
+6. **Retos, misiones y portafolio** (Fase 6). Son los datos que faltan para que
+   «Zona de retos» de Discover y «Proyectos y desafíos» de Academy dejen de estar
+   fuera de la barra.
+7. **Rúbricas de corrección** y los tipos de pregunta `ordering` y `matching`,
+   que están en el vocabulario y no tienen corrección automática escrita.
+8. **Portal Admin completo**: instituciones, usuarios, gestión académica y de
    contenidos, comercial. Hoy `/admin` solo tiene la vista de plataforma.
-7. **Exportación a PDF, Excel y CSV** de los dashboards.
-8. **Auditoría WCAG 2.1 AA** pantalla a pantalla.
-9. **Fase 8 entera**: pruebas de carga, revisión de seguridad, CI/CD, réplicas de
-   lectura y **copias de seguridad probadas restaurándolas**.
+9. **Exportación a PDF, Excel y CSV** de los dashboards.
+10. **Fase 8 entera**: pruebas de carga, revisión de seguridad, CI/CD, réplicas de
+    lectura y **copias de seguridad probadas restaurándolas**.
 
-Y dos deudas anotadas que siguen abiertas:
+### Deudas anotadas que siguen abiertas
 
 - **El límite de altas es por IP**, y una clase de treinta alumnos detrás del NAT
   de su colegio lo agota en el minuto tres. Es una decisión del cliente: lo
   razonable es una excepción para las IP declaradas de una institución con
   licencia vigente.
-- **MinIO y Mailpit son provisionales** y hay que sustituirlos por R2 y un SMTP
-  de verdad antes de que entre nadie real.
+- **MinIO y Mailpit son provisionales.** Hay que sustituirlos por Cloudflare R2 y
+  un SMTP con SPF, DKIM y DMARC antes de que entre nadie real.
+- **La contraseña de PostgreSQL conviene rotarla**: se imprimió en la terminal
+  durante la sesión 13. La pimienta de los códigos NO se puede rotar —invalidaría
+  todos los códigos emitidos—.
+- **Los certificados dependen de `CERTIFICATE_PRIVATE_KEY`**, que está solo en el
+  servicio `learning` de Railway. Si se pierde, todo lo emitido deja de
+  verificarse. Cada certificado lleva impresa la huella de su clave justamente
+  para poder rotar sin invalidar lo viejo, pero eso exige **conservar la pública
+  antigua**.
 
 La dirección visual está aprobada en `design/canvas/`, así que no hay que decidir
-nada de diseño antes de codificar.
+nada de diseño antes de codificar. **Y hay que abrir el artboard antes de tocar
+una pantalla**: durante nueve sesiones solo se adoptó la paleta, y los cuatro
+portales acabaron sin el marco del diseño.
 
 ---
 
