@@ -141,7 +141,17 @@ pnpm smoke                                 # 95 comprobaciones de punta a punta
 pnpm concurrency                           # las 4 garantias de concurrencia real
 pnpm --filter @glexco/web dev              # portal (3010)
 pnpm smoke:web                             # 177 comprobaciones del portal
+pnpm projections:check                     # las proyecciones cuadran con su origen?
+pnpm projections                           # reconstruir las que no
 ```
+
+> **Al anadir un consumidor de eventos**, registra su instantanea en `SOURCES` de
+> `infra/scripts/rebuild-projections.mjs` y lanza `pnpm projections`. JetStream no
+> reproduce hacia atras para un consumidor que ya existe, asi que sin eso la
+> proyeccion nace vacia — y una proyeccion vacia no da error: la pantalla se
+> pinta, responde 200 y dice `None`. Antes de anadir un evento a esa lista,
+> comprueba que **todos** sus manejadores son idempotentes; hay tres que no lo
+> son y estan excluidos por nombre en el propio archivo.
 
 ### Requisitos de entorno
 

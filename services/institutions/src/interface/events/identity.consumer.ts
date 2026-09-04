@@ -119,18 +119,28 @@ export function buildIdentityConsumer(deps: IdentityConsumerDeps): EventConsumer
     // accede al contenido de su kit sin pertenecer a ningun colegio. No es un
     // error, es la mitad del modelo de negocio.
     if (payload.accountType !== 'institutional') return;
-    if (!payload.institutionId || !payload.classroomId) return;
+    if (!payload.institutionId) return;
 
     // El nombre entra ANTES de matricular, y por la misma via que el del
     // docente. Sin esto, el portal del docente solo tendria identificadores:
     // una bandeja de correccion que dice "a3f1-... entrego su examen" no sirve
     // para nada.
+    //
+    // Y entra SIN exigir salon, que es el mismo error que ya se corrigio dos
+    // lineas mas arriba para el personal. Un alumno con institucion tiene
+    // nombre, tenga salon o no: exigir el salon aqui deja el directorio a medias
+    // en dos casos reales -el alta que llega sin salon elegido, y la
+    // reconstruccion de proyecciones, cuya instantanea no puede llevar salon
+    // porque identidad nunca lo guardo-. La matricula, que si lo necesita, se
+    // comprueba justo despues.
     await deps.students.upsert({
       userId: payload.userId,
       institutionId: payload.institutionId,
       fullName: `${payload.firstName} ${payload.lastName}`,
       email: payload.email,
     });
+
+    if (!payload.classroomId) return;
 
     const enroll = new EnrollStudentUseCase(
       deps.classrooms,

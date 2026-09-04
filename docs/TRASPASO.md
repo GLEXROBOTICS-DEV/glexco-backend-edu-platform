@@ -240,15 +240,20 @@ tráfico real son cientos de megas por vídeo desde nuestro ancho de banda.
 
 ### Después, por valor
 
-3. **El comando de reconstrucción de proyecciones. Empieza por aquí.**
+3. ~~El comando de reconstrucción de proyecciones.~~ **Hecho en la sesión 15.**
 
-   JetStream no reproduce hacia atrás, así que cada consumidor nuevo nace sin el
-   pasado y hay que rellenarlo a mano desde el sembrador. En la sesión 14 hizo
-   falta **cuatro veces**: el nombre del colegio en aprendizaje, el nombre del
-   alumno en aprendizaje, el del autor en engagement, y el kit de la matrícula.
+   `pnpm projections:check` compara cada proyección con su origen y dice qué le
+   falta; `pnpm projections` lo reconstruye reemitiendo instantáneas a la outbox
+   del servicio dueño, para que las rellene su propio manejador. Al añadir un
+   consumidor nuevo, **el paso que falta ya no es una chapuza en el sembrador**:
+   es registrar su instantánea en `SOURCES` y lanzar el comando.
 
-   Con una vez es una chapuza puntual; con cuatro es una carga fija por cada
-   consumidor que se añada. Todo lo demás de esta lista añade consumidores.
+   Lo único que hay que leer antes de tocarlo está en la cabecera del archivo:
+   **solo se reproduce un evento cuyos manejadores sean idempotentes**, y hay tres
+   que no lo son —los dos contadores de códigos y `submission.graded`, que acumula
+   fallos por pregunta—. Y jamás se reproduce un evento que pide *enviar* algo:
+   reproducir `password_reset.requested` mandaría un enlace de recuperación a toda
+   la plataforma.
 
 4. **`KIT_PUBLISHED` no lo emite nadie.** Está en el catálogo de eventos desde el
    principio, igual que le pasaba a `COURSE_PUBLISHED`. Por eso el panel de

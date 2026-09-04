@@ -27,7 +27,9 @@
     "seed": "node --env-file-if-exists=.env infra/scripts/seed-dev.mjs",
     "concurrency": "node --env-file-if-exists=.env infra/scripts/concurrency-check.mjs",
     "smoke:web": "node --env-file-if-exists=.env infra/scripts/web-check.mjs",
-    "a11y": "node --env-file-if-exists=.env infra/scripts/a11y-check.mjs"
+    "a11y": "node --env-file-if-exists=.env infra/scripts/a11y-check.mjs",
+    "projections": "node --env-file-if-exists=.env infra/scripts/rebuild-projections.mjs",
+    "projections:check": "node --env-file-if-exists=.env infra/scripts/rebuild-projections.mjs --check"
   },
   "devDependencies": {
     "@glexco/contracts": "workspace:*",

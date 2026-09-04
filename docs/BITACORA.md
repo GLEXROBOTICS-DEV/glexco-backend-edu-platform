@@ -7,6 +7,123 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 15 — 2026-09-04 — El comando de reconstrucción de proyecciones
+
+La sesión 14 cerró señalando lo mismo cuatro veces: cada consumidor nuevo nace
+sin el pasado y hay que rellenarle el directorio a mano desde el sembrador. Esta
+sesión lo convierte en un comando.
+
+### 1. Por qué JetStream no bastaba
+
+La causa no es que el stream no guarde el pasado —guarda catorce días—, sino que
+**el consumidor duradero de cada servicio conserva su posición**. Se llama
+`<servicio>-consumer` y cuando alguien añade un asunto a su lista,
+`EventConsumer` lo *actualiza* en vez de recrearlo. Eso es lo correcto —recrearlo
+reprocesaría el stream entero o se saltaría lo pendiente, según la política—,
+pero tiene como consecuencia que **el asunto nuevo empieza en la cabeza**. El
+pasado existe en el bus y ese consumidor nunca lo verá.
+
+De ahí que la reconstrucción no pueda salir del bus. Sale del **estado actual de
+la tabla de origen**, que es el único sitio donde el pasado está entero: la
+outbox se purga a los siete días y el stream caduca a los catorce.
+
+### 2. Cómo funciona
+
+`infra/scripts/rebuild-projections.mjs` (`pnpm projections`) reemite un evento de
+instantánea por cada fila viva de la tabla de origen, **a la outbox del servicio
+que la posee**. Desde ahí lo publica su relay como cualquier otro evento.
+
+Tres decisiones que sostienen el diseño:
+
+- **No publica a NATS a mano.** Sigue valiendo el invariante 3, y el evento queda
+  registrado en la outbox como cualquier otro, con `metadata.replay = true` para
+  poder explicar después de dónde salieron ocho mil eventos de un martes.
+- **No escribe ni una sola tabla de proyección.** El guion no conoce ningún
+  directorio para rellenarlo: lo rellena su propio manejador, que es el único que
+  sabe cómo. Un guion que escribiera los directorios sería una segunda
+  implementación de cada proyección y se desincronizaría con la primera.
+- **El ritmo lo pone el relay**, cien eventos por pasada y servicio. Una
+  reconstrucción grande tarda; a cambio no puede tumbar a los consumidores.
+
+### 3. La regla de seguridad, que es lo que de verdad hay que leer
+
+**Solo se reproduce un evento cuyos manejadores sean idempotentes**, y eso hubo
+que comprobarlo uno por uno. Tres no lo son y están excluidos por nombre, con su
+motivo, en `NO_REPRODUCIBLES`:
+
+| Evento | Por qué no |
+|---|---|
+| `assessment.submission.graded.v1` | `analytics.question_miss_facts` acumula (`answered = answered + 1`). Reproducirlo infla los fallos por pregunta, que es justo el dato con el que el docente decide qué repasar. |
+| `catalog.activation_code.batch_generated.v1` | `codes_issued` acumula. Duplicaría los códigos emitidos de cada colegio, que es una cifra comercial. |
+| `catalog.activation_code.redeemed.v1` | `codes_redeemed` acumula. Mismo caso. |
+
+Y por encima de eso, la regla que hace que la lista sea **blanca y explícita** en
+vez de un patrón como `identity.>`: **nunca se reproduce un evento que pide
+enviar algo.** `email_verification.requested` y `password_reset.requested` no son
+hechos consumados, son órdenes de mandar un correo; reproducirlos mandaría a toda
+la plataforma un enlace de recuperación de contraseña. Un patrón de asuntos los
+habría incluido sin que nadie lo notara hasta leer los buzones.
+
+### 4. El informe de salud, que es la mitad del valor
+
+`pnpm projections:check` compara cada proyección con su origen y dice cuántas
+filas le faltan, qué evento la alimenta y **qué se rompe en pantalla si está
+vacía** («autor de cada mensaje del muro; vacío = "un compañero"»).
+
+Existe porque una proyección vacía **no se manifiesta como un error**: la
+pantalla se pinta, responde 200 y dice `None`. Las cuatro veces de la sesión 14
+las descubrió el cliente mirando la página, no una alerta.
+
+Dos matices que costó afinar y que evitan que el informe se vuelva ruido:
+
+- **`tengo > espero` no es un fallo.** Un directorio conserva a quien ya no cuenta
+  en el origen —un docente al que se le retiró el rol, un colegio archivado— y
+  borrarlo dejaría sin nombre lo que esa persona escribió o firmó.
+- **El kit de la matrícula solo se mira si está en cero.** La diferencia entre
+  «derechos concedidos» y «matrículas con kit» es un dato de negocio —libros
+  comprados y no activados—, no un hueco. Tratarla como hueco haría que el
+  comando pidiera reconstruir en cada ejecución, que es la vía más rápida a que
+  nadie vuelva a mirar el informe.
+
+### 5. Dos fallos que encontró la propia prueba
+
+Se probó de punta a punta contra la base local, con los servicios en pie, y salió
+lo que no se ve leyendo el código:
+
+1. **El nombre del alumno estaba condicionado a tener salón.** El manejador de
+   `USER_REGISTERED` en instituciones salía antes de tiempo si el evento no traía
+   `classroomId`, y el `student_directory` se quedaba a 96 de 722. Es exactamente
+   el mismo error que ya estaba corregido dos líneas más arriba para el personal
+   —y con su comentario explicándolo— repetido para el alumno. Ahora el nombre
+   entra con solo tener institución y la matrícula se comprueba después.
+
+   Conviene ver por qué la instantánea no puede traer `classroomId`: **identidad
+   nunca lo guardó.** Era un dato del formulario de registro; el salón vive en
+   instituciones. Y esa ausencia es justo lo que hace segura la reproducción: al
+   faltar `classroomId` y `activationCodeId`, el alta reemitida no vuelve a
+   matricular a nadie ni vuelve a canjear el código de ningún libro. La matrícula
+   se reconstruye con su propio evento, que sale de la tabla que sí la guarda.
+
+2. **La cifra esperada del directorio de docentes estaba mal.** Contaba «todo el
+   que no es alumno», y el manejador solo mete a quien tiene el rol `teacher`: los
+   directores de colegio y el personal de GLEXCO daban un hueco permanente que no
+   existía. Un informe que miente una vez ya no se mira.
+
+Con los dos arreglos, las trece proyecciones cuadran contra su origen, y se
+llegó ahí reemitiendo por el camino real —outbox, relay, NATS, manejador—, no
+escribiendo tablas.
+
+### 6. La autocomprobación del catálogo
+
+Al arrancar, el comando compara los nombres de sus instantáneas contra `EVENTS`
+de `@glexco/contracts` y se niega a seguir si alguno no existe. Una errata en un
+nombre de evento **no falla**: se escribe en la outbox, el relay la publica a un
+asunto que nadie escucha, el comando informa de «8.000 emitidos» y las
+proyecciones siguen vacías. Es el mismo fallo silencioso que el `metadata: {}`
+del sembrador, y ahora está cortado en el sitio donde importa.
+
+---
+
 ## Sesión 14 — 2026-09-04 — Certificados, y lo que el backend hacía sin que nadie llegara
 
 El patrón de la sesión, y conviene leerlo antes de seguir: **casi todo lo que
