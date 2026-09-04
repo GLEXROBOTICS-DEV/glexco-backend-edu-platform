@@ -284,8 +284,23 @@ frontend o clientes reales:
 
 **Pendiente:**
 
-- [ ] Rúbricas de corrección (`Rubric`): hoy la corrección manual es por puntos
-      libres sobre cada pregunta.
+- [x] **Rúbricas de corrección.** El docente reparte los puntos de la pregunta
+      entre criterios —montaje, cableado, explicación— con tres niveles fijos por
+      criterio: *logrado*, *parcial* (la mitad, redondeando hacia abajo) y *no
+      logrado*. Al corregir elige un nivel por criterio en vez de escribir un
+      número.
+
+      **El máximo de la rúbrica tiene que coincidir con los puntos de la
+      pregunta**, y lo exige el dominio: si diera menos, la pregunta sería
+      imposible de sacar entera y nadie sabría por qué; si diera más, el docente
+      puntuaría todo y luego no podría cerrar la nota.
+
+      **Y los puntos los calcula el dominio, no la pantalla.** El formulario
+      manda qué nivel se eligió, y de ahí sale la nota: un total manipulado no
+      otorga nada aunque quepa en el máximo de la pregunta. La rúbrica **sí**
+      viaja al alumno —no es la clave, es el enunciado de cómo se le va a
+      evaluar—, y su resultado trae el desglose por criterio, que es lo único que
+      convierte «12 de 20» en algo que se puede arreglar.
 - [x] Panel del docente en el portal, con el dashboard de su salón.
 - [x] **Bandeja de corrección** por salón, con el nombre real del alumno y la
       pantalla de puntuación. Ordenada por lo que hay que hacer: lo abierto
@@ -310,12 +325,28 @@ frontend o clientes reales:
       arrastrando**: arrastrar exige JavaScript —y este formulario tiene que
       poder entregarse sin él—, es casi imposible con un lector de pantalla, y
       falla con el dedo de un niño en una tableta de laboratorio.
-- [ ] Tipo de pregunta `matching`. **Le falta el modelo, no solo el algoritmo:**
-      emparejar necesita PARES y `correctOptionIds` es una lista plana;
-      codificarlos como `izq:der` dentro de un identificador sería una estructura
-      escondida en un `string`. Mientras tanto se trata como manual, que es el
-      comportamiento correcto: meterlo en la lista de autocorregibles lo puntuaría
-      a cero en silencio.
+- [x] **Tipo de pregunta `matching`**, con corrección automática y puntuación
+      **parcial**: cuenta cuántas parejas se acertaron, por el mismo motivo que
+      en `ordering`. Contando por elemento de la izquierda, además, mandar el
+      mismo acierto seis veces no lo cobra seis veces.
+
+      Lo que le faltaba era el **modelo**, no el algoritmo: emparejar son PARES y
+      `correctOptionIds` es una lista plana. Se resolvió con dos campos propios
+      —`matches` para la columna derecha y `pairs` para la clave— en vez de
+      codificar `izq:der` dentro de un identificador, que sería una estructura
+      escondida en un `string`.
+
+      **La columna derecha sale al alumno ordenada por identificador, y eso es
+      desordenarla:** son UUID v4, así que su orden no guarda ninguna relación
+      con el de captura y el docente que escribe las parejas en fila no regala la
+      clave. Se hace así y no con azar para que el dominio siga siendo
+      determinista: una pregunta que sale distinta en cada carga no se puede
+      probar, y al recargar el alumno vería la derecha bailar y perdería lo que
+      llevaba emparejado.
+
+      Se responde con un desplegable por fila, **no arrastrando**, por las tres
+      razones de siempre: sin JavaScript, con lector de pantalla y con el dedo de
+      un niño en una tableta.
 
 ## 🔄 Fase 6 — Progreso, gamificación y certificados
 
@@ -414,7 +445,6 @@ frontend o clientes reales:
 - [x] **Pantallas de los dashboards**: progreso del alumno en los dos portales,
       panel del docente con su salón, y panel de institución con la eficacia
       docente. Gráficos en SVG propio, sin librería: +2 kB sobre la carga base.
-- [ ] Exportación a PDF, Excel y CSV (la tabla de datos ya permite copiar).
 - [x] Panel de GLEXCO en el portal, con el directorio de instituciones que lo
       hace legible: antes listaba la cartera de clientes por UUID.
 - [x] `engagement-service`: **correo real** (verificación y recuperación) y
