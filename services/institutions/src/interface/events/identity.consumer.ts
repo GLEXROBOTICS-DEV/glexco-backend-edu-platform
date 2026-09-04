@@ -71,6 +71,12 @@ interface UserProfileUpdatedPayload {
   lastName: string;
 }
 
+interface EntitlementGrantedPayload {
+  studentId: string;
+  kitId: string;
+  institutionId: string | null;
+}
+
 export function buildIdentityConsumer(deps: IdentityConsumerDeps): EventConsumer {
   const consumer = new EventConsumer({
     connection: deps.connection,
@@ -87,6 +93,10 @@ export function buildIdentityConsumer(deps: IdentityConsumerDeps): EventConsumer
       EVENTS.USER_ROLE_REVOKED,
       EVENTS.USER_DEACTIVATED,
       EVENTS.USER_PROFILE_UPDATED,
+      // De catalogo, no de identidad. El consumidor se llama "identity" por
+      // historia; lo que importa es que este asunto tiene que llegar a alguien
+      // de este servicio, y el salon vive aqui.
+      EVENTS.KIT_ENTITLEMENT_GRANTED,
     ],
     logger: deps.natsLogger,
   });
@@ -190,6 +200,33 @@ export function buildIdentityConsumer(deps: IdentityConsumerDeps): EventConsumer
     // no trae- para acertar con la tabla.
     await deps.teachers.rename(event.payload.userId, fullName);
     await deps.students.rename(event.payload.userId, fullName);
+  });
+
+  // -------------------------------------------------------------------------
+  // El alumno activo su kit -> se anota en su matricula
+  // -------------------------------------------------------------------------
+  //
+  // **Nadie escuchaba esto, y era el fallo mas caro de la pantalla del docente.**
+  // El kit de la matricula solo se rellenaba si se pasaba al matricular, y el
+  // canje ocurre DESPUES: primero el alumno entra al salon y luego teclea el
+  // codigo de su libro. Resultado: la columna "kit" de la lista de clase decia
+  // "sin activar" para todos, siempre, incluidos los que ya lo habian activado.
+  //
+  // Y esa es la senal mas util que tiene un docente en las primeras semanas: los
+  // libros comprados que nadie activo son dinero que el colegio pago y no usa, y
+  // el unico problema que a esas alturas todavia se puede arreglar.
+  consumer.on<EntitlementGrantedPayload>(EVENTS.KIT_ENTITLEMENT_GRANTED, async (event, tx) => {
+    const payload = event.payload;
+
+    // Se marca en TODAS sus matriculas activas y no solo en una: un alumno puede
+    // estar en dos salones -cambio de grupo a mitad de curso- y el kit es del
+    // alumno, no del salon.
+    await (tx.client as PoolClient).query(
+      `UPDATE institutions.enrollments
+          SET kit_id = $2
+        WHERE student_id = $1 AND status = 'active' AND kit_id IS NULL`,
+      [payload.studentId, payload.kitId],
+    );
   });
 
   return consumer;

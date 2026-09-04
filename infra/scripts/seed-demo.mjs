@@ -424,6 +424,8 @@ async function resetDemo() {
     await admin.query(
       `DELETE FROM institutions.teacher_directory WHERE institution_id = ANY($1::uuid[])`, [institutionIds]);
     await admin.query(
+      `DELETE FROM institutions.student_directory WHERE institution_id = ANY($1::uuid[])`, [institutionIds]);
+    await admin.query(
       `DELETE FROM institutions.institutions WHERE id = ANY($1::uuid[])`, [institutionIds]);
   }
 
@@ -757,6 +759,23 @@ async function seedInstitution(people) {
     [idFor('license', INSTITUTION.code), INSTITUTION.id, people.staff.glexco.id],
   );
 
+  // El directorio de ALUMNOS. No se escribia nunca, y por eso la lista de clase
+  // del docente salia con cuatro filas de "sin nombre todavia": lo alimenta el
+  // evento `user.registered`, y este guion escribe los usuarios directamente en
+  // la base -para no chocar con los limites de fuerza bruta- asi que ese evento
+  // no ocurre. Mismo caso que el de docentes, que si estaba.
+  for (const student of people.students) {
+    await admin.query(
+      `INSERT INTO institutions.student_directory (user_id, institution_id, full_name, email)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (user_id) DO UPDATE SET
+         institution_id = EXCLUDED.institution_id,
+         full_name      = EXCLUDED.full_name,
+         email          = EXCLUDED.email`,
+      [student.id, INSTITUTION.id, `${student.first} ${student.last}`, student.email],
+    );
+  }
+
   const teachers = [people.staff.docente1, people.staff.docente2, people.staff.docente3];
 
   for (const [index, classroom] of CLASSROOMS.entries()) {
@@ -765,9 +784,17 @@ async function seedInstitution(people) {
 
     // El directorio de docentes: sin el, la bandeja de correccion diria
     // "a3f1-... entrego su examen" en vez del nombre.
+    //
+    // `DO UPDATE` y no `DO NOTHING`: la institucion cambia entre siembras -se
+    // reconcilia por donde estan los alumnos-, y con DO NOTHING la fila se
+    // quedaba apuntando al colegio viejo.
     await admin.query(
       `INSERT INTO institutions.teacher_directory (user_id, institution_id, full_name, email)
-       VALUES ($1,$2,$3,$4) ON CONFLICT (user_id) DO NOTHING`,
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (user_id) DO UPDATE SET
+         institution_id = EXCLUDED.institution_id,
+         full_name      = EXCLUDED.full_name,
+         email          = EXCLUDED.email`,
       [teacher.id, INSTITUTION.id, `${teacher.first} ${teacher.last}`, teacher.email],
     );
 
