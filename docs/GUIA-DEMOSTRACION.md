@@ -54,8 +54,10 @@ Entra como **`alumno1@demo.glexco.pe`**. Es el mejor caso: curso completo, nota
 | Biblioteca | `/discover/biblioteca` | Vídeo, ficha descargable y enlace externo |
 | Mi progreso | `/discover/progreso` | Nivel de Explorador, XP, insignias y notas |
 | Zona de retos | `/discover/retos` | Los retos de construcción con su plazo |
+| Mis logros | `/discover/logros` | Insignias y certificados |
+| Muro del salón | `/discover/muro` | El tablón de la clase |
 | Mi portafolio | `/discover/portafolio` | Lo que ha entregado, con su foto |
-| Robot Lab | menú lateral | Enlaces a las páginas oficiales de UBTECH |
+| Robot Lab | `/discover/laboratorio` | Las páginas oficiales de UBTECH para programar los robots |
 
 **Qué enseñar aquí:**
 
@@ -118,6 +120,7 @@ Entra como **`docente1@demo.glexco.pe`**.
 | Preguntas más falladas | mismo panel | El dato más accionable que tiene |
 | Bandeja de corrección | `/docentes/salones/…/correccion` | Entregas con el nombre real del alumno |
 | Sus evaluaciones | `/docentes/evaluaciones` | El banco del kit y el suyo, separados |
+| Sus salones | `/docentes/salones` | Crear salón, lista de alumnos y ficha individual |
 | Anuncios y muro | `/docentes/anuncios` | Publicar; el alumno lo ve en su portada |
 
 **Qué enseñar aquí:**
@@ -138,7 +141,7 @@ Entra como **`docente1@demo.glexco.pe`**.
 
 ### 6. La dirección del colegio (3 min)
 
-Entra como **`director@demo.glexco.pe`**.
+Entra como **`director@demo.glexco.pe`** y ve a `/docentes/institucion`.
 
 **Qué enseñar aquí:**
 
@@ -162,9 +165,11 @@ Entra como **`glexco@demo.glexco.pe`** y ve a `/admin`.
 - Todos los colegios, con su **nombre y su ciudad** —que llegan por evento, sin
   que la analítica consulte el schema de nadie— y los kits con peor resultado.
   Si un kit va mal en todas partes, el problema es del contenido.
-- Da de alta **un colegio nuevo**, concédele su licencia, crea una cuenta de
-  personal y genera un **lote de códigos** de imprenta. Las cuatro cosas se
-  hacen desde la pantalla.
+- Da de alta **un colegio nuevo** (`/admin/instituciones`), concédele su
+  licencia, crea una cuenta de personal (`/admin/usuarios`), genera un **lote de
+  códigos** de imprenta (`/admin/codigos`) y cambia el estado de un contenido
+  (`/admin/contenidos`). Las cuatro cosas llevaban fases construidas en el
+  backend y hasta ahora sólo se podían hacer con `curl`.
 - Al crear personal, la contraseña temporal **se muestra una vez**: no se manda
   ningún correo, y la pantalla lo dice en vez de prometerlo.
 
@@ -196,7 +201,7 @@ Números reproducibles hoy, en local, con la infraestructura levantada:
 | `pnpm smoke` | **96** comprobaciones de punta a punta |
 | `pnpm concurrency` | **14** comprobaciones de concurrencia real |
 | `pnpm smoke:web` | **243** comprobaciones del portal contra el backend |
-| `pnpm a11y` | **15** pantallas |
+| `pnpm a11y` | **15** pantallas con sesión (3 sin token) |
 
 Las de **concurrencia** son las que justifican la arquitectura: un solo canje de
 veinte simultáneos, cinco plazas para veinte solicitudes, la outbox reteniendo el
