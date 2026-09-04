@@ -231,6 +231,7 @@ async function main() {
     parallelism: 1,
   });
 
+  if (process.env.DEMO_RESET === '1') await resetDemo();
   await dedupeDemo();
 
   const people = await seedPeople(passwordHash);
@@ -295,6 +296,109 @@ async function createInstitution(glexco) {
   );
   if (existing.rows[0]) INSTITUTION.id = existing.rows[0].id;
   else console.log(`  ! institucion: ${created.status} ${JSON.stringify(created.body).slice(0, 120)}`);
+}
+
+/**
+ * Borra el colegio de demostracion entero para volver a sembrarlo limpio.
+ *
+ * **Solo corre con `DEMO_RESET=1`.** Va detras de una variable y no de un
+ * argumento porque este guion se ejecuta como comando previo al despliegue, y
+ * ahi un argumento se copia de un despliegue al siguiente sin que nadie lo mire.
+ *
+ * Existe porque el entorno acumulo el poso de una decena de siembras: intentos
+ * de evaluacion agotados -son tres por alumno y cada siembra gastaba uno-,
+ * codigos ya canjeados, y dos instituciones de epocas distintas. Cada sintoma
+ * por separado tiene arreglo, pero perseguirlos de uno en uno cuesta mas que
+ * partir de cero, y esto es un entorno de demostracion: su contenido es
+ * reemplazable por definicion.
+ *
+ * **El alcance es lo unico que importa aqui.** Todo cuelga de dos anclas: los
+ * doce correos `alumnoN@demo.glexco.pe` con los cinco del personal, cuyos
+ * identificadores son deterministas, y los tres kits de demostracion. Nada
+ * ajeno a esas dos listas se toca, y por eso las instituciones se resuelven a
+ * partir de los usuarios y no al reves.
+ *
+ * El catalogo -kits, cursos, lecciones, recursos- NO se borra: es determinista,
+ * se reescribe solo, y borrarlo obligaria a volver a publicar los cursos con el
+ * rodeo del reanuncio.
+ */
+async function resetDemo() {
+  const emails = [
+    ...STAFF.map((p) => `${p.key}@demo.glexco.pe`),
+    ...STUDENT_NAMES.map((_, i) => `alumno${i + 1}@demo.glexco.pe`),
+  ];
+  const userIds = emails.map((e) => idFor('user', e));
+  const kitIds = KITS.map((k) => k.id);
+
+  // Las instituciones se deducen de los usuarios: es el unico vinculo que no
+  // depende de un identificador que alguna siembra pudo generar al azar.
+  const inst = await admin.query(
+    `SELECT DISTINCT institution_id FROM identity.users
+      WHERE id = ANY($1::uuid[]) AND institution_id IS NOT NULL`,
+    [userIds],
+  );
+  const institutionIds = inst.rows.map((r) => r.institution_id);
+
+  // Orden: primero lo que apunta a otras cosas, despues las cosas apuntadas.
+  await admin.query(
+    `DELETE FROM assessment.submissions WHERE student_id = ANY($1::uuid[])`, [userIds]);
+  await admin.query(
+    `DELETE FROM assessment.assessments WHERE kit_id = ANY($1::uuid[])`, [kitIds]);
+
+  await admin.query(
+    `DELETE FROM catalog.entitlements WHERE student_id = ANY($1::uuid[])`, [userIds]);
+  // Los codigos vuelven a estar libres. Sin esto, la siembra siguiente no puede
+  // canjear ninguno y los alumnos se quedan sin kit.
+  await admin.query(
+    `UPDATE catalog.activation_codes
+        SET status = 'issued', redeemed_by = NULL, redeemed_at = NULL
+      WHERE kit_id = ANY($1::uuid[])`, [kitIds]);
+
+  await admin.query(
+    `DELETE FROM learning.lesson_progress WHERE student_id = ANY($1::uuid[])`, [userIds]);
+  await admin.query(
+    `DELETE FROM learning.xp_awards WHERE student_id = ANY($1::uuid[])`, [userIds]);
+  await admin.query(
+    `DELETE FROM learning.badges WHERE student_id = ANY($1::uuid[])`, [userIds]);
+  await admin.query(
+    `DELETE FROM learning.student_gamification WHERE student_id = ANY($1::uuid[])`, [userIds]);
+  await admin.query(
+    `DELETE FROM learning.classroom_members WHERE student_id = ANY($1::uuid[])`, [userIds]);
+
+  await admin.query(
+    `DELETE FROM analytics.student_assessment_facts WHERE student_id = ANY($1::uuid[])`, [userIds]);
+
+  if (institutionIds.length > 0) {
+    await admin.query(
+      `DELETE FROM engagement.announcements WHERE institution_id = ANY($1::uuid[])`, [institutionIds]);
+    await admin.query(
+      `DELETE FROM analytics.classroom_rollups WHERE institution_id = ANY($1::uuid[])`, [institutionIds]);
+    await admin.query(
+      `DELETE FROM analytics.institution_rollups WHERE institution_id = ANY($1::uuid[])`, [institutionIds]);
+    await admin.query(
+      `DELETE FROM analytics.institution_directory WHERE institution_id = ANY($1::uuid[])`, [institutionIds]);
+    // Las matriculas y los salones caen en cascada con la institucion, pero se
+    // borran explicitamente para no depender de como este definida la cascada.
+    await admin.query(
+      `DELETE FROM institutions.enrollments WHERE classroom_id IN
+         (SELECT id FROM institutions.classrooms WHERE institution_id = ANY($1::uuid[]))`,
+      [institutionIds]);
+    await admin.query(
+      `DELETE FROM institutions.classrooms WHERE institution_id = ANY($1::uuid[])`, [institutionIds]);
+    await admin.query(
+      `DELETE FROM institutions.licenses WHERE institution_id = ANY($1::uuid[])`, [institutionIds]);
+    await admin.query(
+      `DELETE FROM institutions.teacher_directory WHERE institution_id = ANY($1::uuid[])`, [institutionIds]);
+    await admin.query(
+      `DELETE FROM institutions.institutions WHERE id = ANY($1::uuid[])`, [institutionIds]);
+  }
+
+  await admin.query(`DELETE FROM identity.users WHERE id = ANY($1::uuid[])`, [userIds]);
+
+  console.log(
+    `  RESET            ${userIds.length} cuentas y ${institutionIds.length} institucion(es) borradas
+`,
+  );
 }
 
 /**
