@@ -359,6 +359,11 @@ alguna, para y pregunta antes de continuar.
   seguía creando el `Entitlement`, y el índice único devolvía un 500. Cuando un
   agregado dice ser idempotente, todo lo que el caso de uso escriba a su lado
   tiene que serlo también.
+- **Nunca añadas nada a una migración YA aplicada.** El ejecutor las marca por
+  nombre de archivo, así que lo que se añade a una que ya corrió no se ejecuta
+  nunca —y no avisa: el despliegue dice que fue bien y el fallo aparece después,
+  como `relation "x" does not exist`. Toda tabla o columna nueva va en un archivo
+  nuevo, aunque sea de la misma tanda de trabajo.
 - **Los límites de fuerza bruta son reales en local**: cinco códigos de
   activación por IP y hora, diez registros por IP y hora. Dos o tres ejecuciones
   seguidas de `pnpm smoke` los agotan. Para limpiarlos, ver el final de la
