@@ -495,6 +495,22 @@ async function publishCourses(people) {
   let count = 0;
 
   for (const kit of KITS) {
+    // Publicar es idempotente: si el curso YA estaba publicado, la operacion
+    // responde 200 y no emite nada -correcto para un panel, inutil aqui-. Para
+    // que el evento vuelva a salir hay que pasar por revision y publicar otra
+    // vez.
+    //
+    // Es el problema clasico de una proyeccion nueva frente a datos viejos:
+    // `learning` no puede enterarse de un curso que se publico antes de que el
+    // servicio existiera. La solucion definitiva es un comando de reconstruccion;
+    // este rodeo cubre la demostracion sin inventarse uno a medias.
+    const toReview = await api(`/catalog/content/${kit.course.id}/status`, {
+      method: 'POST',
+      body: { target: 'course', status: 'in_review' },
+      as,
+    });
+    void toReview;
+
     const result = await api(`/catalog/content/${kit.course.id}/status`, {
       method: 'POST',
       body: { target: 'course', status: 'published' },
