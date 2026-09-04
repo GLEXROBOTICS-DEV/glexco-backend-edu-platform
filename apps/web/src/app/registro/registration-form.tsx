@@ -305,7 +305,7 @@ function Field({
         required={!optional}
         aria-describedby={described || undefined}
         aria-invalid={errors?.length ? true : undefined}
-        className={`mt-1.5 w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400 ${className ?? ''}`}
+        className={`field mt-1.5 ${className ?? ''}`}
       />
       {errors?.length ? (
         <p id={errorId} role="alert" className="mt-1.5 text-sm text-danger">
@@ -323,7 +323,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-lg bg-brand-600 px-4 py-2.5 font-medium text-white transition hover:bg-brand-700 disabled:opacity-60"
+      className="btn btn-primary btn-block"
     >
       {/* Cambia el texto y no solo un icono: un lector de pantalla anuncia el
           cambio de texto, y un spinner girando no dice nada. */}

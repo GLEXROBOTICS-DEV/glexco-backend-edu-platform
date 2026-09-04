@@ -78,7 +78,7 @@ export function AssetViewer({
             href={asset.url}
             download
             data-download="1"
-            className="inline-flex rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+            className="btn btn-primary"
           >
             Descargar
           </a>
@@ -137,7 +137,7 @@ function Player({ asset }: { asset: OpenedAsset }) {
           // decirle al proveedor desde que pagina exacta viene el alumno.
           rel="noopener noreferrer"
           target="_blank"
-          className="mt-4 inline-flex rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+          className="btn btn-primary mt-4"
         >
           Abrir el material
           <span className="sr-only"> (se abre en una pestaña nueva)</span>
@@ -158,7 +158,7 @@ function Player({ asset }: { asset: OpenedAsset }) {
           href={asset.url}
           rel="noopener noreferrer"
           target="_blank"
-          className="mt-4 inline-flex rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+          className="btn btn-primary mt-4"
         >
           Abrir
           <span className="sr-only"> (se abre en una pestaña nueva)</span>

@@ -63,7 +63,7 @@ export function RequestForm() {
           type="email"
           autoComplete="username"
           required
-          className="mt-1.5 w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+          className="field mt-1.5"
         />
       </div>
 
@@ -111,7 +111,7 @@ export function NewPasswordForm({ token }: { token: string }) {
           autoComplete="new-password"
           required
           aria-describedby="password-hint"
-          className="mt-1.5 w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+          className="field mt-1.5"
         />
       </div>
 
@@ -125,7 +125,7 @@ export function NewPasswordForm({ token }: { token: string }) {
           type="password"
           autoComplete="new-password"
           required
-          className="mt-1.5 w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+          className="field mt-1.5"
         />
       </div>
 
@@ -149,7 +149,7 @@ function Submit({ idle, busy }: { idle: string; busy: string }) {
       type="submit"
       disabled={pending}
       data-submit="recuperar"
-      className="w-full rounded-lg bg-brand-600 px-4 py-2.5 font-medium text-white transition hover:bg-brand-700 disabled:opacity-60"
+      className="btn btn-primary btn-block"
     >
       {pending ? busy : idle}
     </button>

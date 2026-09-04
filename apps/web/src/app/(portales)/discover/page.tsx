@@ -111,7 +111,7 @@ async function MisKits() {
 
             <a
               href={`/discover/biblioteca?kit=${kit.kitId}`}
-              className="mt-5 inline-flex h-[2.875rem] items-center rounded-[var(--nav-radius)] bg-brand-600 px-5 font-display text-[15px] font-medium text-white transition hover:bg-brand-700"
+              className="btn btn-primary mt-5"
             >
               Continuar aprendiendo
             </a>

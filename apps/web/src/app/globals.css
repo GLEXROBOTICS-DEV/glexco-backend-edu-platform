@@ -184,6 +184,133 @@ h3 {
 }
 
 /**
+ * Controles.
+ *
+ * Van como clase y no como utilidades sueltas en cada JSX porque asi estaban:
+ * habia DOCE variantes del mismo boton primario -px-4 y px-5, py-2 y py-2.5,
+ * `font-semibold` y `font-medium`, `text-sm` y sin tamano-, y dos de ellas
+ * aparecian juntas en la misma pantalla. Ninguna era un error suelto: cada una
+ * se escribio a mano en su sitio, que es exactamente como se desalinea un
+ * sistema.
+ *
+ * La altura es la del canvas: 46 px en formularios, 36 px en barras de
+ * herramientas. Es tambien el minimo con el que un nino acierta a la primera en
+ * una pantalla tactil.
+ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2.875rem; /* 46px */
+  padding-inline: 1.375rem;
+  border-radius: var(--nav-radius);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.btn:disabled,
+.btn[aria-disabled='true'] {
+  cursor: not-allowed;
+  background: var(--color-surface-100);
+  border: 1px solid var(--color-line-200);
+  color: var(--color-ink-300);
+}
+
+.btn-primary {
+  background: var(--color-brand-600);
+  color: #ffffff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-brand-700);
+}
+
+.btn-secondary {
+  background: #ffffff;
+  border: 1px solid var(--color-line-300);
+  color: var(--color-ink-700);
+}
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--color-brand-600);
+  color: var(--color-brand-700);
+}
+
+/* Destructivo: rojo solo en el BORDE y el texto. Un boton rojo macizo entre
+   otros invita a pulsarlo por peso visual, y lo que hay detras no se deshace. */
+.btn-danger {
+  background: #ffffff;
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--color-state-late-bg);
+}
+
+/* Barras de herramientas. */
+.btn-sm {
+  height: 2.25rem; /* 36px */
+  padding-inline: 0.875rem;
+  font-size: 14px;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/**
+ * Campos de formulario.
+ *
+ * Misma altura que los botones para que un campo y su boton al lado no queden
+ * escalonados, que es lo que pasaba con `py-2.5` frente a `py-2`.
+ */
+.field {
+  display: block;
+  width: 100%;
+  /* `min-height` y no `height`: con altura fija, un `textarea` con esta misma
+     clase queda aplastado a una linea y no hay forma de escribir dentro. */
+  min-height: 2.875rem;
+  padding-inline: 0.875rem;
+  border: 1px solid var(--color-line-300);
+  border-radius: var(--portal-radius);
+  background: #ffffff;
+  font-size: 15px;
+  color: var(--color-ink-900);
+}
+
+/* El area de texto crece: se redimensiona solo en vertical, porque en
+   horizontal se sale de su columna y descuadra el formulario entero. */
+textarea.field {
+  min-height: 7rem;
+  padding-block: 0.75rem;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.field::placeholder {
+  color: var(--color-ink-300);
+}
+
+.field:focus {
+  outline: none;
+  border-color: var(--color-brand-400);
+  box-shadow: 0 0 0 3px rgba(62, 134, 192, 0.2);
+}
+
+/* El error se marca con borde Y con el texto de debajo, nunca solo con el
+   color: quien no distingue el rojo del gris no veria que hay algo mal. */
+.field[aria-invalid='true'] {
+  border-color: #dc2626;
+}
+
+/**
  * Foco siempre visible.
  *
  * No se quita nunca. Esta plataforma la usan alumnos que navegan solo con

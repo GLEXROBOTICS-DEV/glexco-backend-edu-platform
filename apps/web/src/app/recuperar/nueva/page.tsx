@@ -33,7 +33,7 @@ export default async function NuevaContrasenaPage({ searchParams }: PageProps) {
           </p>
           <a
             href="/recuperar"
-            className="mt-6 inline-flex rounded-lg bg-brand-600 px-4 py-2.5 font-medium text-white transition hover:bg-brand-700"
+            className="btn btn-primary mt-6"
           >
             Pedir un enlace nuevo
           </a>

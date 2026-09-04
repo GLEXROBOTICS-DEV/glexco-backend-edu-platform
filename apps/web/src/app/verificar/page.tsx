@@ -41,7 +41,7 @@ export default async function VerificarPage({ searchParams }: PageProps) {
 
         <a
           href="/ingresar"
-          className="mt-6 inline-flex rounded-lg bg-brand-600 px-4 py-2.5 font-medium text-white transition hover:bg-brand-700"
+          className="btn btn-primary mt-6"
         >
           Ir a ingresar
         </a>

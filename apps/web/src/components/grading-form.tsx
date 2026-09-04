@@ -51,7 +51,7 @@ export function GradingForm({
         </p>
         <a
           href="../correccion"
-          className="mt-6 inline-flex rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+          className="btn btn-primary mt-6"
         >
           Volver a la bandeja
         </a>
@@ -95,7 +95,7 @@ export function GradingForm({
           name="feedback"
           rows={3}
           placeholder="Opcional. Lo verá junto a su nota."
-          className="w-full rounded-lg border border-line-300 px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+          className="field"
         />
       </label>
 
@@ -163,7 +163,7 @@ function ManualQuestion({ question, index }: { question: GradableQuestion; index
             step="0.5"
             required
             defaultValue={question.answer?.awardedPoints ?? ''}
-            className="w-full rounded-lg border border-line-300 px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+            className="field"
           />
         </label>
 
@@ -174,7 +174,7 @@ function ManualQuestion({ question, index }: { question: GradableQuestion; index
             name={`feedback:${question.id}`}
             defaultValue={question.answer?.feedback ?? ''}
             placeholder="Opcional"
-            className="w-full rounded-lg border border-line-300 px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+            className="field"
           />
         </label>
       </div>
@@ -237,7 +237,7 @@ function SubmitButton() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-brand-600 px-5 py-2.5 font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
+        className="btn btn-primary"
       >
         {pending ? 'Guardando…' : 'Cerrar la nota'}
       </button>

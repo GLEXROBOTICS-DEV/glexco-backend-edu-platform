@@ -53,7 +53,7 @@ export function AssessmentCreateForm({
           minLength={3}
           maxLength={200}
           placeholder="Repaso de sensores"
-          className="w-full rounded-lg border border-line-300 px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+          className="field"
         />
       </label>
 
@@ -63,7 +63,7 @@ export function AssessmentCreateForm({
           <select
             name="kitId"
             required
-            className="w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+            className="field"
           >
             {kits.map((kit) => (
               <option key={kit.kitId} value={kit.kitId}>
@@ -107,7 +107,7 @@ export function AssessmentCreateForm({
         </span>
         <select
           name="classroomId"
-          className="w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+          className="field"
         >
           {/* Vacío por defecto: quien da el mismo grado en dos aulas quiere una
               sola evaluación para las dos, y limitarla a un salón es la
@@ -131,7 +131,7 @@ export function AssessmentCreateForm({
               min={0}
               max={100}
               defaultValue={60}
-              className="w-full rounded-lg border border-line-300 px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+              className="field"
             />
             <span className="text-sm text-ink-500">%</span>
           </div>
@@ -147,7 +147,7 @@ export function AssessmentCreateForm({
             min={1}
             max={480}
             placeholder="Sin límite"
-            className="w-full rounded-lg border border-line-300 px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+            className="field"
           />
         </label>
       </div>
@@ -165,7 +165,7 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
       <button
         type="submit"
         disabled={pending || disabled}
-        className="rounded-lg bg-brand-600 px-5 py-2.5 font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
+        className="btn btn-primary"
       >
         {pending ? 'Creando…' : 'Crear y añadir preguntas'}
       </button>

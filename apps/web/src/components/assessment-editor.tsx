@@ -67,7 +67,7 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
             name="type"
             value={type}
             onChange={(event) => setType(event.target.value)}
-            className="w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+            className="field"
           >
             {TYPES.map((option) => (
               <option key={option.value} value={option.value}>
@@ -86,7 +86,7 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
             max={100}
             defaultValue={10}
             required
-            className="w-full rounded-lg border border-line-300 px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+            className="field"
           />
         </label>
       </div>
@@ -99,7 +99,7 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
           required
           minLength={3}
           placeholder="¿Cuál de estas piezas es un servomotor?"
-          className="w-full rounded-lg border border-line-300 px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+          className="field"
         />
       </label>
 
@@ -126,7 +126,7 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
                 name="optionText"
                 aria-label={`Texto de la opción ${index + 1}`}
                 placeholder={`Opción ${index + 1}`}
-                className="w-full rounded-lg border border-line-300 px-3 py-2 text-sm text-ink-900 outline-none transition focus:border-brand-400"
+                className="field"
               />
             </div>
           ))}
@@ -147,7 +147,7 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
           type="text"
           name="explanation"
           placeholder="Se muestra al alumno DESPUÉS de corregir, nunca antes."
-          className="w-full rounded-lg border border-line-300 px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+          className="field"
         />
       </label>
 
@@ -164,7 +164,7 @@ function SubmitButton() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-brand-600 px-5 py-2.5 font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
+        className="btn btn-primary"
       >
         {pending ? 'Añadiendo…' : 'Añadir pregunta'}
       </button>

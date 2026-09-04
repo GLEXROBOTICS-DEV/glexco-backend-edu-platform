@@ -185,7 +185,7 @@ function PrimerPaso({
               autoComplete="off"
               // En mayusculas desde el teclado: el codigo es en mayusculas y
               // asi el alumno ve lo mismo que va a enviarse.
-              className="mt-1.5 w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 uppercase text-ink-900 outline-none transition focus:border-brand-400"
+              className="field mt-1.5 uppercase"
               aria-describedby={notFound ? 'colegio-error' : 'colegio-ayuda'}
               aria-invalid={notFound ? true : undefined}
             />
@@ -206,7 +206,7 @@ function PrimerPaso({
             name="grado"
             defaultValue={grade}
             required
-            className="mt-1.5 w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+            className="field mt-1.5"
           >
             <option value="">Elige tu grado…</option>
             {ORDERED_GRADES.map((value) => (
@@ -219,7 +219,7 @@ function PrimerPaso({
 
         <button
           type="submit"
-          className="w-full rounded-lg bg-brand-600 px-4 py-2.5 font-medium text-white transition hover:bg-brand-700"
+          className="btn btn-primary btn-block"
         >
           Continuar
         </button>

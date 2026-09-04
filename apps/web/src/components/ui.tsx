@@ -89,7 +89,7 @@ export function EmptyState({
       {action ? (
         <a
           href={action.href}
-          className="mt-6 inline-flex h-[2.875rem] items-center rounded-[var(--nav-radius)] bg-brand-600 px-6 font-display text-[15px] font-medium text-white transition hover:bg-brand-700"
+          className="btn btn-primary mt-6"
         >
           {action.label}
         </a>

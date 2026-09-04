@@ -124,7 +124,7 @@ function QuestionCard({ question, index }: { question: StudentQuestion; index: n
             rows={5}
             aria-labelledby={legendId}
             placeholder="Escribe tu respuesta"
-            className="w-full rounded-lg border border-line-300 px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+            className="field"
           />
         )}
       </fieldset>
@@ -140,7 +140,7 @@ function SubmitButton() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-brand-600 px-5 py-2.5 font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
+        className="btn btn-primary"
       >
         {/* Texto que cambia y no solo un spinner: un cambio de texto lo anuncia
             el lector de pantalla, un icono girando no. */}
@@ -216,7 +216,7 @@ function Result({ state, attemptsLeft }: { state: SubmitState; attemptsLeft: num
 
       <a
         href="../progreso"
-        className="mt-6 inline-flex rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+        className="btn btn-primary mt-6"
       >
         Ver mi progreso
       </a>

@@ -77,7 +77,7 @@ async function Classrooms() {
 
             <a
               href={`/docentes/salones/${classroom.classroomId}`}
-              className="mt-5 inline-flex rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+              className="btn btn-primary mt-5"
             >
               Ver cómo va
             </a>

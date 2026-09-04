@@ -89,7 +89,7 @@ export async function AssessmentList({ portal }: { portal: 'discover' | 'academy
 
                   <a
                     href={`/${portal}/evaluaciones/${assessment.assessmentId}`}
-                    className="mt-5 inline-flex rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+                    className="btn btn-primary mt-5"
                   >
                     {portal === 'discover' ? 'Empezar' : 'Comenzar evaluacion'}
                   </a>

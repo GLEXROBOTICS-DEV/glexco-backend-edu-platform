@@ -146,7 +146,7 @@ async function RutaFormativa() {
 
               <a
                 href={`/academy/biblioteca?kit=${kit.kitId}`}
-                className="inline-flex h-[2.875rem] items-center rounded-[var(--portal-radius)] border border-line-300 px-5 text-[15px] font-medium text-ink-700 transition hover:border-brand-600 hover:text-brand-700"
+                className="btn btn-secondary"
               >
                 Ver contenido
               </a>

@@ -75,7 +75,7 @@ export default async function RegistroListoPage() {
 
       <a
         href={destino}
-        className="mt-6 block w-full rounded-lg bg-brand-600 px-4 py-2.5 text-center font-medium text-white transition hover:bg-brand-700"
+        className="btn btn-primary btn-block mt-6"
       >
         Entrar a mi portal
       </a>

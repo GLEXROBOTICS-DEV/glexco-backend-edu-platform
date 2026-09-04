@@ -82,7 +82,7 @@ export default async function EditAssessmentPage({
             <input type="hidden" name="assessmentId" value={data.assessmentId} />
             <button
               type="submit"
-              className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+              className="btn btn-primary"
             >
               Duplicar para mi salón
             </button>
@@ -132,7 +132,7 @@ export default async function EditAssessmentPage({
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="submit"
-              className="rounded-lg bg-brand-600 px-5 py-2.5 font-semibold text-white transition hover:bg-brand-700"
+              className="btn btn-primary"
             >
               Publicar
             </button>

@@ -28,7 +28,7 @@ export default async function TeacherAssessmentsPage() {
         </div>
         <a
           href="/docentes/evaluaciones/nueva"
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
+          className="btn btn-primary"
         >
           Crear una evaluación
         </a>
@@ -155,7 +155,7 @@ function Row({
           <input type="hidden" name="assessmentId" value={item.assessmentId} />
           <button
             type="submit"
-            className="rounded-lg border border-brand-600 px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-600/5"
+            className="btn btn-secondary"
           >
             Duplicar
           </button>

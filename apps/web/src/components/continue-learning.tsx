@@ -81,7 +81,7 @@ export async function ContinueLearning({ portal }: { portal: 'discover' | 'acade
 
             <a
               href={`/${portal}/biblioteca?kit=${encodeURIComponent(course.kitId)}`}
-              className="inline-flex h-[2.875rem] shrink-0 items-center rounded-[var(--nav-radius)] bg-brand-600 px-6 font-display text-[15px] font-medium text-white transition hover:bg-brand-700"
+              className="btn btn-primary shrink-0"
             >
               Continuar
             </a>

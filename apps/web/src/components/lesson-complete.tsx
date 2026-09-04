@@ -114,7 +114,7 @@ function SubmitButton() {
       type="submit"
       disabled={pending}
       data-submit="completar"
-      className="rounded-lg border border-brand-600 px-4 py-2.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-600/5 disabled:opacity-60"
+      className="btn btn-secondary"
     >
       {pending ? 'Guardando…' : 'Ya lo vi'}
     </button>

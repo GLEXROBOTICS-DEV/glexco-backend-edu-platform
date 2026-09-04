@@ -108,7 +108,7 @@ function Field({
         // pantalla lee el mensaje suelto y no sabe a que campo pertenece.
         aria-describedby={errors?.length ? errorId : undefined}
         aria-invalid={errors?.length ? true : undefined}
-        className="mt-1.5 w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+        className="field mt-1.5"
       />
       {errors?.length ? (
         <p id={errorId} className="mt-1.5 text-sm text-danger">
@@ -126,7 +126,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-lg bg-brand-600 px-4 py-2.5 font-medium text-white transition hover:bg-brand-700 disabled:opacity-60"
+      className="btn btn-primary btn-block"
     >
       {/* El texto cambia en vez de mostrar solo un spinner: un cambio de texto
           si lo anuncia el lector de pantalla, y un icono girando no. */}

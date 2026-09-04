@@ -58,7 +58,7 @@ export function AnnouncementForm({ classrooms }: { classrooms: ClassroomSummary[
           // Con un solo salon viene elegido: dejarlo sin marcar solo consigue
           // que alguien envie el formulario sin salon y tenga que reescribirlo.
           defaultValue={classrooms.length === 1 ? classrooms[0]!.classroomId : ''}
-          className="mt-1.5 w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+          className="field mt-1.5"
         >
           {classrooms.length > 1 ? <option value="">Elige el salón…</option> : null}
           {classrooms.map((classroom) => (
@@ -79,7 +79,7 @@ export function AnnouncementForm({ classrooms }: { classrooms: ClassroomSummary[
           required
           maxLength={120}
           placeholder="Traigan el kit el viernes"
-          className="mt-1.5 w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+          className="field mt-1.5"
         />
       </div>
 
@@ -93,7 +93,7 @@ export function AnnouncementForm({ classrooms }: { classrooms: ClassroomSummary[
           required
           rows={5}
           maxLength={4000}
-          className="mt-1.5 w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-brand-400"
+          className="field mt-1.5"
         />
       </div>
 
@@ -119,7 +119,7 @@ function SubmitButton() {
       type="submit"
       disabled={pending}
       data-submit="anuncio"
-      className="rounded-lg bg-brand-600 px-4 py-2.5 font-medium text-white transition hover:bg-brand-700 disabled:opacity-60"
+      className="btn btn-primary"
     >
       {pending ? 'Publicando…' : 'Publicar el anuncio'}
     </button>

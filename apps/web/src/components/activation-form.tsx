@@ -34,7 +34,7 @@ export function ActivationForm({ portal }: { portal: 'discover' | 'academy' }) {
         </p>
         <a
           href={`/${portal}`}
-          className="mt-4 inline-flex rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+          className="btn btn-primary mt-4"
         >
           Ver mis kits
         </a>
@@ -68,7 +68,7 @@ export function ActivationForm({ portal }: { portal: 'discover' | 'academy' }) {
           aria-describedby={state.error ? undefined : 'codigo-ayuda'}
           aria-invalid={state.error ? true : undefined}
           placeholder="GLX-XXXX-XXXX-XXXX"
-          className="mt-1.5 w-full rounded-lg border border-line-300 bg-white px-3 py-2.5 uppercase tracking-wider text-ink-900 outline-none transition focus:border-brand-400"
+          className="field mt-1.5 uppercase tracking-wider"
         />
       </div>
 
@@ -96,7 +96,7 @@ function SubmitButton() {
       // HTML servido, asi que buscarlo por su texto falla aunque la pantalla
       // este bien.
       data-submit="activar"
-      className="rounded-lg bg-brand-600 px-4 py-2.5 font-medium text-white transition hover:bg-brand-700 disabled:opacity-60"
+      className="btn btn-primary"
     >
       {pending ? 'Activando…' : 'Activar mi código'}
     </button>
