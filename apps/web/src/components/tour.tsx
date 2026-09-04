@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface TourStep {
   /** Selector del elemento que se resalta. Si no aparece, el paso se salta. */
@@ -30,6 +31,10 @@ export function Tour({ steps, label = 'Cómo funciona' }: { steps: TourStep[]; l
   const [box, setBox] = useState<DOMRect | null>(null);
   const [visible, setVisible] = useState<TourStep[]>([]);
   const closeRef = useRef<HTMLButtonElement>(null);
+  // El portal solo existe en el navegador. En el servidor no hay `document`, y
+  // pintar el velo en el HTML inicial dejaria la pagina en negro hasta hidratar.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!open) return;
@@ -91,7 +96,7 @@ export function Tour({ steps, label = 'Cómo funciona' }: { steps: TourStep[]; l
   const last = index >= visible.length - 1;
   const place = placement(box);
 
-  return (
+  const overlay = (
     <div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true" aria-label="Visita guiada">
       {/* Un SOLO velo, con el hueco recortado por el `box-shadow` del recuadro.
           Antes habia tambien un `<div>` oscuro a pantalla completa debajo, asi
@@ -182,6 +187,21 @@ export function Tour({ steps, label = 'Cómo funciona' }: { steps: TourStep[]; l
       </div>
     </div>
   );
+
+  /**
+   * Al `body`, siempre.
+   *
+   * **El boton de la visita vive DENTRO de la barra lateral, que es `sticky`, y
+   * eso crea un contexto de apilamiento.** Un elemento `fixed` dentro de un
+   * contexto de apilamiento queda atrapado en el: su `z-index` se compara solo
+   * con sus hermanos, no con el resto de la pagina. El resultado era el velo y la
+   * tarjeta pintados POR DEBAJO del contenido -que va despues en el DOM-, con
+   * los botones tapados y sin poder pulsarlos, por mucho `z-[100]` que llevaran.
+   *
+   * Es el fallo clasico de los dialogos: no se arregla subiendo el z-index, se
+   * arregla sacando el nodo del contexto.
+   */
+  return mounted ? createPortal(overlay, document.body) : null;
 }
 
 /**

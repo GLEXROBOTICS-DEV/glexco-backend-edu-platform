@@ -35,6 +35,7 @@ export async function createAssessment(
   const classroomId = formData.get('classroomId');
   const timeLimit = formData.get('timeLimitMinutes');
   const passing = formData.get('passingScore');
+  const dueAt = formData.get('dueAt');
 
   const result = await api<{ assessmentId: string }>('/assessments', {
     method: 'POST',
@@ -48,6 +49,14 @@ export async function createAssessment(
       ...(typeof passing === 'string' && passing.length > 0 ? { passingScore: passing } : {}),
       ...(typeof timeLimit === 'string' && timeLimit.length > 0
         ? { timeLimitMinutes: timeLimit }
+        : {}),
+      // `datetime-local` da "2026-09-30T23:59" SIN zona, y el backend exige un
+      // instante completo. Se interpreta en la zona del navegador -que es la del
+      // docente, la que tenia en la cabeza al escribirlo- y se manda en UTC. Sin
+      // esto, "cierra a las 23:59" se aplicaria a las 23:59 UTC, que en Lima son
+      // las 18:59 del mismo dia: cinco horas menos de las que el docente dio.
+      ...(typeof dueAt === 'string' && dueAt.length > 0
+        ? { dueAt: new Date(dueAt).toISOString() }
         : {}),
     },
   });

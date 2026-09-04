@@ -1,7 +1,7 @@
 import { ChallengeIcon } from '@glexco/icons';
 import { fetchMyKits } from '../lib/catalog';
 import { fetchAvailableAssessments } from '../lib/assessments';
-import { Card, EmptyState, SectionTitle } from './ui';
+import { Card, EmptyState, SectionTitle, StatePill } from './ui';
 
 /**
  * Las evaluaciones que el alumno puede hacer.
@@ -81,6 +81,20 @@ export async function AssessmentList({ portal }: { portal: 'discover' | 'academy
                         si lo que responde es material de GLEXCO -igual para
                         todos- o algo que preparo su profesor.
                       */}
+                      {/*
+                        La fecha limite va ARRIBA y con su estado, no escondida
+                        en la pantalla siguiente: es lo que decide si el alumno
+                        tiene que ponerse hoy o puede dejarlo, y descubrir que
+                        cerro al abrirla es descubrirlo tarde.
+                      */}
+                      {assessment.dueAt ? (
+                        <p className="mt-2">
+                          <StatePill state={dueState(assessment.dueAt)}>
+                            {dueLabel(assessment.dueAt)}
+                          </StatePill>
+                        </p>
+                      ) : null}
+
                       <p className="mt-2 text-xs text-ink-400">
                         {assessment.origin === 'glexco' ? 'Incluida en tu kit' : 'De tu docente'}
                       </p>
@@ -105,4 +119,40 @@ export async function AssessmentList({ portal }: { portal: 'discover' | 'academy
         ))}
     </>
   );
+}
+
+/**
+ * Estado de la fecha limite.
+ *
+ * Tres tramos y no dos: "cerrada" es distinto de "cierra hoy", y las dos son
+ * distintas de "queda tiempo". Con un solo aviso, el alumno no sabe si tiene que
+ * correr o si ya no puede hacer nada.
+ */
+function dueState(iso: string): 'late' | 'warn' | 'idle' {
+  const days = daysLeft(iso);
+  if (days === null) return 'idle';
+  if (days < 0) return 'late';
+  if (days <= 2) return 'warn';
+  return 'idle';
+}
+
+function dueLabel(iso: string): string {
+  const days = daysLeft(iso);
+  if (days === null) return '';
+  if (days < 0) return 'Cerrada';
+  if (days === 0) return 'Cierra hoy';
+  if (days === 1) return 'Cierra mañana';
+  if (days <= 7) return `Cierra en ${days} días`;
+
+  return `Cierra el ${new Intl.DateTimeFormat('es-PE', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'America/Lima',
+  }).format(new Date(iso))}`;
+}
+
+function daysLeft(iso: string): number | null {
+  const due = new Date(iso).getTime();
+  if (Number.isNaN(due)) return null;
+  return Math.ceil((due - Date.now()) / 86_400_000) - 1;
 }

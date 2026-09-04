@@ -72,6 +72,7 @@ export default async function AcademyEvaluacion({
         submissionId={state.attempt.submissionId}
         questions={state.attempt.questions}
         timeLimitMinutes={state.attempt.timeLimitMinutes}
+        expiresAt={state.attempt.expiresAt}
         attemptsLeft={state.attempt.attemptsLeft}
         resultHref={`/academy/evaluaciones/${assessmentId}`}
       />

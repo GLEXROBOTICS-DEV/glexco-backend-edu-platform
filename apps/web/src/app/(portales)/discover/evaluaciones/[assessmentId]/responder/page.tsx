@@ -69,6 +69,7 @@ export default async function DiscoverEvaluacion({
         submissionId={state.attempt.submissionId}
         questions={state.attempt.questions}
         timeLimitMinutes={state.attempt.timeLimitMinutes}
+        expiresAt={state.attempt.expiresAt}
         attemptsLeft={state.attempt.attemptsLeft}
         resultHref={`/discover/evaluaciones/${assessmentId}`}
       />

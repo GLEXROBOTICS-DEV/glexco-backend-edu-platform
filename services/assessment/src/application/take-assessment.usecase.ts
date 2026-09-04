@@ -21,11 +21,38 @@ function studentFrom(context: ExecutionContext): { userId: string; institutionId
   return { userId: actor.userId, institutionId: actor.institutionId ?? null };
 }
 
+/**
+ * Cuando se acaba un intento.
+ *
+ * Se calcula desde `startedAt`, que es del servidor, y NO desde "ahora": al
+ * recargar la pagina se vuelve a pedir el intento abierto, y contando desde
+ * ahora el alumno tendria el tiempo entero otra vez cada vez que pulsara F5.
+ */
+function expiryOf(limitMinutes: number | null, startedAt: Date): string | null {
+  if (limitMinutes === null) return null;
+  return new Date(startedAt.getTime() + limitMinutes * 60_000).toISOString();
+}
+
 export interface StartAttemptOutput {
   submissionId: string;
   attemptNumber: number;
   attemptsLeft: number;
   timeLimitMinutes: number | null;
+  /**
+   * Instante en que se acaba ESTE intento, en ISO. `null` si no hay limite.
+   *
+   * Va absoluto y no como "te quedan N minutos" porque el cronometro del
+   * navegador tiene que contar contra un instante fijo: si contara los minutos
+   * desde que carga la pagina, recargar regalaria el tiempo entero otra vez, y
+   * es lo primero que prueba cualquier alumno.
+   *
+   * Lo calcula el SERVIDOR desde el momento en que se abrio el intento. El
+   * cliente solo lo pinta; quien decide si llego tarde sigue siendo el servidor
+   * al entregar.
+   */
+  expiresAt: string | null;
+  /** Fecha limite de la evaluacion entera, si la tiene. */
+  dueAt: string | null;
   /** Las preguntas SIN la clave de correccion. */
   questions: StudentQuestion[];
 }
@@ -87,6 +114,21 @@ export class StartAttemptUseCase implements UseCase<{ assessmentId: string; clas
 
       const open = await this.submissions.findInProgress(assessment.id.value, student.userId);
 
+      // **Fecha limite.** Se guardaba desde el principio y no la comprobaba
+      // nadie: se podia abrir y entregar una evaluacion cerrada hace un mes.
+      //
+      // Solo corta ABRIR uno nuevo. Un intento que ya estaba abierto se puede
+      // terminar aunque la fecha pase mientras se responde: cerrarle la puerta a
+      // quien esta escribiendo, por haber empezado tres minutos antes del cierre,
+      // seria castigarle por algo que el propio sistema le dejo empezar.
+      if (!open && assessment.dueAt !== null && now > assessment.dueAt) {
+        throw new BusinessRuleError(
+          'ASSESSMENT_CLOSED',
+          'Esta evaluacion ya cerro y no admite intentos nuevos.',
+          { dueAt: assessment.dueAt.toISOString() },
+        );
+      }
+
       if (open) {
         // Rellena el salon si el intento se abrio sin el. El caso llega cuando
         // el alumno abre la evaluacion antes de que su matricula este
@@ -102,6 +144,8 @@ export class StartAttemptUseCase implements UseCase<{ assessmentId: string; clas
           attemptNumber: open.attemptNumber,
           attemptsLeft: assessment.maxAttempts - open.attemptNumber,
           timeLimitMinutes: assessment.timeLimitMinutes,
+          expiresAt: expiryOf(assessment.timeLimitMinutes, open.snapshot().startedAt),
+          dueAt: assessment.dueAt ? assessment.dueAt.toISOString() : null,
           questions: assessment.forStudent(),
         };
       }
@@ -137,6 +181,8 @@ export class StartAttemptUseCase implements UseCase<{ assessmentId: string; clas
         attemptNumber: used + 1,
         attemptsLeft: assessment.maxAttempts - (used + 1),
         timeLimitMinutes: assessment.timeLimitMinutes,
+        expiresAt: expiryOf(assessment.timeLimitMinutes, submission.snapshot().startedAt),
+        dueAt: assessment.dueAt ? assessment.dueAt.toISOString() : null,
         // Aqui esta la garantia que sostiene todo el cuestionario: `forStudent`
         // no devuelve las respuestas correctas. Si las devolviera, verlas seria
         // abrir la pestana de red del navegador.

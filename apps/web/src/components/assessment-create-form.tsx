@@ -149,6 +149,24 @@ export function AssessmentCreateForm({
             placeholder="Sin límite"
             className="field"
           />
+          <span className="text-xs text-ink-500">
+            El alumno ve un cronómetro y se entrega solo al acabarse.
+          </span>
+        </label>
+
+        {/*
+          Fecha límite. El campo estaba en el contrato desde el principio y no
+          había forma de ponerla desde ninguna pantalla, así que ninguna
+          evaluación cerraba nunca.
+        */}
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium text-ink-700">
+            Cierra el <span className="text-ink-400">(opcional)</span>
+          </span>
+          <input type="datetime-local" name="dueAt" className="field" />
+          <span className="text-xs text-ink-500">
+            Después de esa fecha nadie puede empezar. Quien ya la tenía abierta la termina.
+          </span>
         </label>
       </div>
 

@@ -23,6 +23,16 @@ export interface OpenAttempt {
   attemptNumber: number;
   attemptsLeft: number;
   timeLimitMinutes: number | null;
+  /**
+   * Instante ABSOLUTO en que se acaba este intento, calculado por el servidor.
+   *
+   * Va absoluto y no como "te quedan N minutos" porque el cronometro tiene que
+   * contar contra un instante fijo: contando desde que carga la pagina,
+   * recargar regalaria el tiempo entero otra vez.
+   */
+  expiresAt: string | null;
+  /** Fecha limite de la evaluacion entera, si la tiene. */
+  dueAt: string | null;
   questions: StudentQuestion[];
 }
 

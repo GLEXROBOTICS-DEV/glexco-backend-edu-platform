@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { submitAttempt, type SubmitState } from '../lib/assessment.actions';
 import type { StudentQuestion } from '../lib/assessments';
@@ -26,12 +26,20 @@ export function QuizForm({
   submissionId,
   questions,
   timeLimitMinutes,
+  expiresAt,
   attemptsLeft,
   resultHref,
 }: {
   submissionId: string;
   questions: StudentQuestion[];
   timeLimitMinutes: number | null;
+  /**
+   * Instante ABSOLUTO en que se acaba este intento, calculado por el servidor.
+   *
+   * No se cuentan los minutos desde que carga la pagina: recargar regalaria el
+   * tiempo entero otra vez, y es lo primero que prueba cualquier alumno.
+   */
+  expiresAt: string | null;
   attemptsLeft: number;
   /**
    * Adonde ir tras entregar. Se pasa entero y no se construye con una ruta
@@ -41,13 +49,14 @@ export function QuizForm({
   resultHref: string;
 }) {
   const [state, formAction] = useActionState<SubmitState, FormData>(submitAttempt, {});
+  const formRef = useRef<HTMLFormElement>(null);
 
   if (state.status) {
     return <Result state={state} attemptsLeft={attemptsLeft} resultHref={resultHref} />;
   }
 
   return (
-    <form action={formAction} className="grid gap-[var(--portal-gap)]">
+    <form ref={formRef} action={formAction} className="grid gap-[var(--portal-gap)]">
       <input type="hidden" name="submissionId" value={submissionId} />
 
       {state.error ? (
@@ -59,14 +68,20 @@ export function QuizForm({
         </p>
       ) : null}
 
-      {timeLimitMinutes ? (
+      {expiresAt ? (
+        <Countdown
+          expiresAt={expiresAt}
+          onExpire={() => {
+            // Se entrega SOLA al llegar a cero. Sin esto, quien se queda sin
+            // tiempo pierde todo lo respondido y recibe un error, que es la peor
+            // forma de terminar un examen. El servidor da un minuto de gracia
+            // justo para que este envio llegue.
+            formRef.current?.requestSubmit();
+          }}
+        />
+      ) : timeLimitMinutes ? (
         <p className="rounded-lg border border-line-200 bg-white px-4 py-3 text-sm text-ink-700">
-          {/* No hay cronómetro en pantalla a propósito: el tiempo lo cuenta el
-              reloj del servidor, y un contador en el cliente daría a entender
-              que ese es el que manda -además de meterle prisa a un niño con un
-              número rojo bajando-. */}
-          Tienes <strong>{timeLimitMinutes} minutos</strong> desde que abriste el
-          intento. El tiempo lo cuenta el servidor.
+          Tienes <strong>{timeLimitMinutes} minutos</strong> desde que abriste el intento.
         </p>
       ) : null}
 
@@ -234,6 +249,89 @@ function Result({
       <a href={resultHref} className="btn btn-primary mt-6">
         Ver el detalle
       </a>
+    </div>
+  );
+}
+
+/**
+ * Cronometro del intento.
+ *
+ * **Cuenta contra un instante que da el SERVIDOR, no contra minutos desde que
+ * carga la pagina.** Contando desde la carga, recargar regalaria el tiempo
+ * entero otra vez, y es lo primero que prueba cualquier alumno.
+ *
+ * Y sigue mandando el servidor: este numero es una ayuda para el alumno, no la
+ * autoridad. Quien decide si llego tarde es el reloj del servidor al entregar,
+ * porque el del navegador se cambia con la consola abierta en diez segundos.
+ *
+ * Al llegar a cero **entrega solo**. Antes no habia cronometro -a proposito,
+ * para no meterle prisa a un nino con un numero rojo- pero eso dejaba el peor
+ * final posible: seguir escribiendo tan tranquilo y perderlo todo con un error
+ * al pulsar entregar. Un aviso que angustia un poco es mejor que perder el
+ * examen entero.
+ */
+function Countdown({ expiresAt, onExpire }: { expiresAt: string; onExpire: () => void }) {
+  const target = new Date(expiresAt).getTime();
+  const [left, setLeft] = useState(() => Math.max(0, target - Date.now()));
+  const fired = useRef(false);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const remaining = Math.max(0, target - Date.now());
+      setLeft(remaining);
+
+      // Una sola vez: sin la marca, el intervalo volveria a enviar el formulario
+      // cada segundo mientras la accion esta en vuelo.
+      if (remaining === 0 && !fired.current) {
+        fired.current = true;
+        onExpire();
+      }
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [target, onExpire]);
+
+  const totalSeconds = Math.floor(left / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  // El color entra tarde y por tramos. Un numero en rojo durante media hora deja
+  // de significar nada, y a un nino de ocho anos le pone nervioso desde el
+  // primer minuto.
+  const tone =
+    totalSeconds <= 60
+      ? 'border-danger/40 bg-state-late-bg text-state-late-fg'
+      : totalSeconds <= 300
+        ? 'border-achievement/40 bg-state-warn-bg text-state-warn-fg'
+        : 'border-line-200 bg-white text-ink-700';
+
+  return (
+    <div
+      className={`flex flex-wrap items-center justify-between gap-3 rounded-[var(--portal-radius)] border px-4 py-3 text-sm ${tone}`}
+      data-countdown={totalSeconds}
+    >
+      <span>
+        {totalSeconds === 0
+          ? 'Se acabó el tiempo. Estamos entregando lo que respondiste.'
+          : 'Tiempo restante'}
+      </span>
+
+      {totalSeconds > 0 ? (
+        <strong className="font-display text-lg tabular-nums" aria-hidden="true">
+          {minutes}:{String(seconds).padStart(2, '0')}
+        </strong>
+      ) : null}
+
+      {/* El lector de pantalla NO oye cada segundo: seria insoportable. Solo se
+          anuncia al entrar en los tramos, que es cuando cambia algo que importa. */}
+      <span className="sr-only" role="status" aria-live="polite">
+        {totalSeconds === 60
+          ? 'Queda un minuto.'
+          : totalSeconds === 300
+            ? 'Quedan cinco minutos.'
+            : totalSeconds === 0
+              ? 'Se acabó el tiempo. Se está entregando tu intento.'
+              : ''}
+      </span>
     </div>
   );
 }
