@@ -34,11 +34,15 @@ gateway es el único sitio donde se decide qué queda expuesto a internet.
 
 **Qué alumno mirar según lo que quieras ver:**
 
-- `alumno1@demo.glexco.pe` — **el mejor caso**: curso completo, 3 insignias,
-  nota 100. Portal **Discover** (primaria).
-- `alumno3@demo.glexco.pe` — portal **Academy** (secundaria), nota intermedia.
-- `alumno8` y `alumno11` — **sin kit activado a propósito**, para ver el estado
-  vacío y el formulario de activación.
+**Portal Discover (primaria):** `alumno1`, `alumno2`, `alumno4`, `alumno5`,
+`alumno7`, `alumno8`, `alumno10`.
+**Portal Academy (secundaria):** `alumno3`, `alumno6`, `alumno9`, `alumno12`.
+
+- `alumno1@demo.glexco.pe` — **el mejor caso** de Discover: curso completo,
+  nota 100, insignias y XP.
+- `alumno3@demo.glexco.pe` — portal **Academy**, con su ruta tecnológica.
+- `alumno8` y `alumno11` — **sin kit activado**, para ver el estado vacío y el
+  formulario de activación.
 
 El reparto de notas es desigual **a propósito**: sin dispersión, el panel del
 docente enseña una media y nada más, y la dispersión es justo lo que distingue un
@@ -102,6 +106,20 @@ identificadores son deterministas y adopta los que ya existan, así que volver a
 ejecutarlo no duplica nada. Repone el progreso de los alumnos de demostración
 para dejar un estado conocido, y **actualiza la contraseña**, de modo que lo que
 imprime siempre funciona.
+
+Con `DEMO_RESET=1` **borra el colegio entero y lo vuelve a sembrar desde cero**.
+Hace falta cuando el entorno acumula poso de muchas siembras: los tres intentos
+por evaluación se agotan, los códigos quedan canjeados y las entregas empiezan a
+fallar con 422. Acuérdate de **quitar la variable después**, o cada despliegue
+borrará la demostración.
+
+**Trampas de ejecutarlo en Railway**, las dos comprobadas perdiendo despliegues:
+
+- El comando previo al despliegue **no pasa por un intérprete**: encadenar con
+  `&&` ejecuta el primero y descarta el resto en silencio, con el despliegue
+  marcado como correcto.
+- El código de institución se guarda **normalizado**: `DEMO-SMP` se almacena
+  como `DEMOSMP`. Cualquier consulta SQL directa tiene que usar esa forma.
 
 Corre **dentro de Railway**, porque PostgreSQL no está expuesto a internet y no
 hace falta exponerlo para esto:
