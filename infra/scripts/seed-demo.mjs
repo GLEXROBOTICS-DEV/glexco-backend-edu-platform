@@ -294,8 +294,25 @@ async function createInstitution(glexco) {
     'SELECT id FROM institutions.institutions WHERE code = $1',
     [INSTITUTION.code],
   );
-  if (existing.rows[0]) INSTITUTION.id = existing.rows[0].id;
-  else console.log(`  ! institucion: ${created.status} ${JSON.stringify(created.body).slice(0, 120)}`);
+  if (existing.rows[0]) {
+    INSTITUTION.id = existing.rows[0].id;
+    return;
+  }
+
+  // Aqui la API dijo que el codigo esta cogido y la base dice que no hay
+  // ninguna fila con el. Seguir con el identificador inventado hace que la
+  // siembra muera tres pasos mas adelante con un error de clave foranea sobre
+  // `licenses`, que no dice nada de lo que pasa de verdad. Se para aqui y se
+  // ensena lo que hay.
+  const all = await admin.query(
+    'SELECT id, code, status FROM institutions.institutions ORDER BY created_at DESC LIMIT 10',
+  );
+  console.log(`  ! institucion: ${created.status} ${JSON.stringify(created.body).slice(0, 140)}`);
+  console.log(`    buscando code=${JSON.stringify(INSTITUTION.code)}; en la base hay:`);
+  for (const row of all.rows) {
+    console.log(`      ${row.id} code=${JSON.stringify(row.code)} status=${row.status}`);
+  }
+  throw new Error('no se pudo determinar la institucion de demostracion');
 }
 
 /**
@@ -392,6 +409,15 @@ async function resetDemo() {
     await admin.query(
       `DELETE FROM institutions.institutions WHERE id = ANY($1::uuid[])`, [institutionIds]);
   }
+
+  // Y las instituciones que llevan NUESTRO codigo aunque ya no les cuelgue
+  // ningun usuario. Sin esto, el alta siguiente choca con "ya existe una
+  // institucion con ese codigo" y la siembra muere buscando una fila que borro.
+  await admin.query(
+    `DELETE FROM institutions.institutions
+      WHERE code = $1 OR code LIKE $1 || '-OLD-%'`,
+    [INSTITUTION.code],
+  );
 
   await admin.query(`DELETE FROM identity.users WHERE id = ANY($1::uuid[])`, [userIds]);
 
