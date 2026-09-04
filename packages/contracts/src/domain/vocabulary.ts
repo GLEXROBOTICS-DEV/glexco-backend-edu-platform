@@ -129,6 +129,37 @@ export const ROBOT_PROGRAM: Record<RobotPlatform, Program> = {
   [ROBOT_PLATFORMS.XPERTUS]: PROGRAMS.ACADEMY,
 };
 
+/**
+ * Nombre comercial de cada robot, tal y como lo escribe UBTECH.
+ *
+ * Va aqui y no en el frontend porque lo necesitan tambien el sembrador y
+ * cualquier informe: la clave `dobot_magician_e6` no se le ensena a nadie, y
+ * cada sitio que la tradujera por su cuenta acabaria escribiendo el nombre de
+ * una forma distinta -"uGot", "UGOT", "uGoT"- en la misma pantalla.
+ *
+ * La capitalizacion es la del fabricante y no la que parezca mas regular: es el
+ * nombre que el alumno tiene impreso en la caja que tiene delante.
+ */
+export const ROBOT_LABELS: Record<RobotPlatform, string> = {
+  [ROBOT_PLATFORMS.UKIT_AI]: 'uKit AI',
+  [ROBOT_PLATFORMS.UKIT_EXPLORE]: 'uKit Explore',
+  [ROBOT_PLATFORMS.UGOT]: 'uGoT',
+  [ROBOT_PLATFORMS.YANSHEE]: 'Yanshee',
+  [ROBOT_PLATFORMS.AI_BOX_PRO]: 'AI BOX PRO',
+  [ROBOT_PLATFORMS.CREABOT]: 'CreaBot',
+  [ROBOT_PLATFORMS.DOBOT_MAGICIAN_E6]: 'Dobot Magician E6',
+  [ROBOT_PLATFORMS.CADEBOT]: 'CadeBot',
+  [ROBOT_PLATFORMS.CRUZR]: 'Cruzr',
+  [ROBOT_PLATFORMS.GO2]: 'GO2',
+  [ROBOT_PLATFORMS.GLEX_1]: 'GLEX-1',
+  [ROBOT_PLATFORMS.XPERTUS]: 'Xpertus',
+};
+
+/** Nombre para mostrar, o la clave si llega una que no conocemos. */
+export function robotLabel(platform: string): string {
+  return ROBOT_LABELS[platform as RobotPlatform] ?? platform;
+}
+
 // ---------------------------------------------------------------------------
 // Contenido
 // ---------------------------------------------------------------------------

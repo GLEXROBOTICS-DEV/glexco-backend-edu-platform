@@ -103,7 +103,7 @@ const INSTITUTION = {
  * revisarlas: no hay forma de detectar aqui que una empezo a devolver 404.
  */
 const UBTECH_PAGES = {
-  ukit: 'https://www.ubtrobot.com/en/ai-education/products/ukit-explore',
+  ukit_explore: 'https://www.ubtrobot.com/en/ai-education/products/ukit-explore',
   ukit_ai: 'https://www.ubtrobot.com/en/ai-education/products/ukit-ai',
   ugot: 'https://www.ubtrobot.com/en/ai-education/products/ugot',
   yanshee: 'https://www.ubtrobot.com/en/ai-education/products/yanshee',
@@ -139,7 +139,7 @@ const KITS = [
     description: 'Construccion y programacion por bloques con el uKit Explore.',
     program: 'discover',
     grade: 'primary_4',
-    platforms: ['ukit'],
+    platforms: ['ukit_explore'],
     course: {
       id: idFor('course', 'ukit-p4'),
       title: 'Primeros pasos con uKit',
@@ -826,7 +826,14 @@ async function seedCatalog() {
     await admin.query(
       `INSERT INTO catalog.kits (id, code, name, description, program, grade, robot_platforms, status)
        VALUES ($1,$2,$3,$4,$5,$6,$7,'published')
-       ON CONFLICT (code) DO NOTHING`,
+       -- DO UPDATE: la plataforma robotica del kit es un dato que se corrige
+       -- -la clave del catalogo es \`ukit_explore\`, no \`ukit\`- y con DO NOTHING
+       -- una demo ya sembrada se quedaba con la clave mala para siempre, que en
+       -- pantalla se ve como el robot llamandose \"ukit\".
+       ON CONFLICT (code) DO UPDATE SET
+         name            = EXCLUDED.name,
+         description     = EXCLUDED.description,
+         robot_platforms = EXCLUDED.robot_platforms`,
       [kit.id, kit.code, kit.name, kit.description, kit.program, kit.grade, kit.platforms],
     );
 

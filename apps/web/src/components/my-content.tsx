@@ -1,3 +1,4 @@
+import { robotLabel } from '@glexco/contracts';
 import { KitIcon, RobotIcon } from '@glexco/icons';
 import { fetchMyKits, gradeLabel, type MyKit } from '../lib/catalog';
 import { fetchLearningProgress, type CourseProgress } from '../lib/learning';
@@ -106,9 +107,9 @@ function KitCard({
               {kit.robotPlatforms.map((platform) => (
                 <li
                   key={platform}
-                  className="rounded-full bg-state-warn-bg px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-state-warn-fg"
+                  className="rounded-full bg-state-warn-bg px-2.5 py-1 text-[11px] font-semibold text-state-warn-fg"
                 >
-                  {platform}
+                  {robotLabel(platform)}
                 </li>
               ))}
             </ul>

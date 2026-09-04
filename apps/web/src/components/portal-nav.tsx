@@ -7,6 +7,7 @@ import {
   KitIcon,
   LevelIcon,
   LibraryIcon,
+  RobotIcon,
 } from '@glexco/icons';
 import type { NavItem } from './sidebar-nav';
 
@@ -28,6 +29,7 @@ import type { NavItem } from './sidebar-nav';
 
 const DISCOVER_NAV: readonly NavItem[] = [
   { href: '/discover', label: 'Inicio', icon: <HomeIcon />, exact: true },
+  { href: '/discover/laboratorio', label: 'Laboratorio', icon: <RobotIcon /> },
   { href: '/discover/kits', label: 'Mis kits', icon: <KitIcon /> },
   { href: '/discover/progreso', label: 'Mi progreso', icon: <LevelIcon /> },
   { href: '/discover/evaluaciones', label: 'Actividades', icon: <ChallengeIcon /> },
@@ -37,6 +39,7 @@ const DISCOVER_NAV: readonly NavItem[] = [
 
 const ACADEMY_NAV: readonly NavItem[] = [
   { href: '/academy', label: 'Inicio', icon: <HomeIcon />, exact: true },
+  { href: '/academy/laboratorio', label: 'Laboratorio de robots', icon: <RobotIcon /> },
   { href: '/academy/cursos', label: 'Cursos', icon: <CourseIcon /> },
   { href: '/academy/progreso', label: 'Mi progreso', icon: <LevelIcon /> },
   { href: '/academy/evaluaciones', label: 'Evaluaciones', icon: <ChallengeIcon /> },
