@@ -65,6 +65,7 @@ export default async function DocentesLayout({ children }: { children: React.Rea
       portal={portal}
       label={portal === 'admin' ? 'Admin' : 'Teacher Center'}
       homeHref="/docentes"
+      accountHref="/docentes/cuenta"
       items={items}
       session={session}
       subtitle={portal === 'admin' ? 'GLEXCO' : isAdmin ? 'Dirección' : 'Docente'}

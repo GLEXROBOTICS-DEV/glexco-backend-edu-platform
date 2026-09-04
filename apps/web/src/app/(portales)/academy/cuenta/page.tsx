@@ -1,0 +1,8 @@
+import type { Metadata } from 'next';
+import { AccountPage } from '../../../../components/account-page';
+
+export const metadata: Metadata = { title: 'Mi cuenta' };
+
+export default function AcademyCuenta() {
+  return <AccountPage />;
+}

@@ -26,6 +26,7 @@ export function AppShell({
   portal,
   label,
   homeHref,
+  accountHref,
   items,
   session,
   subtitle,
@@ -37,6 +38,8 @@ export function AppShell({
   /** Nombre del portal bajo la marca: Discover, Academy, Teacher Center, Admin. */
   label: string;
   homeHref: string;
+  /** Ficha de usuario -> "Mi cuenta". Sin esto la ficha es decorativa. */
+  accountHref: string;
   items: readonly NavItem[];
   session: SessionUser;
   /** Segunda linea de la ficha de usuario. Su rol, no un dato inventado. */
@@ -83,7 +86,13 @@ export function AppShell({
             la ficha viaja con el resto y no hay altura que rellenar. */}
         <div className="hidden lg:block lg:flex-1" />
 
-        <div className="hidden items-center gap-2.5 rounded-[var(--nav-radius)] bg-white/[0.09] p-2.5 lg:flex">
+        {/* La ficha es un ENLACE a "Mi cuenta". En el canvas parece decorativa,
+            pero es el sitio donde todo el mundo busca su perfil, y dejarla
+            muerta obliga a inventar otro destino para lo mismo. */}
+        <a
+          href={accountHref}
+          className="hidden items-center gap-2.5 rounded-[var(--nav-radius)] bg-white/[0.09] p-2.5 transition hover:bg-white/[0.16] lg:flex"
+        >
           <span
             className="grid size-9 shrink-0 place-items-center rounded-[var(--nav-radius)] bg-[var(--portal-accent)] font-display text-sm font-semibold text-brand-700"
             aria-hidden="true"
@@ -96,7 +105,7 @@ export function AppShell({
             </span>
             <span className="block truncate text-[11px] text-onbrand-300">{subtitle}</span>
           </span>
-        </div>
+        </a>
 
         {/* Salir vive dentro de la barra, no en una esquina de la cabecera: es
             donde esta el resto de lo que trata de "mi cuenta". */}
@@ -114,9 +123,9 @@ export function AppShell({
         {/* Cabecera solo de movil: la barra lateral se pliega y el nombre y la
             salida no caben en ella. */}
         <div className="flex items-center gap-3 border-b border-line-200 bg-white px-4 py-2 lg:hidden">
-          <span className="min-w-0 flex-1 truncate text-sm text-ink-500">
+          <a href={accountHref} className="min-w-0 flex-1 truncate text-sm text-ink-500 hover:text-brand-700">
             {session.firstName} {session.lastName}
-          </span>
+          </a>
           <form action={onLogout}>
             <button
               type="submit"
