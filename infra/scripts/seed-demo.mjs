@@ -235,6 +235,7 @@ async function main() {
 
   const people = await seedPeople(passwordHash);
   await seedInstitution(people);
+  await archiveOrphanInstitutions(people);
   await seedCatalog();
   const codes = await seedCodes();
   await publishCourses(people);
@@ -476,6 +477,58 @@ async function seedPeople(passwordHash) {
   console.log(`  ${'alumnos'.padEnd(18)} ${people.students.length} cuentas`);
 
   return people;
+}
+
+/**
+ * Archiva colegios de demostracion huerfanos.
+ *
+ * Una siembra antigua creo la institucion con otro codigo, asi que ahora
+ * conviven dos: el panel de GLEXCO lista dos colegios donde hay uno, y cada
+ * docente ve su salon por duplicado. La institucion actual se adopta por CODIGO
+ * -`DEMO-SMP`-, asi que la vieja se queda ahi para siempre sin que nada la
+ * vuelva a tocar.
+ *
+ * El criterio es deliberadamente estrecho: solo se archiva una institucion si
+ * **todos** sus salones son de los tres docentes de demostracion. Con "alguno"
+ * bastaria para archivar un colegio real en el que uno de estos docentes diera
+ * clase, y archivar el colegio de otro es un desastre, no un descuido.
+ *
+ * Se archiva y no se borra: sus matriculas y entregas siguen siendo ciertas, y
+ * borrarlas se llevaria por delante el historial de doce alumnos.
+ */
+async function archiveOrphanInstitutions(people) {
+  const teacherIds = [people.staff.docente1.id, people.staff.docente2.id, people.staff.docente3.id];
+
+  const orphans = await admin.query(
+    `SELECT i.id
+       FROM institutions.institutions i
+      WHERE i.id <> $1
+        AND i.status = 'active'
+        AND EXISTS (SELECT 1 FROM institutions.classrooms c
+                     WHERE c.institution_id = i.id AND c.teacher_id = ANY($2::uuid[]))
+        AND NOT EXISTS (SELECT 1 FROM institutions.classrooms c
+                         WHERE c.institution_id = i.id AND NOT (c.teacher_id = ANY($2::uuid[])))`,
+    [INSTITUTION.id, teacherIds],
+  );
+
+  if (orphans.rowCount === 0) return;
+
+  const ids = orphans.rows.map((r) => r.id);
+
+  // Los salones tambien: si quedaran activos, el docente seguiria viendo su
+  // salon duplicado aunque el colegio ya no aparezca en ningun panel.
+  await admin.query(
+    `UPDATE institutions.classrooms SET status = 'archived', updated_at = now()
+      WHERE institution_id = ANY($1::uuid[]) AND status = 'active'`,
+    [ids],
+  );
+  await admin.query(
+    `UPDATE institutions.institutions SET status = 'archived', updated_at = now()
+      WHERE id = ANY($1::uuid[])`,
+    [ids],
+  );
+
+  console.log(`  huerfanos        ${ids.length} institucion(es) de siembras anteriores archivadas`);
 }
 
 async function seedInstitution(people) {
