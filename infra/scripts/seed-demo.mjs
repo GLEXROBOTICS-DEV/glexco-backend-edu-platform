@@ -886,6 +886,24 @@ async function waitForLessonDirectory(people) {
 async function seedProgress(people) {
   if (!(await waitForLessonDirectory(people))) return;
 
+  // Se REPONE el progreso de los alumnos de demostracion en vez de anadirse al
+  // que hubiera. Un sembrador tiene que dejar un estado CONOCIDO: sin esto, la
+  // segunda ejecucion encuentra las lecciones ya completadas, no completa nada,
+  // e informa de cero progreso aunque los datos esten bien -o peor, deja un
+  // reparto distinto del que dice haber creado-.
+  //
+  // Solo se borra lo de las lecciones. El XP de las evaluaciones llega por
+  // evento y no se puede volver a emitir, asi que borrarlo lo perderia para
+  // siempre.
+  const ids = people.students.map((student) => student.id);
+  await admin.query('DELETE FROM learning.lesson_progress WHERE student_id = ANY($1::uuid[])', [ids]);
+  await admin.query(
+    `DELETE FROM learning.xp_awards
+      WHERE student_id = ANY($1::uuid[]) AND reason IN ('lesson_completed','course_completed')`,
+    [ids],
+  );
+  await admin.query('DELETE FROM learning.badges WHERE student_id = ANY($1::uuid[])', [ids]);
+
   let done = 0;
   const problemas = [];
 
