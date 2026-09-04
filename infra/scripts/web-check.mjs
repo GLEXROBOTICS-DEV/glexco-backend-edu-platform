@@ -352,7 +352,7 @@ async function main() {
   );
   report(
     'NO muestra la posicion del alumno frente a sus companeros',
-    Boolean(progreso) && !/puesto|posici[oó]n|ranking|de 30/i.test(progreso),
+    Boolean(progreso) && !/puesto|posici[oó]n|ranking|de 30/i.test(visible(progreso)),
   );
 
   // --- Portal del docente ---
@@ -544,6 +544,141 @@ async function main() {
     'Recargar la pagina no gasta otro intento',
     Boolean(firstId) && firstId === secondId,
     `${firstId} vs ${secondId}`,
+  );
+
+  // ------------------------------------------------------------------
+  section('6b. Ordenar una secuencia');
+  // ------------------------------------------------------------------
+  // En su propia evaluacion y no anadida a la de arriba: sumarle una pregunta
+  // cambiaria el total de puntos del escenario anterior y romperia sus
+  // afirmaciones de nota, que no tienen nada que ver con esto.
+  const ordenQuiz = await postJson(`${ASSESSMENT}/api/v1/assessments`, glexcoToken, {
+    kitId: dashKit.kitId,
+    kind: 'quiz',
+    title: 'Monta el brazo',
+    passingScore: 60,
+  });
+
+  const ordenPregunta = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${ordenQuiz.body?.assessmentId}/questions`,
+    glexcoToken,
+    {
+      type: 'ordering',
+      prompt: 'Ordena los pasos del montaje.',
+      options: [
+        { text: 'Fijar la base' },
+        { text: 'Montar el servo' },
+        { text: 'Conectar el cable' },
+        { text: 'Encender' },
+      ],
+      // La secuencia ENTERA, que es lo que el dominio exige.
+      correctOptions: [0, 1, 2, 3],
+      points: 12,
+    },
+  );
+
+  report(
+    'Se puede crear una pregunta de ordenar',
+    ordenPregunta.status === 201 || ordenPregunta.status === 200,
+    `status=${ordenPregunta.status} ${JSON.stringify(ordenPregunta.body).slice(0, 120)}`,
+  );
+
+  // La clave a medias es el error de captura que mas cuesta: la pregunta se
+  // publica y NO se puede acertar, y no se descubre hasta que el salon entero
+  // saca la misma nota rara.
+  const claveIncompleta = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${ordenQuiz.body?.assessmentId}/questions`,
+    glexcoToken,
+    {
+      type: 'ordering',
+      prompt: 'Ordena mal.',
+      options: [{ text: 'Uno' }, { text: 'Dos' }, { text: 'Tres' }],
+      correctOptions: [0, 1],
+      points: 5,
+    },
+  );
+  report(
+    'Se rechaza una pregunta de ordenar con la secuencia a medias',
+    claveIncompleta.status === 400 || claveIncompleta.status === 422,
+    `status=${claveIncompleta.status}`,
+  );
+
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${ordenQuiz.body?.assessmentId}/publish`,
+    glexcoToken,
+    {},
+  );
+
+  // Una sola carga y NO un sondeo: publicar es sincrono por la API, asi que no
+  // hay nada asincrono que esperar. Y cada carga de pagina del portal consulta
+  // `/auth/me` por el gateway, que tiene su propio limite por IP: un sondeo de
+  // hasta cuarenta intentos aqui agotaba el presupuesto y tumbaba las
+  // comprobaciones de contrasena del final del guion, que no tienen nada que
+  // ver con esto.
+  const ordenRespuesta = await fetchHtml(
+    `${WEB}/${pupilPortal}/evaluaciones/${ordenQuiz.body?.assessmentId}/responder`,
+    pupilJar,
+  );
+  const ordenPage = ordenRespuesta.status === 200 ? ordenRespuesta.html : null;
+
+  report(
+    'El alumno abre la pregunta de ordenar',
+    Boolean(ordenPage?.includes('Ordena los pasos del montaje')),
+    `status=${ordenRespuesta.status}`,
+  );
+
+  // Un `select` por paso y NO arrastrar y soltar: arrastrar exige JavaScript
+  // -y este formulario tiene que entregarse sin el-, es casi imposible con un
+  // lector de pantalla, y falla con el dedo de un nino en una tableta.
+  report(
+    'Se responde con controles nativos, no arrastrando',
+    Boolean(ordenPage?.includes('name="orden:')) && Boolean(ordenPage?.includes('<select')),
+  );
+  report(
+    'Cada paso lleva su nombre en la etiqueta, no "posicion 1"',
+    Boolean(ordenPage?.includes('Posición de: Fijar la base')),
+  );
+
+  // Y la garantia de siempre: el orden correcto no viaja al navegador.
+  report(
+    'El orden correcto NO llega al HTML del alumno',
+    Boolean(ordenPage) && !ordenPage.includes('correctOptionIds'),
+  );
+
+  // Se corrige por la API, que es la misma via que usa el portal al entregar.
+  const ordenAttempt = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/${ordenQuiz.body?.assessmentId}/attempts`,
+    pupilToken,
+    { classroomId: classroom.body?.classroomId },
+  );
+  const ordenSubmissionId = ordenAttempt.body?.submissionId;
+  const opciones = (ordenAttempt.body?.questions?.[0]?.options ?? []).map((o) => o.id);
+
+  // Dos pasos intercambiados: quedan dos en su sitio de cuatro.
+  await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${ordenSubmissionId}/answers`,
+    pupilToken,
+    {
+      questionId: ordenAttempt.body?.questions?.[0]?.id,
+      selectedOptionIds: [opciones[0], opciones[2], opciones[1], opciones[3]],
+    },
+  );
+
+  const ordenEntregado = await postJson(
+    `${ASSESSMENT}/api/v1/assessments/attempts/${ordenSubmissionId}/submit`,
+    pupilToken,
+    {},
+  );
+
+  report(
+    'La maquina la corrige sola: no espera a un docente',
+    ordenEntregado.body?.status === 'graded',
+    `status=${ordenEntregado.status} estado=${ordenEntregado.body?.status}`,
+  );
+  report(
+    'La nota es PARCIAL: dos piezas en su sitio de cuatro valen la mitad',
+    ordenEntregado.body?.score === 6,
+    `score=${ordenEntregado.body?.score} de ${ordenEntregado.body?.maxScore}`,
   );
 
   // ------------------------------------------------------------------
@@ -1709,22 +1844,25 @@ async function main() {
   );
 
   // El cambio de verdad: la contrasena nueva funciona y la vieja no.
-  const confirmacion = await fetch(`${GATEWAY}/api/v1/auth/password-reset/confirm`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      token: decodeURIComponent(resetToken ?? ''),
-      password: 'una-contrasena-nueva-2026',
-    }),
-  });
+  const confirmacion = await fetchEsperandoLimite(
+    `${GATEWAY}/api/v1/auth/password-reset/confirm`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        token: decodeURIComponent(resetToken ?? ''),
+        password: 'una-contrasena-nueva-2026',
+      }),
+    },
+  );
   report('Se cambia la contrasena con el enlace', confirmacion.status === 200, `status=${confirmacion.status}`);
 
-  const conNueva = await fetch(`${GATEWAY}/api/v1/auth/login`, {
+  const conNueva = await fetchEsperandoLimite(`${GATEWAY}/api/v1/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ email: correoEmail, password: 'una-contrasena-nueva-2026', rememberMe: false }),
   });
-  const conVieja = await fetch(`${GATEWAY}/api/v1/auth/login`, {
+  const conVieja = await fetchEsperandoLimite(`${GATEWAY}/api/v1/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ email: correoEmail, password: correoPassword, rememberMe: false }),
@@ -2059,7 +2197,7 @@ async function main() {
   report(
     'NUNCA compara al alumno con sus companeros: ni posicion, ni ranking',
     Boolean(pantallaProgreso) &&
-      !/\bpuesto\b|\branking\b|\bposici[óo]n\b|de 30 alumnos/i.test(pantallaProgreso),
+      !/\bpuesto\b|\branking\b|\bposici[óo]n\b|de 30 alumnos/i.test(visible(pantallaProgreso)),
   );
 
   console.log(
@@ -2212,6 +2350,49 @@ async function portalOf(cookie) {
 
   portalCache.set(cookie, portal);
   return portal;
+}
+
+/**
+ * Una llamada al gateway que ESPERA si choca con el limite de peticiones.
+ *
+ * El gateway permite 60 peticiones de autenticacion por IP y MINUTO, y este
+ * guion hace en tres minutos lo que un colegio hace en una manana: choca contra
+ * el limite por definicion, y siempre al final, donde estan las comprobaciones
+ * de contrasena.
+ *
+ * **El limite no se relaja.** Es correcto y protege de un abuso real; lo que se
+ * arregla es la herramienta, que espera a la siguiente ventana igual que hace el
+ * sembrador. Un 429 aqui no es un fallo del producto, y dejarlo en rojo enseña
+ * a ignorar el rojo.
+ */
+async function fetchEsperandoLimite(url, init, intentos = 3) {
+  for (let intento = 0; intento < intentos; intento += 1) {
+    const response = await fetch(url, init);
+    if (response.status !== 429) return response;
+
+    // La ventana es de un minuto: se espera a que se vacie y se reintenta.
+    if (intento < intentos - 1) await sleep(61_000);
+  }
+
+  return fetch(url, init);
+}
+
+/**
+ * El HTML SIN sus scripts.
+ *
+ * Las afirmaciones de "esta pantalla no dice X" tienen que mirar lo que se ve,
+ * no el documento entero. Next serializa dentro de un `<script>` el catalogo de
+ * traducciones y el arbol de servidor, asi que cualquier palabra que exista en
+ * `messages/*.json` aparece en TODAS las paginas.
+ *
+ * Costo un falso positivo real: al anadir la pregunta de ordenar, su etiqueta
+ * "Posicion de: ..." entro en el catalogo del cliente y dos comprobaciones de
+ * "no se compara al alumno con sus companeros" se pusieron rojas en la pantalla
+ * de progreso, que no muestra ninguna posicion. La regla de producto seguia
+ * cumpliendose; lo que estaba mal era donde miraba la comprobacion.
+ */
+function visible(html) {
+  return String(html ?? '').replace(/<script[\s\S]*?<\/script>/gi, '');
 }
 
 async function fetchHtml(url, cookie) {

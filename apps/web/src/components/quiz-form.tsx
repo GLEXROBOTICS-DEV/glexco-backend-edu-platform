@@ -50,6 +50,7 @@ export function QuizForm({
   resultHref: string;
 }) {
   const [state, formAction] = useActionState<SubmitState, FormData>(submitAttempt, {});
+  const t = useTranslations('evaluacion');
   const formRef = useRef<HTMLFormElement>(null);
 
   if (state.status) {
@@ -82,7 +83,11 @@ export function QuizForm({
         />
       ) : timeLimitMinutes ? (
         <p className="rounded-lg border border-line-200 bg-white px-4 py-3 text-sm text-ink-700">
-          Tienes <strong>{timeLimitMinutes} minutos</strong> desde que abriste el intento.
+          {/* `t.rich` y no tres trozos: el minuto va destacado y en ingles no
+              cae en el mismo sitio de la frase. */}
+          {t.rich('tienesMinutos', {
+            b: () => <strong>{t('minutos', { minutos: timeLimitMinutes })}</strong>,
+          })}
         </p>
       ) : null}
 
@@ -100,7 +105,9 @@ export function QuizForm({
 }
 
 function QuestionCard({ question, index }: { question: StudentQuestion; index: number }) {
+  const t = useTranslations('evaluacion');
   const multiple = question.type === 'multiple_choice';
+  const ordering = question.type === 'ordering';
   const legendId = `pregunta-${question.id}`;
 
   return (
@@ -120,11 +127,14 @@ function QuestionCard({ question, index }: { question: StudentQuestion; index: n
         </legend>
 
         <p className="mb-4 text-xs text-ink-400">
-          {question.points} {question.points === 1 ? 'punto' : 'puntos'}
-          {multiple ? ' · marca todas las que correspondan' : ''}
+          {t('puntos', { puntos: question.points })}
+          {multiple ? ` · ${t('marcaTodas')}` : ''}
+          {ordering ? ` · ${t('ordenaLosPasos')}` : ''}
         </p>
 
-        {question.options.length > 0 ? (
+        {ordering ? (
+          <OrderingAnswer question={question} t={t} />
+        ) : question.options.length > 0 ? (
           <div className="grid gap-2">
             {question.options.map((option) => (
               <label
@@ -146,7 +156,7 @@ function QuestionCard({ question, index }: { question: StudentQuestion; index: n
             name={`text:${question.id}`}
             rows={5}
             aria-labelledby={legendId}
-            placeholder="Escribe tu respuesta"
+            placeholder={t('escribeTuRespuesta')}
             className="field"
           />
         )}
@@ -155,8 +165,61 @@ function QuestionCard({ question, index }: { question: StudentQuestion; index: n
   );
 }
 
+/**
+ * Ordenar una secuencia, con un desplegable de posicion por paso.
+ *
+ * **No es arrastrar y soltar, y es a proposito.** Arrastrar exige JavaScript
+ * -y este formulario tiene que poder entregarse sin el, que es media razon por
+ * la que existe-, es practicamente imposible con un lector de pantalla, y en una
+ * tableta de laboratorio con el dedo grueso de un nino de nueve anos falla mas
+ * de lo que acierta. Un `<select>` nativo por paso resuelve las tres cosas: va
+ * por teclado, lo anuncia el lector, y funciona con el formulario apagado.
+ *
+ * Los pasos se muestran en el orden en que vienen del servidor, que ya los trae
+ * desordenados respecto de la clave.
+ */
+function OrderingAnswer({
+  question,
+  t,
+}: {
+  question: StudentQuestion;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}) {
+  return (
+    <div className="grid gap-2">
+      {question.options.map((option) => (
+        <div
+          key={option.id}
+          className="flex items-center gap-3 rounded-lg border border-line-200 px-4 py-3 text-sm text-ink-700"
+        >
+          <label className="shrink-0">
+            {/* La etiqueta nombra el PASO y no "posicion 1": un lector de
+                pantalla lee "Posicion de: fijar la base", que es lo que hace
+                falta para responder sin ver la pantalla. */}
+            <span className="sr-only">{t('posicionDe', { paso: option.text })}</span>
+            <select
+              name={`orden:${question.id}:${option.id}`}
+              defaultValue=""
+              className="field w-20"
+            >
+              <option value="">{t('sinPosicion')}</option>
+              {question.options.map((_, position) => (
+                <option key={position} value={position + 1}>
+                  {position + 1}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span>{option.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SubmitButton() {
   const { pending } = useFormStatus();
+  const t = useTranslations('evaluacion');
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -167,9 +230,9 @@ function SubmitButton() {
       >
         {/* Texto que cambia y no solo un spinner: un cambio de texto lo anuncia
             el lector de pantalla, un icono girando no. */}
-        {pending ? 'Entregando…' : 'Entregar'}
+        {pending ? t('entregando') : t('entregar')}
       </button>
-      <p className="text-sm text-ink-500">Al entregar no podrás cambiar tus respuestas.</p>
+      <p className="text-sm text-ink-500">{t('avisoEntrega')}</p>
     </div>
   );
 }

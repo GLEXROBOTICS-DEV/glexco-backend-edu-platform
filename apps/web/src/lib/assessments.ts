@@ -12,7 +12,13 @@ import { api } from './api';
 
 export interface StudentQuestion {
   id: string;
-  type: 'single_choice' | 'multiple_choice' | 'true_false' | 'short_answer' | 'file_upload';
+  type:
+    | 'single_choice'
+    | 'multiple_choice'
+    | 'true_false'
+    | 'short_answer'
+    | 'ordering'
+    | 'file_upload';
   prompt: string;
   options: { id: string; text: string }[];
   points: number;

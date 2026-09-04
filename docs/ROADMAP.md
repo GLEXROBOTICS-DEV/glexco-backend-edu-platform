@@ -299,8 +299,23 @@ frontend o clientes reales:
       descolgó, y **ficha individual de cada alumno** con sus notas y su
       evolución. La dirección ve las de todo su colegio.
 - [ ] Portal docente, lo que falta: recursos pedagógicos y capacitación docente.
-- [ ] Tipos de pregunta `ordering` y `matching`: están en el vocabulario pero su
-      corrección automática no está escrita, así que se tratan como manuales.
+- [x] **Tipo de pregunta `ordering`**, con corrección automática y puntuación
+      **parcial**: cuenta cuántas piezas quedaron en su sitio. En una pregunta de
+      marcar, media respuesta no es media idea; en una de ordenar de ocho pasos,
+      todo o nada convierte un intercambio de dos piezas en un cero y la pregunta
+      deja de medir nada. Encaja sin cambiar el modelo: `correctOptionIds` ya era
+      un array **ordenado**, así que la secuencia correcta es su propio orden.
+
+      El alumno responde con un desplegable de posición por paso, **no
+      arrastrando**: arrastrar exige JavaScript —y este formulario tiene que
+      poder entregarse sin él—, es casi imposible con un lector de pantalla, y
+      falla con el dedo de un niño en una tableta de laboratorio.
+- [ ] Tipo de pregunta `matching`. **Le falta el modelo, no solo el algoritmo:**
+      emparejar necesita PARES y `correctOptionIds` es una lista plana;
+      codificarlos como `izq:der` dentro de un identificador sería una estructura
+      escondida en un `string`. Mientras tanto se trata como manual, que es el
+      comportamiento correcto: meterlo en la lista de autocorregibles lo puntuaría
+      a cero en silencio.
 
 ## 🔄 Fase 6 — Progreso, gamificación y certificados
 

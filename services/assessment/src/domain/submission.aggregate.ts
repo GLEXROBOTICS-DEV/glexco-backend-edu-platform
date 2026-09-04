@@ -500,6 +500,10 @@ export class Submission extends AggregateRoot<SubmissionId> {
  * fallar, que es lo que se quiere medir.
  */
 function gradeChoiceQuestion(question: Question, selected: readonly string[]): number {
+  if (question.type === QUESTION_TYPE.ORDERING) {
+    return gradeOrderingQuestion(question, selected);
+  }
+
   if (question.type === QUESTION_TYPE.MULTIPLE_CHOICE) {
     const expected = new Set(question.correctOptionIds);
     const given = new Set(selected);
@@ -514,4 +518,38 @@ function gradeChoiceQuestion(question: Question, selected: readonly string[]): n
   // Una sola respuesta: marcar dos es fallar, no acertar a medias.
   if (selected.length !== 1) return 0;
   return question.correctOptionIds.includes(selected[0]!) ? question.points : 0;
+}
+
+/**
+ * Ordenar una secuencia.
+ *
+ * **Con puntuacion parcial, al contrario que las de marcar.** En una pregunta de
+ * marcar, media respuesta no es media idea: o sabes cual es o no. En una de
+ * ordenar de ocho pasos, todo o nada convierte un intercambio de dos piezas en
+ * un cero, y entonces la pregunta ya no mide nada util: el alumno que ordeno
+ * siete de ocho y el que no tenia ni idea sacan lo mismo.
+ *
+ * La regla es la mas simple que se le puede explicar a un docente y a un alumno
+ * de nueve anos: **cuantas piezas quedaron en su sitio**. Se redondea hacia
+ * abajo para no regalar puntos.
+ *
+ * Su limitacion conocida, y se asume: quien desplaza la secuencia entera una
+ * posicion acierta el orden relativo y saca casi cero. Medirlo bien exige una
+ * distancia entre permutaciones -Kendall tau- que nadie sabria explicar en la
+ * pantalla de resultados, y una nota que no se puede explicar no se puede
+ * discutir con un profesor.
+ */
+function gradeOrderingQuestion(question: Question, given: readonly string[]): number {
+  const expected = question.correctOptionIds;
+  if (expected.length === 0) return 0;
+
+  // Sin responder o a medias: no se rellena el resto con aciertos por azar.
+  if (given.length !== expected.length) return 0;
+
+  let inPlace = 0;
+  for (let i = 0; i < expected.length; i += 1) {
+    if (given[i] === expected[i]) inPlace += 1;
+  }
+
+  return Math.floor((question.points * inPlace) / expected.length);
 }

@@ -79,7 +79,18 @@
     "incluidaEnTuKit": "Included in your kit",
     "deTuDocente": "From your teacher",
     "abrirActividad": "Open activity",
-    "abrirEvaluacion": "Open assessment"
+    "abrirEvaluacion": "Open assessment",
+    "ordenaLosPasos": "give each one its position",
+    "marcaTodas": "tick all that apply",
+    "posicionDe": "Position of: {paso}",
+    "sinPosicion": "—",
+    "puntos": "{puntos, plural, one {# point} other {# points}}",
+    "entregando": "Handing in…",
+    "entregar": "Hand in",
+    "avisoEntrega": "Once you hand in you can't change your answers.",
+    "escribeTuRespuesta": "Write your answer",
+    "tienesMinutos": "You have <b></b> from the moment you opened the attempt.",
+    "minutos": "{minutos} minutes"
   },
   "niveles": {
     "1": "Explorer",

@@ -79,7 +79,18 @@
     "incluidaEnTuKit": "Incluida en tu kit",
     "deTuDocente": "De tu docente",
     "abrirActividad": "Abrir actividad",
-    "abrirEvaluacion": "Abrir evaluación"
+    "abrirEvaluacion": "Abrir evaluación",
+    "ordenaLosPasos": "ponles su número de orden",
+    "marcaTodas": "marca todas las que correspondan",
+    "posicionDe": "Posición de: {paso}",
+    "sinPosicion": "—",
+    "puntos": "{puntos, plural, one {# punto} other {# puntos}}",
+    "entregando": "Entregando…",
+    "entregar": "Entregar",
+    "avisoEntrega": "Al entregar no podrás cambiar tus respuestas.",
+    "escribeTuRespuesta": "Escribe tu respuesta",
+    "tienesMinutos": "Tienes <b></b> desde que abriste el intento.",
+    "minutos": "{minutos} minutos"
   },
   "niveles": {
     "1": "Explorador",

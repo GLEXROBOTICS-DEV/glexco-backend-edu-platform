@@ -7,6 +7,7 @@ import { addQuestion, type QuestionState } from '../lib/teacher-assessments.acti
 const TYPES = [
   { value: 'single_choice', label: 'Una sola respuesta' },
   { value: 'multiple_choice', label: 'Varias respuestas' },
+  { value: 'ordering', label: 'Ordenar una secuencia' },
   { value: 'short_answer', label: 'Respuesta escrita' },
   { value: 'file_upload', label: 'Entrega de archivo o enlace' },
 ] as const;
@@ -29,7 +30,8 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
   const [state, formAction] = useActionState<QuestionState, FormData>(addQuestion, {});
   const [type, setType] = useState<string>('single_choice');
 
-  const needsOptions = type === 'single_choice' || type === 'multiple_choice';
+  const ordering = type === 'ordering';
+  const needsOptions = type === 'single_choice' || type === 'multiple_choice' || ordering;
   const multiple = type === 'multiple_choice';
 
   return (
@@ -106,26 +108,47 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
       {needsOptions ? (
         <fieldset className="grid gap-2">
           <legend className="mb-1 text-sm font-medium text-ink-700">
-            Opciones {multiple ? '(marca todas las correctas)' : '(marca la correcta)'}
+            {ordering
+              ? 'Pasos, en el orden correcto'
+              : `Opciones ${multiple ? '(marca todas las correctas)' : '(marca la correcta)'}`}
           </legend>
           <p className="mb-1 text-xs text-ink-400">
-            Deja en blanco las que no uses. Hacen falta al menos dos.
+            {ordering
+              ? // Se dice la regla ANTES de escribir, no después en un error: el
+                // orden en que el docente los teclea ES la respuesta, y eso no
+                // se adivina mirando cuatro campos de texto vacíos.
+                'Escríbelos como deben quedar. El alumno los verá desordenados. Deja en blanco los que no uses; hacen falta al menos dos.'
+              : 'Deja en blanco las que no uses. Hacen falta al menos dos.'}
           </p>
 
           {Array.from({ length: BLANK_OPTIONS }, (_, index) => (
             <div key={index} className="flex items-center gap-3">
-              <input
-                type={multiple ? 'checkbox' : 'radio'}
-                name="correctOption"
-                value={index}
-                aria-label={`La opción ${index + 1} es correcta`}
-                className="size-4 shrink-0 border-line-300 text-brand-600"
-              />
+              {ordering ? (
+                // El número del paso, no un control de "cuál es la correcta":
+                // en una secuencia no hay una opción buena, la respuesta es el
+                // orden entero.
+                <span
+                  className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-200 text-xs font-semibold tabular-nums text-ink-500"
+                  aria-hidden="true"
+                >
+                  {index + 1}
+                </span>
+              ) : (
+                <input
+                  type={multiple ? 'checkbox' : 'radio'}
+                  name="correctOption"
+                  value={index}
+                  aria-label={`La opción ${index + 1} es correcta`}
+                  className="size-4 shrink-0 border-line-300 text-brand-600"
+                />
+              )}
               <input
                 type="text"
                 name="optionText"
-                aria-label={`Texto de la opción ${index + 1}`}
-                placeholder={`Opción ${index + 1}`}
+                aria-label={
+                  ordering ? `Paso ${index + 1}` : `Texto de la opción ${index + 1}`
+                }
+                placeholder={ordering ? `Paso ${index + 1}` : `Opción ${index + 1}`}
                 className="field"
               />
             </div>

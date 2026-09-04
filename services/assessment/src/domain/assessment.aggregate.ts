@@ -55,15 +55,21 @@ export type { QuestionType };
 /**
  * Tipos que la maquina puede corregir sola.
  *
- * `ordering` y `matching` existen en el vocabulario pero NO estan aqui: su
- * correccion no esta escrita todavia, y meterlos en la lista haria que se
- * puntuaran a cero silenciosamente. Fuera de la lista se tratan como manuales,
- * que es el comportamiento correcto mientras no exista el algoritmo.
+ * `matching` existe en el vocabulario pero NO esta aqui: su correccion no esta
+ * escrita, y meterlo en la lista lo puntuaria a cero en silencio. Fuera de la
+ * lista se trata como manual, que es el comportamiento correcto mientras no
+ * exista el algoritmo. Ademas le falta el modelo: emparejar necesita PARES, y
+ * `correctOptionIds` es una lista plana; codificarlos como "izq:der" dentro de
+ * un id seria una estructura escondida en un `string`.
+ *
+ * `ordering` si esta, y encaja sin cambiar el modelo: `correctOptionIds` ya es
+ * un ARRAY ORDENADO, asi que la secuencia correcta es su propio orden.
  */
 const AUTO_GRADABLE: readonly QuestionType[] = [
   QUESTION_TYPES.SINGLE_CHOICE,
   QUESTION_TYPES.MULTIPLE_CHOICE,
   QUESTION_TYPES.TRUE_FALSE,
+  QUESTION_TYPES.ORDERING,
 ];
 
 export function isAutoGradable(type: QuestionType): boolean {
@@ -334,7 +340,26 @@ export class Assessment extends AggregateRoot<AssessmentId> {
         }
       }
 
-      if (
+      // Ordenar exige la SECUENCIA ENTERA, sin repetir: la clave de una pregunta
+      // de ordenar no es una opcion, es el orden completo.
+      //
+      // Se comprueba aqui ademas de en el esquema porque el esquema solo cubre
+      // la via HTTP: el banco de GLEXCO se siembra por otro camino, y una
+      // pregunta con la clave a medias no se puede acertar. El salon entero
+      // sacaria la misma nota rara sin que nadie supiera por que.
+      if (question.type === QUESTION_TYPE.ORDERING) {
+        const distintas = new Set(question.correctOptionIds);
+
+        if (
+          question.correctOptionIds.length !== question.options.length ||
+          distintas.size !== question.options.length
+        ) {
+          throw new BusinessRuleError(
+            'ORDERING_NEEDS_FULL_SEQUENCE',
+            'Una pregunta de ordenar necesita todas sus opciones, en el orden correcto y sin repetir.',
+          );
+        }
+      } else if (
         question.type !== QUESTION_TYPE.MULTIPLE_CHOICE &&
         question.correctOptionIds.length !== 1
       ) {

@@ -101,7 +101,8 @@ export async function addQuestion(
     return { error: 'Escribe el enunciado de la pregunta.' };
   }
 
-  const needsOptions = type === 'single_choice' || type === 'multiple_choice';
+  const ordering = type === 'ordering';
+  const needsOptions = type === 'single_choice' || type === 'multiple_choice' || ordering;
   const options: { text: string }[] = [];
   const correctOptions: number[] = [];
 
@@ -114,12 +115,24 @@ export async function addQuestion(
       // El índice que se envía es el de la opción YA filtrada: si se enviara el
       // de la fila del formulario, dejar un hueco en blanco desplazaría la
       // respuesta correcta a otra opción sin que nadie lo notase.
-      if (marked.has(String(index))) correctOptions.push(options.length);
+      if (!ordering && marked.has(String(index))) correctOptions.push(options.length);
       options.push({ text });
     });
 
+    // En una de ordenar, la clave es la secuencia ENTERA y ya la escribió el
+    // docente: el orden de los campos. Se envía como la permutación completa,
+    // que es lo que el dominio exige, y por eso no hay ningún control que
+    // marcar en pantalla.
+    if (ordering) {
+      for (let index = 0; index < options.length; index += 1) correctOptions.push(index);
+    }
+
     if (options.length < 2) {
-      return { error: 'Una pregunta de marcar necesita al menos dos opciones.' };
+      return {
+        error: ordering
+          ? 'Una pregunta de ordenar necesita al menos dos pasos.'
+          : 'Una pregunta de marcar necesita al menos dos opciones.',
+      };
     }
     if (correctOptions.length === 0) {
       return { error: 'Marca cuál es la respuesta correcta.' };

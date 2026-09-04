@@ -74,11 +74,21 @@ export async function submitAttempt(
       .filter((value) => value.length > 0);
     const text = formData.get(`text:${questionId}`);
 
+    // Ordenar viaja como un campo por paso (`orden:pregunta:opcion` -> puesto) y
+    // NO como una lista de opciones marcadas. Es la unica forma de conocer el
+    // orden que eligio el alumno: `getAll` devuelve los valores en el orden del
+    // DOM, que es el de la pantalla y no el de su respuesta.
+    const ordenados = ordering(formData, questionId);
+
     const saved = await api(`/assessments/attempts/${submissionId}/answers`, {
       method: 'POST',
       body: {
         questionId,
-        ...(selected.length > 0 ? { selectedOptionIds: selected } : {}),
+        ...(ordenados.length > 0
+          ? { selectedOptionIds: ordenados }
+          : selected.length > 0
+            ? { selectedOptionIds: selected }
+            : {}),
         ...(typeof text === 'string' && text.trim().length > 0 ? { text: text.trim() } : {}),
       },
     });
@@ -114,4 +124,37 @@ export async function submitAttempt(
     passed: submitted.data.passed,
     awaitingManualGrading: submitted.data.awaitingManualGrading,
   };
+}
+
+/**
+ * La secuencia que eligio el alumno en una pregunta de ordenar.
+ *
+ * Llega como un campo por paso -`orden:<pregunta>:<opcion>` con el puesto- y no
+ * como una lista de opciones marcadas. Es la unica forma de saber el orden:
+ * `formData.getAll` devuelve los valores en el orden del DOM, que es el de la
+ * pantalla y no el de la respuesta.
+ *
+ * Un paso sin puesto se descarta, y la respuesta queda incompleta: el dominio la
+ * puntua a cero, que es lo correcto. Rellenar los huecos aqui inventaria un
+ * orden que el alumno no eligio.
+ *
+ * Si repite un numero, se ordena por puesto y, a igualdad, por como venian. No
+ * se rechaza: repetir un numero obliga a dejar otro sin usar, asi que la
+ * secuencia ya esta mal y la puntuacion parcial mide igual lo que si acerto.
+ * Devolver un error aqui castigaria dos veces el mismo despiste.
+ */
+function ordering(formData: FormData, questionId: string): string[] {
+  const prefijo = `orden:${questionId}:`;
+  const puestos: { optionId: string; puesto: number }[] = [];
+
+  for (const [campo, valor] of formData.entries()) {
+    if (!campo.startsWith(prefijo)) continue;
+
+    const puesto = Number(String(valor));
+    if (!Number.isInteger(puesto) || puesto < 1) continue;
+
+    puestos.push({ optionId: campo.slice(prefijo.length), puesto });
+  }
+
+  return puestos.sort((a, b) => a.puesto - b.puesto).map((entrada) => entrada.optionId);
 }
