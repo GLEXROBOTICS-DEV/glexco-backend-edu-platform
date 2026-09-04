@@ -99,7 +99,9 @@
     "pistaArchivo": "Para que se vea que está hecho. Foto o PDF; el vídeo no se sube aquí.",
     "oComparteEnlace": "O el enlace a tu vídeo",
     "pistaEnlace": "Súbelo a YouTube o a Drive y pega aquí la dirección. Tu docente lo verá allí.",
-    "evidenciaOpcional": "Si tu docente lo revisa en clase, puedes dejar esto en blanco."
+    "evidenciaOpcional": "Si tu docente lo revisa en clase, puedes dejar esto en blanco.",
+    "reduciendoFoto": "Reduciendo tu foto…",
+    "fotoReducida": "Foto reducida de {antes} a {despues} para que suba rápido."
   },
   "niveles": {
     "1": "Explorador",

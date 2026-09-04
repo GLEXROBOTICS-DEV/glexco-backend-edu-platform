@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useFormStatus } from 'react-dom';
 import { submitAttempt, type SubmitState } from '../lib/assessment.actions';
-import { EVIDENCE_UPLOAD_TYPES } from '@glexco/contracts';
+import { EvidenceFileInput } from './evidence-file';
 import type { StudentQuestion } from '../lib/assessments';
 
 /**
@@ -192,16 +192,15 @@ function EvidenceAnswer({
 }) {
   return (
     <div className="grid gap-4">
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium text-ink-700">{t('subirArchivo')}</span>
-        <input
-          type="file"
-          name={`archivo:${question.id}`}
-          accept={EVIDENCE_UPLOAD_TYPES.join(',')}
-          className="field file:mr-3 file:rounded-md file:border-0 file:bg-brand-600/10 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-brand-700"
-        />
-        <span className="text-xs text-ink-400">{t('pistaArchivo')}</span>
-      </label>
+      {/* La foto se reduce EN EL NAVEGADOR antes de salir del dispositivo: ver
+          la nota de `EvidenceFileInput`. Un movil produce fotos de 12 MB y el
+          limite del servicio son 12 MB, asi que sin esto una foto normal de
+          telefono se rechaza. */}
+      <EvidenceFileInput
+        name={`archivo:${question.id}`}
+        label={t('subirArchivo')}
+        hint={t('pistaArchivo')}
+      />
 
       <label className="grid gap-1.5">
         <span className="text-sm font-medium text-ink-700">{t('oComparteEnlace')}</span>

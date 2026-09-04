@@ -99,7 +99,9 @@
     "pistaArchivo": "So it shows it's done. Photo or PDF; video isn't uploaded here.",
     "oComparteEnlace": "Or the link to your video",
     "pistaEnlace": "Upload it to YouTube or Drive and paste the address here. Your teacher will watch it there.",
-    "evidenciaOpcional": "If your teacher checks it in class, you can leave this blank."
+    "evidenciaOpcional": "If your teacher checks it in class, you can leave this blank.",
+    "reduciendoFoto": "Shrinking your photo…",
+    "fotoReducida": "Photo shrunk from {antes} to {despues} so it uploads fast."
   },
   "niveles": {
     "1": "Explorer",
