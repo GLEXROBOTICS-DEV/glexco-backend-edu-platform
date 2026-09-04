@@ -15,6 +15,7 @@ agente) que retome el proyecto. Léelo entero antes de tocar código.
 | [docs/PUESTA-EN-MARCHA.md](docs/PUESTA-EN-MARCHA.md) | **Cómo levantarlo con Docker y qué verificar.** Léelo si tienes Docker funcionando. |
 | [docs/TRASPASO.md](docs/TRASPASO.md) | **Si llegas desde un zip en otra máquina, empieza por aquí.** |
 | [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md) | **Cómo llevarlo a Railway**, y qué cambia al mudarse a AWS o Huawei. |
+| [docs/ENTORNO-DEMO.md](docs/ENTORNO-DEMO.md) | **Direcciones y cuentas del despliegue.** Empieza aquí si quieres verlo funcionando. |
 
 ---
 
@@ -62,7 +63,7 @@ Verificado:
 | `pnpm test` | **176 pruebas** en memoria |
 | `pnpm smoke` | **95 comprobaciones** de punta a punta |
 | `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
-| `pnpm smoke:web` | **175 comprobaciones** del portal contra el backend |
+| `pnpm smoke:web` | **177 comprobaciones** del portal contra el backend |
 
 Las de concurrencia son las que justifican la arquitectura: un solo canje de
 veinte simultáneos, cinco plazas de veinte solicitudes, la outbox reteniendo el
@@ -99,7 +100,12 @@ Plataforma-Glexco/
 └── docs/                ✅ documentación
 ```
 
-**Sin bloqueos abiertos.** El bloqueo histórico de Docker se resolvió al mover
+**La plataforma está DESPLEGADA en Railway**, con un colegio de demostración
+sembrado: ver [docs/ENTORNO-DEMO.md](docs/ENTORNO-DEMO.md) para las direcciones y
+las cuentas.
+
+**Sin bloqueos técnicos abiertos.** Los dos que quedan son de negocio: falta
+contratar el proveedor de vídeo y un SMTP real. El bloqueo histórico de Docker se resolvió al mover
 el proyecto a otra máquina; el procedimiento de arranque está en
 [docs/PUESTA-EN-MARCHA.md](docs/PUESTA-EN-MARCHA.md).
 
@@ -133,7 +139,7 @@ pnpm seed                                  # kit, lote de codigos, institucion y
 pnpm smoke                                 # 95 comprobaciones de punta a punta
 pnpm concurrency                           # las 4 garantias de concurrencia real
 pnpm --filter @glexco/web dev              # portal (3010)
-pnpm smoke:web                             # 175 comprobaciones del portal
+pnpm smoke:web                             # 177 comprobaciones del portal
 ```
 
 ### Requisitos de entorno

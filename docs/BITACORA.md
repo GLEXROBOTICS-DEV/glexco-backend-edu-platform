@@ -7,6 +7,140 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 12 — 2026-09-04 — Desplegado en Railway, con un colegio dentro
+
+La plataforma dejó de ser algo que corre en una máquina. **Los quince servicios
+están en línea en Railway con un colegio de demostración funcionando de punta a
+punta**: se puede entrar por el navegador, ver un kit, responder una evaluación y
+mirar el dashboard.
+
+Direcciones y cuentas: **[ENTORNO-DEMO.md](ENTORNO-DEMO.md)**.
+Cómo desplegar y qué trampas tiene Railway: **[DESPLIEGUE.md](DESPLIEGUE.md)**.
+
+### 1. El empaquetado
+
+**Un solo `Dockerfile` para los diez desplegables**, con `SERVICE` como
+argumento. Diez ficheros casi idénticos serían diez sitios donde arreglar la
+misma vulnerabilidad de la imagen base, y nueve se quedarían atrás.
+
+**Docker y no el constructor de Railway**, porque el plan es Railway primero y
+AWS o Huawei después: Nixpacks solo existe en Railway, y migrar significaría
+reconstruir el empaquetado entero justo cuando hay tráfico real.
+
+`pnpm deploy` en vez de `pnpm prune` —que no admite espacios de trabajo— bajó la
+imagen de **1,05 GB a 392 MB**, y de paso quitó la comprobación de dependencias
+de pnpm en ejecución, que intentaba escribir en `/app` y moría con `EACCES`.
+
+### 2. Seis trampas de Railway, todas encontradas desplegando
+
+Están documentadas en la sección 7 de DESPLIEGUE.md. Las dos peores:
+
+- **Railway genera un `startCommand` al detectar el monorepo** que **anula el
+  `ENTRYPOINT` de la imagen** y arranca pnpm en producción. Ponerlo a `null` no
+  lo borra: se vuelve a derivar en el siguiente despliegue. Hay que fijarlo
+  explícitamente.
+- **Las watch paths que crea solas se saltan las construcciones en silencio**,
+  con un `no changes detected` que parece un éxito. Un cambio en el `Dockerfile`
+  o en `packages/` no disparaba nada.
+
+Y una que no es de Railway sino de Windows: **git registra el punto de entrada
+como `100644`**, así que en el contenedor llega sin permiso de ejecución. El
+síntoma es el peor posible —«Starting Container» seguido de «Stopping Container»
+**sin una sola línea de registro**—, porque falla antes de que haya nada que
+escribir.
+
+### 3. Lo que no se hace solo
+
+**La base de datos no se prepara sola.** En local, `infra/docker/postgres/init/`
+lo ejecuta el contenedor; en Railway ese directorio no existe. `bootstrap-db.mjs`
+hace lo mismo contra cualquier Postgres gestionado, y corre **dentro** de la red
+privada: exponer PostgreSQL a internet para lanzarlo una vez es un precio que no
+hay que pagar.
+
+**Las migraciones no estaban en la imagen.** Una imagen desde la que no se puede
+migrar no sirve para desplegar.
+
+### 4. El colegio de demostración
+
+`seed-demo.mjs` crea un colegio entero: doce alumnos con contraseña real, tres
+docentes, dirección, personal de GLEXCO, tres kits con sus cursos y lecciones,
+noventa códigos, tres evaluaciones, doce entregas corregidas, progreso repartido
+y anuncios.
+
+**Personas y catálogo se escriben en la base; todo lo demás pasa por la API
+real.** Darlos de alta por HTTP chocaría con los límites de fuerza bruta, que son
+correctos. Pero matrículas, canjes, evaluaciones y progreso van por la API para
+que los eventos se publiquen y las proyecciones se alimenten solas: sembrar esas
+tablas a mano produciría dashboards que se ven bien y no se corresponden con
+nada.
+
+**La institución y los salones se crean por la API a propósito**, aunque el resto
+de su bloque no. Es la única forma de que se publiquen `institution.created` y
+`classroom.created`, y de esos eventos cuelgan cuatro directorios. Escribiendo la
+fila a mano, el salón existe y a la vez no existe para media plataforma.
+
+### Errores reales encontrados y corregidos
+
+1. **Nadie emitía `course.published` ni `lesson.published`.** Estaban en el
+   catálogo de eventos desde el principio y ningún servicio los publicaba, así
+   que el directorio de `learning` no podía llenarse nunca: `locateLesson` no
+   encontraba ninguna lección y **el progreso por contenido —con su XP, sus
+   niveles y sus insignias— estaba muerto sin dar un solo error**. Se veía como
+   «el alumno no ha completado nada». Ahora publicar un curso emite su evento
+   **con las lecciones dentro**: trocearlo en un evento por lección dejaría al
+   consumidor sin saber cuándo terminó la tanda, y el total —que es lo que
+   permite decir «3 de 12»— estaría mal hasta que llegara el último.
+
+2. **Canjear un segundo código del MISMO kit quemaba el código y después moría
+   con un 500** contra `entitlements_student_kit_uq`. El alumno perdía un código
+   —que vale dinero— a cambio de un error sin explicación. Y pasa más de lo que
+   parece: el colegio reparte un código de repuesto, o la familia compra el libro
+   sin saber que el centro ya lo dio. Ahora se comprueba **antes** de canjear y
+   se responde con un conflicto claro, sin tocar el código. Comprobado que el
+   código rechazado sigue sirviendo para otro alumno.
+
+3. **`ALTER ROLE` no admite parámetros.** Es una sentencia de utilidad, no una
+   consulta: falla con `syntax error at or near "$1"` justo después de crear los
+   schemas, dejando la base a medias.
+
+4. **`next.config.ts` obliga a Next a tener TypeScript en ejecución**, que en la
+   imagen de producción no está: al arrancar se ponía a instalarlo con yarn
+   dentro del contenedor.
+
+5. **`NODE_ENV=staging` no existe** en el esquema —la guía que yo mismo había
+   escrito estaba mal—. Para levantar sin proveedor de vídeo se añadió
+   `ALLOW_BUCKET_VIDEO`, una válvula que permite **exactamente una cosa** y lo
+   dice en su nombre; bajar el entorno relajaría además la comprobación de
+   cookies seguras, en silencio.
+
+6. Cuatro del sembrador, todos por el mismo motivo de fondo —**suponer en vez de
+   leer**—: identificadores al azar que rompían la resiembra, la búsqueda del
+   curso existente **después** del insert (un duplicado por ejecución), operar
+   sobre un **usuario fantasma** cuando el correo ya existía, y no esperar a que
+   la proyección asíncrona llegara. Y uno de usabilidad: con `DO NOTHING`
+   imprimía unas credenciales y la base guardaba otras — **una herramienta cuyo
+   único producto útil son esas credenciales las reportaba mal**.
+
+### Estado al cerrar
+
+| Comprobación | Resultado |
+|---|---|
+| `pnpm build` | 15/15 |
+| `pnpm test` | 176 |
+| `pnpm smoke` | 95 |
+| `pnpm concurrency` | 14 |
+| `pnpm smoke:web` | **177** |
+
+### Qué falta
+
+**Lo primero es de producto, no de código: contratar el proveedor de vídeo y un
+SMTP real.** Sin el segundo, nadie recibe el correo de verificación ni el de
+recuperación — hoy van a Mailpit, que acepta todo y no entrega nada.
+
+El resto, en la sección 5 de [TRASPASO.md](TRASPASO.md).
+
+---
+
 ## Sesión 11 — 2026-09-03 — Los nueve servicios en pie
 
 Sesión larga y de mucho terreno: se cerraron los dos servicios que quedaban

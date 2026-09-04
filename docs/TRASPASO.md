@@ -82,11 +82,11 @@ Y la verificación:
 pnpm seed          # kit, curso, lote de codigos, institucion y salon
 pnpm smoke         # 95 comprobaciones de punta a punta
 pnpm concurrency   # 14 comprobaciones de concurrencia real
-pnpm smoke:web     # 175 comprobaciones del portal
+pnpm smoke:web     # 177 comprobaciones del portal
 ```
 
 **Si algo de eso no da el número indicado, algo se rompió en el traslado.** Esos
-cuatro números son el contrato de este traspaso: 95, 14, 175, más las 176 pruebas
+cuatro números son el contrato de este traspaso: 95, 14, 177, más las 176 pruebas
 en memoria.
 
 ---
@@ -119,7 +119,7 @@ desarrollo con la sesión iniciada.
 
 ---
 
-## 4. Estado exacto al cerrar la sesión 10
+## 4. Estado exacto al cerrar la sesión 12
 
 | Fase | Estado |
 |---|---|
@@ -130,6 +130,7 @@ desarrollo con la sesión iniciada.
 | 4 · Portales de alumno | 🔄 registro y activación, ingreso, portadas, progreso y cuestionarios |
 | 5 · Evaluación y Teacher Center | 🔄 casi cerrada: falta rúbricas y recursos del docente |
 | 6 · Progreso y gamificación | 🔄 progreso, XP, niveles e insignias; faltan certificados |
+| **DESPLEGADO en Railway** | ✅ los 15 servicios en línea, con un colegio de demostración sembrado |
 | 7 · Comunicación, analítica y admin | 🔄 los cinco dashboards funcionando |
 | 8 · Endurecimiento y despliegue | ⬜ |
 
@@ -159,29 +160,85 @@ git log --all --format='%b' | grep -i co-authored-by   # no debe devolver nada
 `main`, y el proyecto ya está subido.** Haz `git pull --rebase` antes de empezar:
 puede haber avanzado desde el zip.
 
+
+---
+
+## 4.bis LA PLATAFORMA ESTÁ DESPLEGADA
+
+**Railway, proyecto `ravishing-forgiveness`.** Los quince servicios en línea, con
+un colegio de demostración funcionando de punta a punta.
+
+| | |
+|---|---|
+| Portal | https://glexcoweb-production.up.railway.app |
+| API | https://glexcoapi-gateway-production.up.railway.app |
+
+**Las cuentas y los códigos de prueba están en
+[ENTORNO-DEMO.md](ENTORNO-DEMO.md).** Contraseña de todas: `GlexcoDemo2026`.
+
+Cómo se llegó ahí y qué trampas tiene Railway está en
+[DESPLIEGUE.md](DESPLIEGUE.md), sección 7. **Léela antes de tocar el despliegue**:
+las cinco cosas que documenta costaron una vuelta cada una, y la peor —Railway
+genera un `startCommand` que anula el `ENTRYPOINT` de la imagen— tumba el
+servicio sin dejar rastro útil en los registros.
+
+### Para trabajar contra Railway
+
+El CLI ya está instalado. La sesión vive en `~/.railway/config.json` y **la lee
+cualquier terminal del mismo usuario de Windows**, así que basta con que alguien
+haga `railway login` una vez.
+
+Lo que el CLI **no** expone —watch paths, comando previo al despliegue,
+`startCommand`— se toca por la API de GraphQL con la misma sesión:
+`~/.railway/config.json` → `user.accessToken` → `Bearer` contra
+`https://backboard.railway.com/graphql/v2`. La mutación es
+`serviceInstanceUpdate(serviceId, environmentId, input)`.
+
+- Proyecto `e73db773-9c79-43c5-98e3-584842c91952`
+- Entorno `30bdf65c-e552-4099-a09d-85966515cc82`
+
+**Ojo con `builder`:** su enum solo admite buildpacks (`RAILPACK`, `NIXPACKS`…).
+`DOCKERFILE` no es un valor válido; Railway detecta el `Dockerfile` por su cuenta.
+
 ---
 
 ## 5. Por dónde seguir
 
 Por orden de valor:
 
-1. **Biblioteca del kit** con reproductor y descargas por URL prefirmada. Es lo
-   que el alumno abre cada día, y hoy `/discover/biblioteca?kit=…` sigue siendo
-   un enlace muerto desde la propia portada. `media-service` está terminado.
-2. **`engagement-service` (Fase 7)**: anuncios de salón y **correo real**. Sube
-   de prioridad desde la sesión 10: ahora que los alumnos se registran solos,
-   identidad emite el token de verificación pero **no hay quien lo consuma**, así
-   que nadie recibe el correo de verificación ni el de recuperación. Un alumno
-   que olvide su contraseña hoy no tiene forma de recuperarla.
-3. **Panel de GLEXCO en el portal.** El endpoint por institución existe, la
-   pantalla no.
-4. **`learning-service` (Fase 6)**: progreso por lección, retos, XP, medallas,
-   certificados. Hoy el progreso se mide **solo** con evaluaciones, que es la
-   fuente que cuenta; el consumo de contenido añadiría la señal de "quién se
-   descolgó" antes del primer examen.
-5. Dos deudas anotadas en la sesión 10: el campo `publicPaths` del gateway, que
-   se lee como un control de seguridad y no lo usa nadie; y el límite de altas
-   por IP, que una clase entera detrás del NAT del colegio agota en minutos.
+**Lo primero, y es de producto, no de código:** hay que **contratar el proveedor
+de vídeo** y **un SMTP real**. Sin el primero, `ALLOW_BUCKET_VIDEO=true` sigue
+puesto y con tráfico real eso son cientos de megas por vídeo desde nuestro ancho
+de banda. Sin el segundo, **nadie recibe el correo de verificación ni el de
+recuperación**: hoy van a Mailpit, que acepta todo y no entrega nada.
+
+Después, por orden de valor:
+
+1. **Certificados** (Fase 6): plantilla, firma digital, QR y verificación pública
+   sin iniciar sesión. Es lo único grande que le queda a la fase.
+2. **Comando de reconstrucción de proyecciones.** Hoy, un servicio nuevo no puede
+   enterarse de lo que se publicó antes de que existiera: el sembrador lo esquiva
+   forzando el reanuncio de los cursos, que es un rodeo y no una solución.
+3. **Rúbricas de corrección** y los tipos de pregunta `ordering` y `matching`:
+   están en el vocabulario pero su corrección automática no está escrita.
+4. **i18n es/en con next-intl.** Hoy los textos están en español en el código.
+5. **Las pantallas que faltan de los portales**: laboratorio de robots, retos y
+   logros en Discover; proyectos, certificaciones y portafolio en Academy.
+6. **Portal Admin completo**: instituciones, usuarios, gestión académica y de
+   contenidos, comercial. Hoy `/admin` solo tiene la vista de plataforma.
+7. **Exportación a PDF, Excel y CSV** de los dashboards.
+8. **Auditoría WCAG 2.1 AA** pantalla a pantalla.
+9. **Fase 8 entera**: pruebas de carga, revisión de seguridad, CI/CD, réplicas de
+   lectura y **copias de seguridad probadas restaurándolas**.
+
+Y dos deudas anotadas que siguen abiertas:
+
+- **El límite de altas es por IP**, y una clase de treinta alumnos detrás del NAT
+  de su colegio lo agota en el minuto tres. Es una decisión del cliente: lo
+  razonable es una excepción para las IP declaradas de una institución con
+  licencia vigente.
+- **MinIO y Mailpit son provisionales** y hay que sustituirlos por R2 y un SMTP
+  de verdad antes de que entre nadie real.
 
 La dirección visual está aprobada en `design/canvas/`, así que no hay que decidir
 nada de diseño antes de codificar.
