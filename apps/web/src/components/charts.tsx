@@ -69,11 +69,14 @@ export function StatTile({
       className="border border-line-200 bg-white"
       style={{ borderRadius: 'var(--portal-radius)', padding: 'var(--portal-card-padding)' }}
     >
-      <p className="text-sm font-medium text-ink-500">{label}</p>
+      {/* Misma etiqueta en versalitas que el resto de tarjetas de cifra: eran
+          dos implementaciones distintas de lo mismo y en el panel de plataforma
+          se veian las dos juntas. */}
+      <p className="eyebrow mb-2">{label}</p>
 
-      <p className="mt-1 flex items-baseline gap-1">
+      <p className="flex items-baseline gap-1">
         <span
-          className="font-display text-3xl font-semibold tabular-nums"
+          className="font-display text-[1.75rem] font-semibold leading-none tabular-nums"
           style={{ color: empty ? 'var(--color-ink-400)' : 'var(--color-ink-900)' }}
         >
           {/* Un guión, no un cero. Cero es un dato; "todavía no hay dato" es
