@@ -6,6 +6,7 @@ import { requireSession } from '../../../lib/session';
 import {
   fetchPlatformInstitutions,
   fetchWeakestKits,
+  kitLabel,
   scoreTone,
   type InstitutionDashboard,
 } from '../../../lib/analytics';
@@ -251,7 +252,7 @@ async function KitsDebiles() {
         data={solidos.map((kit) => {
           const { tone, label } = scoreTone(kit.averagePercentage);
           return {
-            label: `${kit.kitId.slice(0, 8)}… · ${kit.studentsMeasured} alumnos`,
+            label: `${kitLabel(kit)} · ${kit.studentsMeasured} alumnos`,
             value: kit.averagePercentage === null ? 0 : Math.round(kit.averagePercentage),
             // El color es el que hace util esta lista de un vistazo: la pregunta
             // que se hace aqui es "cual esta en rojo", no "cual mide 62".
@@ -272,7 +273,7 @@ async function KitsDebiles() {
                 key={kit.kitId}
                 className="flex flex-wrap items-center justify-between gap-3 text-sm"
               >
-                <span className="text-ink-700">{kit.kitId.slice(0, 8)}…</span>
+                <span className="text-ink-700">{kitLabel(kit)}</span>
                 <span className="tabular-nums text-ink-500">
                   {kit.studentsMeasured} {kit.studentsMeasured === 1 ? 'alumno' : 'alumnos'} · faltan{' '}
                   {Math.max(15 - kit.studentsMeasured, 0)} para poder compararlo

@@ -113,7 +113,45 @@ Con los dos arreglos, las trece proyecciones cuadran contra su origen, y se
 llegó ahí reemitiendo por el camino real —outbox, relay, NATS, manejador—, no
 escribiendo tablas.
 
-### 6. La autocomprobación del catálogo
+### 7. `KIT_PUBLISHED`: el segundo evento que no emitía nadie
+
+Estaba en el catálogo desde el principio, exactamente como le pasaba a
+`COURSE_PUBLISHED`, y por eso la pantalla «kits con peor resultado» —la que usa
+el equipo académico para decidir qué material rehacer— listaba los kits como
+`a3f1e2c8… · 40 alumnos`. Un identificador no le dice nada a nadie, así que la
+pantalla existía y no servía para lo único que existe.
+
+Al abrirlo salió algo que no estaba anotado: **no había ningún camino que
+publicase un kit.** `KitRepository.save` estaba implementado y no lo llamaba
+nadie; los kits solo entraban por el sembrador con un `INSERT` directo. No es que
+el evento se olvidara al publicar: es que publicar no existía.
+
+Se resolvió extendiendo `PublishContentUseCase` con `target: 'kit'` en vez de
+añadir un endpoint propio. Es la misma operación —cambiar el estado de
+publicación, con el mismo permiso y la misma invalidación de caché por
+etiqueta—; lo único distinto es el hecho que se anuncia. Y hereda gratis la tabla
+de transiciones, que es la que impide que un kit salte de borrador a publicado
+sin pasar por revisión: este contenido lo ven niños de seis años.
+
+Lo demás es la cadena entera: `analytics.kit_directory` (migración nueva, nunca
+añadida a una ya aplicada), su manejador, y `LEFT JOIN` en la consulta —no `JOIN`:
+un kit con resultados cuyo nombre aún no ha llegado tiene que seguir apareciendo,
+porque el kit que peor va es justo el que no puede faltar—.
+
+**Y aquí es donde el comando de la sección 2 se pagó solo.** Los kits ya
+publicados no van a volver a publicarse nunca, así que emitir el evento a partir
+de hoy habría dejado el directorio conociendo únicamente los kits futuros: la
+pantalla seguiría con UUID para todo el catálogo existente. Una instantánea
+registrada y `pnpm projections` rellenaron los 349 kits publicados sin tocar una
+sola tabla de destino. Sin el comando, esto habría sido la quinta chapuza en el
+sembrador.
+
+Con siete pruebas del emisor, que afirman sobre **los eventos encolados** y no
+sobre el resultado del caso de uso: el resultado salía bien las dos veces que
+esto falló. Y una comprobación de humo nueva que exige el campo `name` y no solo
+la fila.
+
+### 8. La autocomprobación del catálogo
 
 Al arrancar, el comando compara los nombres de sus instantáneas contra `EVENTS`
 de `@glexco/contracts` y se niega a seguir si alguno no existe. Una errata en un
@@ -121,6 +159,26 @@ nombre de evento **no falla**: se escribe en la outbox, el relay la publica a un
 asunto que nadie escucha, el comando informa de «8.000 emitidos» y las
 proyecciones siguen vacías. Es el mismo fallo silencioso que el `metadata: {}`
 del sembrador, y ahora está cortado en el sitio donde importa.
+
+
+### Estado al cerrar
+
+| Comprobación | Resultado |
+|---|---|
+| `pnpm build` | 15/15 |
+| `pnpm test` | **194** (7 nuevas) |
+| `pnpm typecheck` | 21/21 |
+| `pnpm smoke` | **96** (1 nueva) |
+| `pnpm projections:check` | 14 proyecciones, todas cuadran |
+
+### Qué falta
+
+Ver la sección 5 de [TRASPASO.md](TRASPASO.md). Con esta sesión caen los puntos 3
+y 4; el siguiente por valor son los **retos, misiones y portafolio** de la Fase 6,
+que es lo que falta para que «Zona de retos» y «Proyectos y desafíos» dejen de
+estar fuera de la barra. Antes de eso siguen los dos de la Fase 4 —traducir el
+cuerpo de las pantallas y la parte manual de accesibilidad—, que son los que el
+cliente ve.
 
 ---
 
@@ -1698,10 +1756,18 @@ que relajarlos, pero agotan el presupuesto en dos o tres ejecuciones seguidas de
 `pnpm smoke` desde la misma máquina. Para limpiarlos:
 
 ```bash
-docker exec glexco-redis sh -c "redis-cli -a glexco_local_dev --no-auth-warning \
-  --scan --pattern 'glexco:rl:*' | xargs -r redis-cli -a glexco_local_dev \
-  --no-auth-warning DEL"
+# La contraseña sale de REDIS_URL en .env y NO es fija: `pnpm setup` genera una
+# distinta por máquina. Con una literal esto responde `NOAUTH Authentication
+# required` y parece que Redis está roto.
+PASS=$(grep -m1 '^REDIS_URL=' .env | sed 's|.*://:||; s|@.*||')
+docker exec glexco-redis redis-cli -a "$PASS" --no-auth-warning del \
+  glexco:rl:register:ip:127.0.0.1 glexco:rl:activation:ip:127.0.0.1
 ```
+
+Las dos que agota `pnpm smoke` son esas, las de IP. **El síntoma engaña:** falla
+«Registra un alumno independiente» y con ella caen las veinte comprobaciones
+siguientes, porque todas usan ese usuario. Veinte fallos rojos por un límite que
+funciona exactamente como debe.
 
 ---
 

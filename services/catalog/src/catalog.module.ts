@@ -343,7 +343,10 @@ export {
       provide: PublishContentUseCase,
       useFactory: (...args: ConstructorParameters<typeof PublishContentUseCase>) =>
         new PublishContentUseCase(...args),
-      inject: [CONTENT_REPOSITORY, UNIT_OF_WORK, CACHE_STORE, CLOCK, LOGGER_PORT],
+      // El orden es el del constructor y no el alfabetico: Nest inyecta por
+      // posicion. Anadir la dependencia al constructor y olvidarla aqui es el
+      // fallo que dejo el muro del salon devolviendo un 500 en la sesion 14.
+      inject: [CONTENT_REPOSITORY, KIT_REPOSITORY, UNIT_OF_WORK, CACHE_STORE, CLOCK, LOGGER_PORT],
     },
     {
       provide: RevokeActivationCodeUseCase,

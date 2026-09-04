@@ -168,8 +168,31 @@ export interface WeakKit {
   /** `false` mientras la muestra sea demasiado pequena para concluir nada. */
   meaningful?: boolean;
   kitId: string;
+  /**
+   * Nombre del kit. Opcional y posiblemente vacío: llega del directorio de
+   * analítica, que se alimenta de `catalog.kit.published.v1`. Cuando falta se
+   * pinta el identificador acortado, que es peor pero sigue siendo una fila.
+   */
+  name?: string;
+  code?: string;
+  program?: string;
+  grade?: string;
   studentsMeasured: number;
   averagePercentage: number | null;
+}
+
+/**
+ * Cómo se llama un kit en pantalla.
+ *
+ * El nombre si lo hay; si no, el código; y en último caso el identificador
+ * acortado, que es lo que se veía siempre antes de que alguien emitiera
+ * `kit.published`. **No se omite la fila por no tener nombre**: el kit que peor
+ * resultado da es justo el que no puede faltar de esta pantalla.
+ */
+export function kitLabel(kit: WeakKit): string {
+  if (kit.name) return kit.grade ? `${kit.name} · ${kit.grade}` : kit.name;
+  if (kit.code) return kit.code;
+  return `${kit.kitId.slice(0, 8)}…`;
 }
 
 /**

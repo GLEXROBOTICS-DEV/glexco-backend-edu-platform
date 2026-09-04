@@ -11,16 +11,16 @@ import {
 } from '@glexco/kernel';
 import { EVENTS, type PublicationStatus } from '@glexco/contracts';
 import { CachedContentRepository } from '../infrastructure/persistence/cached-content.repository';
-import type { ContentRepository } from '../domain/repositories';
+import type { ContentRepository, Kit, KitRepository } from '../domain/repositories';
 
 export interface PublishContentInput {
-  target: 'course' | 'asset';
+  target: 'course' | 'asset' | 'kit';
   id: string;
   status: PublicationStatus;
 }
 
 export interface PublishContentOutput {
-  target: 'course' | 'asset';
+  target: 'course' | 'asset' | 'kit';
   id: string;
   kitId: string;
   previousStatus: PublicationStatus;
@@ -66,6 +66,7 @@ const ALLOWED_TRANSITIONS: Record<PublicationStatus, readonly PublicationStatus[
 export class PublishContentUseCase implements UseCase<PublishContentInput, PublishContentOutput> {
   constructor(
     private readonly content: ContentRepository,
+    private readonly kits: KitRepository,
     private readonly unitOfWork: UnitOfWork,
     private readonly cache: CacheStore,
     private readonly clock: Clock,
@@ -78,10 +79,14 @@ export class PublishContentUseCase implements UseCase<PublishContentInput, Publi
   ): Promise<PublishContentOutput> {
     const now = this.clock.now();
 
+    // Un kit es su propio kit: `kitId` apunta a si mismo para que la
+    // invalidacion de cache por etiqueta y el registro funcionen sin ramas.
     const current =
-      input.target === 'course'
-        ? await this.content.findCourse(input.id)
-        : await this.content.findAsset(input.id);
+      input.target === 'kit'
+        ? await this.kits.findById(input.id).then((kit) => (kit ? { ...kit, kitId: kit.id } : null))
+        : input.target === 'course'
+          ? await this.content.findCourse(input.id)
+          : await this.content.findAsset(input.id);
 
     if (!current) {
       throw new NotFoundError('CONTENT_NOT_FOUND', 'El contenido indicado no existe.', {
@@ -124,7 +129,9 @@ export class PublishContentUseCase implements UseCase<PublishContentInput, Publi
         : [];
 
     await this.unitOfWork.run(async (tx) => {
-      if (input.target === 'course') {
+      if (input.target === 'kit') {
+        await this.kits.save({ ...(current as unknown as Kit), status: input.status }, tx);
+      } else if (input.target === 'course') {
         await this.content.saveCourse(
           { ...current, status: input.status, updatedAt: now.toISOString() } as never,
           tx,
@@ -141,6 +148,34 @@ export class PublishContentUseCase implements UseCase<PublishContentInput, Publi
       // encuentra nada y el progreso por contenido no puede registrarse. El
       // evento estaba en el catalogo desde el principio y no lo emitia nadie,
       // asi que la funcion entera estaba muerta sin dar ningun error.
+      // Publicar un KIT tambien se anuncia, y por el mismo motivo que el curso:
+      // el evento estaba en el catalogo desde el principio y no lo emitia nadie,
+      // asi que la analitica listaba la cartera de kits por UUID -"a3f1e2c8… ·
+      // 40 alumnos"- en la pantalla que usa el equipo de contenidos para decidir
+      // que kit hay que rehacer. Un identificador no le dice nada a nadie.
+      if (input.target === 'kit' && input.status === 'published') {
+        const kit = current as unknown as {
+          code: string;
+          name: string;
+          program: string;
+          grade: string;
+        };
+
+        (tx as { enqueue(...events: unknown[]): void }).enqueue(
+          new KitPublished(
+            {
+              kitId: input.id,
+              code: kit.code,
+              name: kit.name,
+              program: kit.program,
+              grade: kit.grade,
+            },
+            1,
+            { correlationId: context.correlationId },
+          ),
+        );
+      }
+
       if (input.target === 'course' && input.status === 'published') {
         (tx as { enqueue(...events: unknown[]): void }).enqueue(
           new CoursePublished(
@@ -205,5 +240,29 @@ interface CoursePublishedPayload {
 class CoursePublished extends DomainEvent<CoursePublishedPayload> {
   constructor(payload: CoursePublishedPayload, version: number, context?: { correlationId?: string }) {
     super(EVENTS.COURSE_PUBLISHED, 'Course', payload.courseId, version, payload, context);
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+interface KitPublishedPayload {
+  kitId: string;
+  code: string;
+  name: string;
+  program: string;
+  grade: string;
+}
+
+/**
+ * Un kit ya esta disponible.
+ *
+ * Lleva el NOMBRE, que es todo lo que se le pedia: quien lo consume necesita
+ * poder escribir "uKit Explore 3.º" en una pantalla sin preguntarle al catalogo
+ * por cada fila de una tabla. El codigo y el grado van con el porque ordenan y
+ * agrupan esa misma tabla, y pedirlos despues seria otra llamada por fila.
+ */
+class KitPublished extends DomainEvent<KitPublishedPayload> {
+  constructor(payload: KitPublishedPayload, version: number, context?: { correlationId?: string }) {
+    super(EVENTS.KIT_PUBLISHED, 'Kit', payload.kitId, version, payload, context);
   }
 }

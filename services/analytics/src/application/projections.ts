@@ -176,6 +176,18 @@ export interface AnalyticsQueryRepository {
   weakestKits(limit: number): Promise<
     {
       kitId: string;
+      /**
+       * Nombre del kit, del directorio que alimenta `catalog.kit.published.v1`.
+       *
+       * Vacio cuando el kit tiene resultados y su evento de publicacion es
+       * anterior a esta proyeccion. Se devuelve vacio y no se omite la fila: un
+       * kit que va mal tiene que salir en esta pantalla aunque no sepamos como
+       * se llama, porque la alternativa es ocultar justo el material a rehacer.
+       */
+      name: string;
+      code: string;
+      program: string;
+      grade: string;
       studentsMeasured: number;
       averagePercentage: number | null;
       /** `false` mientras la muestra sea demasiado pequena para concluir nada.

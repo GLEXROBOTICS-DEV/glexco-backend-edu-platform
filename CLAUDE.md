@@ -61,8 +61,8 @@ Verificado:
 | Comprobación | Resultado |
 |---|---|
 | `pnpm build` | 15/15 paquetes, servicios y portal |
-| `pnpm test` | **187 pruebas** en memoria |
-| `pnpm smoke` | **95 comprobaciones** de punta a punta |
+| `pnpm test` | **194 pruebas** en memoria |
+| `pnpm smoke` | **96 comprobaciones** de punta a punta |
 | `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
 | `pnpm smoke:web` | **177 comprobaciones** del portal contra el backend |
 
@@ -137,7 +137,7 @@ pnpm --filter @glexco/engagement dev       # arrancar comunicacion (3106)
 pnpm --filter @glexco/learning dev         # arrancar aprendizaje (3104)
 pnpm --filter @glexco/analytics dev        # arrancar analitica (3107)
 pnpm seed                                  # kit, lote de codigos, institucion y salon
-pnpm smoke                                 # 95 comprobaciones de punta a punta
+pnpm smoke                                 # 96 comprobaciones de punta a punta
 pnpm concurrency                           # las 4 garantias de concurrencia real
 pnpm --filter @glexco/web dev              # portal (3010)
 pnpm smoke:web                             # 177 comprobaciones del portal

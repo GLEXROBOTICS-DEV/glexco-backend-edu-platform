@@ -426,6 +426,10 @@ export class PgAnalyticsQueryRepository implements AnalyticsQueryRepository {
   async weakestKits(limit: number): Promise<
     {
       kitId: string;
+      name: string;
+      code: string;
+      program: string;
+      grade: string;
       studentsMeasured: number;
       averagePercentage: number | null;
       /** `false` mientras la muestra sea demasiado pequena para concluir nada. */
@@ -434,6 +438,10 @@ export class PgAnalyticsQueryRepository implements AnalyticsQueryRepository {
   > {
     const { rows } = await this.readPool.query<{
       kit_id: string;
+      name: string | null;
+      code: string | null;
+      program: string | null;
+      grade: string | null;
       students: string;
       avg_percentage: string | null;
     }>(
@@ -445,19 +453,33 @@ export class PgAnalyticsQueryRepository implements AnalyticsQueryRepository {
       //
       // El umbral no se baja: bajarlo haria que el numero mintiera, que es peor
       // que no tenerlo.
-      `SELECT kit_id,
-              count(DISTINCT student_id) AS students,
-              round(avg(best_percentage), 2) AS avg_percentage
-       FROM analytics.student_assessment_facts
-       WHERE origin = 'glexco'
-       GROUP BY kit_id
-       ORDER BY (count(DISTINCT student_id) >= $2) DESC, avg_percentage ASC NULLS LAST
+      //
+      // El `LEFT JOIN` con el directorio, y no `JOIN`: un kit con resultados
+      // cuyo nombre todavia no llego -su evento de publicacion es anterior a
+      // esta proyeccion- seguiria saliendo. Con un JOIN normal desapareceria de
+      // la pantalla, y el kit que peor va es exactamente el que no puede faltar.
+      //
+      // Las dos tablas son de ESTE schema: sigue sin haber ningun JOIN contra el
+      // del catalogo, que es lo que la regla prohibe.
+      `SELECT f.kit_id,
+              d.name, d.code, d.program, d.grade,
+              count(DISTINCT f.student_id) AS students,
+              round(avg(f.best_percentage), 2) AS avg_percentage
+       FROM analytics.student_assessment_facts f
+       LEFT JOIN analytics.kit_directory d ON d.kit_id = f.kit_id
+       WHERE f.origin = 'glexco'
+       GROUP BY f.kit_id, d.name, d.code, d.program, d.grade
+       ORDER BY (count(DISTINCT f.student_id) >= $2) DESC, avg_percentage ASC NULLS LAST
        LIMIT $1`,
       [limit, MEANINGFUL_SAMPLE_SIZE],
     );
 
     return rows.map((row) => ({
       kitId: row.kit_id,
+      name: row.name ?? '',
+      code: row.code ?? '',
+      program: row.program ?? '',
+      grade: row.grade ?? '',
       studentsMeasured: Number(row.students),
       averagePercentage: numberOrNull(row.avg_percentage),
       meaningful: Number(row.students) >= MEANINGFUL_SAMPLE_SIZE,

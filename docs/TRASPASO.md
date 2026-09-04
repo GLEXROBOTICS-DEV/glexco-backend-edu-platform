@@ -255,11 +255,11 @@ tráfico real son cientos de megas por vídeo desde nuestro ancho de banda.
    reproducir `password_reset.requested` mandaría un enlace de recuperación a toda
    la plataforma.
 
-4. **`KIT_PUBLISHED` no lo emite nadie.** Está en el catálogo de eventos desde el
-   principio, igual que le pasaba a `COURSE_PUBLISHED`. Por eso el panel de
-   GLEXCO lista los kits por UUID en vez de por su nombre. Se arregla igual:
-   emitirlo al publicar un kit y consumirlo en un `kit_directory` de analítica,
-   como ya se hizo con las instituciones.
+4. ~~`KIT_PUBLISHED` no lo emite nadie.~~ **Hecho en la sesión 15.** Lo emite
+   `PublishContentUseCase` con `target: 'kit'`, lo consume `analytics.kit_directory`
+   y la pantalla ya dice nombres. Al abrirlo salió que **no existía ningún camino
+   que publicase un kit**: `KitRepository.save` estaba implementado y no lo
+   llamaba nadie, los kits solo entraban por el sembrador.
 5. **Retos, misiones y portafolio** (Fase 6). Son los datos que faltan para que
    «Zona de retos» de Discover y «Proyectos y desafíos» de Academy dejen de estar
    fuera de la barra.

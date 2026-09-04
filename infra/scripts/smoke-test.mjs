@@ -1355,6 +1355,17 @@ ${colors.fail}Sin codigos sembrados no se puede registrar a nadie.${colors.reset
     `status=${weakest.status}`,
   );
 
+  // El campo `name`, no solo la fila. Esta pantalla la usa el equipo academico
+  // para decidir que material rehacer, y durante fases enteras listo los kits
+  // por UUID porque `catalog.kit.published.v1` no lo emitia nadie: la funcion
+  // estaba muerta sin dar ningun error, que es como fallan las proyecciones.
+  const conNombre = (weakest.body?.kits ?? []).filter((kit) => kit.name);
+  report(
+    'Y los ve por su NOMBRE, no por su identificador',
+    (weakest.body?.kits ?? []).length === 0 || conNombre.length > 0,
+    `${conNombre.length} de ${(weakest.body?.kits ?? []).length} con nombre`,
+  );
+
   // --------------------------------------------------------------------
   console.log(
     `\n${colors.bold}Resultado:${colors.reset} ` +

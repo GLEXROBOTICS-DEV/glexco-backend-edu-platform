@@ -83,7 +83,10 @@ export type ListBatchCodesQuery = z.infer<typeof listBatchCodesSchema>;
  * anadir nada.
  */
 export const publishContentSchema = z.object({
-  target: z.enum(['course', 'asset']),
+  // `kit` esta aqui y no en un endpoint propio porque publicar un kit es la
+  // misma operacion: cambiar su estado de publicacion, con el mismo permiso y la
+  // misma invalidacion de cache. Lo que cambia es el hecho que se anuncia.
+  target: z.enum(['course', 'asset', 'kit']),
   status: z.nativeEnum(PUBLICATION_STATUS),
 });
 export type PublishContentRequest = z.infer<typeof publishContentSchema>;

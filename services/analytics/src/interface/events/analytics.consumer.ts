@@ -75,6 +75,14 @@ interface InstitutionCreatedPayload {
   city: string;
 }
 
+interface KitPublishedPayload {
+  kitId: string;
+  code?: string;
+  name: string;
+  program?: string;
+  grade?: string;
+}
+
 interface InstitutionSuspendedPayload {
   institutionId: string;
 }
@@ -97,6 +105,7 @@ export function buildAnalyticsConsumer(deps: AnalyticsConsumerDeps): EventConsum
       EVENTS.ACTIVATION_CODE_REDEEMED,
       EVENTS.INSTITUTION_CREATED,
       EVENTS.INSTITUTION_SUSPENDED,
+      EVENTS.KIT_PUBLISHED,
     ],
     logger: deps.natsLogger,
   });
@@ -219,6 +228,36 @@ export function buildAnalyticsConsumer(deps: AnalyticsConsumerDeps): EventConsum
          city       = EXCLUDED.city,
          updated_at = now()`,
       [payload.institutionId, payload.code, payload.name, payload.shortName, payload.city ?? ''],
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // Directorio de kits: para que la pantalla de contenidos diga nombres
+  // -------------------------------------------------------------------------
+  // Sin esto, "kits con peor resultado" -la pantalla con la que el equipo
+  // academico decide que material rehacer- los listaba por UUID. El evento
+  // estaba en el catalogo desde el principio y no lo emitia nadie, igual que le
+  // pasaba a `course.published`: la funcion entera estaba muerta sin dar ningun
+  // error, porque una proyeccion vacia no falla, solo pinta identificadores.
+  consumer.on<KitPublishedPayload>(EVENTS.KIT_PUBLISHED, async (event, tx) => {
+    const payload = event.payload;
+
+    await (tx.client as PoolClient).query(
+      `INSERT INTO analytics.kit_directory (kit_id, code, name, program, grade)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (kit_id) DO UPDATE SET
+         code       = EXCLUDED.code,
+         name       = EXCLUDED.name,
+         program    = EXCLUDED.program,
+         grade      = EXCLUDED.grade,
+         updated_at = now()`,
+      [
+        payload.kitId,
+        payload.code ?? '',
+        payload.name,
+        payload.program ?? '',
+        payload.grade ?? '',
+      ],
     );
   });
 

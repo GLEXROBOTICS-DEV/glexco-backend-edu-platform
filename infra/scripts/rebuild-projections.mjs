@@ -339,6 +339,45 @@ const SOURCES = [
   },
 
   {
+    event: 'catalog.kit.published.v1',
+    service: 'catalog',
+    schema: 'catalog',
+    aggregateType: 'Kit',
+    /**
+     * Alimenta `analytics.kit_directory`, y es el caso que justifica este comando
+     * entero: el evento existia en el catalogo desde el principio, nadie lo
+     * emitia, y la pantalla con la que el equipo academico decide que material
+     * rehacer listaba los kits por UUID.
+     *
+     * Ahora lo emite la publicacion de un kit, pero los kits YA publicados no
+     * volveran a publicarse nunca: sin esta instantanea, el directorio solo
+     * conoceria los kits creados a partir de hoy y la pantalla seguiria igual
+     * para todo el catalogo existente. Esto es exactamente para lo que sirve
+     * reconstruir.
+     */
+    from: 'catalog.kits',
+    where: "status = 'published'",
+    cursor: 'id::text',
+    columns: 'id, version, code, name, program, grade',
+    build: (row) => ({
+      aggregateId: row.id,
+      version: row.version,
+      // La tabla de kits no guarda cuando se publico, solo `updated_at`, que
+      // cambia con cualquier edicion. Se usa la hora de la reconstruccion y no
+      // una fecha inventada: nadie consume esta marca, y fingir una fecha de
+      // publicacion falsa es peor que reconocer cuando se reconstruyo.
+      occurredAt: new Date(),
+      payload: {
+        kitId: row.id,
+        code: row.code,
+        name: row.name,
+        program: row.program,
+        grade: row.grade,
+      },
+    }),
+  },
+
+  {
     event: 'catalog.entitlement.granted.v1',
     service: 'catalog',
     schema: 'catalog',
@@ -523,6 +562,15 @@ const PROJECTIONS = [
     },
     feeds: 'catalog.course.published.v1',
     note: 'sin esto no se puede completar una leccion: el servicio no la conoce',
+  },
+  {
+    target: { service: 'analytics', sql: 'SELECT count(*) FROM analytics.kit_directory' },
+    source: {
+      service: 'catalog',
+      sql: "SELECT count(*) FROM catalog.kits WHERE status = 'published'",
+    },
+    feeds: 'catalog.kit.published.v1',
+    note: 'nombre del kit en "kits con peor resultado"; vacio = una lista de UUID',
   },
   {
     target: {
