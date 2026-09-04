@@ -377,7 +377,7 @@ alguna, para y pregunta antes de continuar.
 | Tema | Decisión |
 |---|---|
 | Almacenamiento de contenido | **Híbrido**: videos largos en proveedor externo privado con restricción de dominio; PDFs, PPTs y fichas en almacenamiento de objetos propio con URLs prefirmadas. |
-| Mensajería profesor↔alumno | **Anuncios asíncronos**, sin WebSockets. Modelo agnóstico al transporte para poder añadir tiempo real después. |
+| Mensajería profesor↔alumno | **El muro del salón**, asíncrono y sin WebSockets. El cliente lo precisó en la sesión 14: no son mensajes privados, es un tablón donde el alumno también pregunta y lo ve toda la clase, para que las dudas de uno sirvan al resto. **No se abre ningún canal privado entre un adulto y un menor**, y eso no se cambia sin volver a hablarlo. |
 | Persistencia | **Un PostgreSQL, un schema y un rol por servicio.** Migrable a base por servicio cambiando la `DATABASE_URL`. |
 | Alcance | **Toda la propuesta**, por fases, documentando cada sesión en `docs/BITACORA.md`. |
 | Escala objetivo | Diseñar para ~8M registrados. Ver [docs/ESCALABILIDAD.md](docs/ESCALABILIDAD.md). |

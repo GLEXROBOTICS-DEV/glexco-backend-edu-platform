@@ -214,14 +214,7 @@ tráfico real son cientos de megas por vídeo desde nuestro ancho de banda.
 
 ### Lo que el cliente ha pedido y está a medias
 
-1. **Muro del salón.** El cliente aclaró qué quería cuando se le preguntó por
-   «mensajería»: **no son mensajes privados**, es un tablón del salón donde el
-   alumno también puede preguntar y todos lo ven, para que las dudas de uno
-   sirvan al resto. Eso descarta el canal privado adulto‑menor y sus problemas
-   de protección de menores, y lo convierte en una extensión de los anuncios que
-   ya existen en `engagement`: el mismo agregado, abriendo la publicación a los
-   alumnos del salón y añadiendo respuestas. **Está sin empezar.**
-2. **i18n: traducir el cuerpo de las pantallas.** La infraestructura está
+1. **i18n: traducir el cuerpo de las pantallas.** La infraestructura está
    montada y funcionando —acceso, cromo y navegación ya son bilingües—, así que
    lo que queda es mecánico: `getTranslations` en los componentes de servidor,
    `useTranslations` en los de cliente, y las claves en
@@ -230,7 +223,8 @@ tráfico real son cientos de megas por vídeo desde nuestro ancho de banda.
    Dos decisiones que conviene NO deshacer: el idioma sale del **perfil** del
    usuario y no de la URL (si no, la interfaz y los correos acabarían en idiomas
    distintos), y **las rutas no se traducen** (van en correos ya enviados).
-3. **Auditoría WCAG 2.1 AA** pantalla a pantalla, con navegación por teclado.
+2. **Auditoría WCAG 2.1 AA** pantalla a pantalla, con navegación por teclado.
+   Es lo último que le queda a la Fase 4.
 
 ### Después, por valor
 

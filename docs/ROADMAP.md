@@ -334,11 +334,12 @@ frontend o clientes reales:
       ni en el stream.
 - [ ] `engagement-service`, lo que falta: notificaciones, mesa de ayuda y base
       de conocimiento.
-- [ ] **Mensajería docente↔alumno.** La decisión registrada en CLAUDE.md §6 era
-      *anuncios asíncronos, sin mensajería*; el cliente la ha reabierto. Es un
-      agregado nuevo con implicaciones de protección de menores —conversaciones
-      privadas entre un adulto y un menor exigen registro y visibilidad para la
-      dirección—, así que no es solo una pantalla más.
+- [x] **El muro del salón.** El cliente aclaró que no quería mensajes privados
+      sino un tablón donde el alumno también pregunta y lo ven todos. Además de
+      ser mejor pedagógicamente, es la opción más segura: **no existe ningún
+      canal privado entre un adulto y un menor**, y todo queda a la vista del
+      docente. Alumnos y docentes publican y responden; una pregunta no se puede
+      fijar.
 - [ ] Portal Admin completo: panel ejecutivo, instituciones, usuarios, gestión
       académica y de contenidos, certificaciones, comercial, configuración.
 - [x] Progreso por consumo de contenido (`learning-service`, Fase 6).
