@@ -162,9 +162,15 @@ async function Dashboard({ classroomId }: { classroomId: string }) {
         unit="%"
         emptyMessage={t('loQueMasFallaVacio')}
         data={data.hardestQuestions.map((question, index) => ({
-          // Sin el enunciado -que vive en el servicio de evaluación y no en la
-          // analítica- se numeran. Es honesto: inventar un título sería peor.
-          label: t('preguntaNumero', { numero: index + 1 }),
+          // El enunciado, que es lo que convierte esta lista en algo accionable:
+          // "Pregunta 3" no le dice a nadie qué volver a explicar.
+          //
+          // Llega por evento al directorio de la analítica. Si todavía no está
+          // -una evaluación publicada antes de que ese directorio existiera- se
+          // numera, que es honesto: inventar un título sería peor.
+          label:
+            question.prompt ??
+            t('preguntaNumero', { numero: question.position ?? index + 1 }),
           value: Math.round(question.missRate),
           meta: t('falladasDe', { fallos: question.missed, respuestas: question.answered }),
           tone: question.missRate >= 60 ? 'critical' : question.missRate >= 40 ? 'warning' : 'neutral',

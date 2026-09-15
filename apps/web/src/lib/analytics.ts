@@ -38,6 +38,10 @@ export interface ClassroomDashboard {
   hardestQuestions: {
     assessmentId: string;
     questionId: string;
+    /** El enunciado. `null` mientras la proyección no lo conoce. */
+    prompt: string | null;
+    /** Su número dentro de la evaluación, para nombrarla si falta el enunciado. */
+    position: number | null;
     answered: number;
     missed: number;
     missRate: number;

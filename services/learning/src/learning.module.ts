@@ -42,7 +42,7 @@ import {
   GetMyProgressUseCase,
   StartLessonUseCase,
 } from './application/progress.usecase';
-import { MyMissionsUseCase } from './application/missions.usecase';
+import { CreateMissionUseCase, MyMissionsUseCase } from './application/missions.usecase';
 import {
   PgCertificateRepository,
   PgGamificationRepository,
@@ -305,6 +305,18 @@ export { CONFIG, LOGGER, LOGGER_PORT } from './tokens';
         LOGGER_PORT,
         SECURE_RANDOM,
       ],
+    },
+    {
+      provide: CreateMissionUseCase,
+      // El orden es el del constructor y NO el alfabetico: Nest inyecta por
+      // posicion.
+      useFactory: (
+        missions: MissionRepository,
+        unitOfWork: UnitOfWork,
+        logger: LoggerPort,
+        random: SecureRandom,
+      ) => new CreateMissionUseCase(missions, unitOfWork, logger, () => random.uuid()),
+      inject: [MISSION_REPOSITORY, UNIT_OF_WORK, LOGGER_PORT, SECURE_RANDOM],
     },
     {
       provide: GetClassroomProgressUseCase,

@@ -13,7 +13,11 @@ import {
 import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { PERMISSIONS } from '@glexco/contracts';
+import {
+  PERMISSIONS,
+  createMissionSchema,
+  type CreateMissionRequest,
+} from '@glexco/contracts';
 import { Public, RequirePermissions, zodBody, type RequestActor } from '@glexco/nest-platform';
 import { getRequestContext } from '@glexco/observability';
 import type { ExecutionContext as UseCaseContext } from '@glexco/kernel';
@@ -23,7 +27,7 @@ import {
   GetMyProgressUseCase,
   StartLessonUseCase,
 } from '../../application/progress.usecase';
-import { MyMissionsUseCase } from '../../application/missions.usecase';
+import { CreateMissionUseCase, MyMissionsUseCase } from '../../application/missions.usecase';
 import { BADGE_RULES, EXPLORER_LEVELS } from '../../domain/gamification';
 import {
   IssueCertificateUseCase,
@@ -74,6 +78,7 @@ export class LearningController {
     private readonly myProgress: GetMyProgressUseCase,
     private readonly classroomProgress: GetClassroomProgressUseCase,
     private readonly myMissions: MyMissionsUseCase,
+    private readonly createMission: CreateMissionUseCase,
   ) {}
 
   /**
@@ -122,6 +127,28 @@ export class LearningController {
   @RequirePermissions(PERMISSIONS.PROGRESS_READ_OWN)
   async missions(@Param('kitId') kitId: string, @Req() request: Request) {
     return this.myMissions.execute({ kitId }, contextFrom(request));
+  }
+
+  /**
+   * Publica una mision semanal.
+   *
+   * Era lo unico que faltaba de las misiones: el modelo estaba entero desde el
+   * primer dia y solo entraban por el sembrador, escribiendo directo en la
+   * base. En un entorno donde PostgreSQL no esta expuesto -que es como debe
+   * estar- no habia forma de publicar ninguna.
+   *
+   * Va con `CONTENT_PUBLISH` porque es exactamente eso: contenido que viene con
+   * el kit. El ORIGEN -de GLEXCO o de la institucion- lo decide el caso de uso
+   * a partir de quien llama, nunca el cuerpo de la peticion.
+   */
+  @Post('missions')
+  @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
+  @HttpCode(HttpStatus.CREATED)
+  async publishMission(
+    @Body(zodBody(createMissionSchema)) input: CreateMissionRequest,
+    @Req() request: Request,
+  ) {
+    return this.createMission.execute(input, contextFrom(request));
   }
 
   /** El progreso propio. Sin parametro de alcance: lo decide el token. */

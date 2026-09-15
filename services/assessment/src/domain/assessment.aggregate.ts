@@ -179,6 +179,21 @@ export interface AssessmentPublishedPayload {
   kind: AssessmentKind;
   title: string;
   questionCount: number;
+  /**
+   * Los ENUNCIADOS, para que la analitica pueda nombrar una pregunta.
+   *
+   * Sin esto, «lo que mas falla tu salon» -el dato mas accionable que tiene un
+   * docente- listaba «Pregunta 1, Pregunta 2», que no le dice a nadie que hay
+   * que volver a explicar. La analitica no puede consultar el schema de
+   * evaluacion (invariante 9), asi que el nombre tiene que viajar en el evento,
+   * igual que ya viajan el del kit y el del colegio.
+   *
+   * **Va el enunciado y NADA mas.** Ni opciones, ni respuesta correcta, ni
+   * explicacion: la clave de correccion no sale de este servicio ni hacia la
+   * analitica. El enunciado no es secreto -el alumno lo lee al responder-, pero
+   * lo que lo acompana si lo es.
+   */
+  questions: { questionId: string; prompt: string; position: number }[];
   publishedAt: string;
 }
 
@@ -567,6 +582,11 @@ export class Assessment extends AggregateRoot<AssessmentId> {
             kind: this.state.kind,
             title: this.state.title,
             questionCount: this.state.questions.length,
+            questions: this.state.questions.map((question, index) => ({
+              questionId: question.id,
+              prompt: question.prompt,
+              position: index + 1,
+            })),
             publishedAt: now.toISOString(),
           },
           version,

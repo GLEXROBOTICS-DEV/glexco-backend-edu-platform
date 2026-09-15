@@ -1,14 +1,19 @@
 import {
+  BusinessRuleError,
+  ForbiddenError,
   type Clock,
   type ExecutionContext,
   type LoggerPort,
   type UnitOfWork,
   type UseCase,
 } from '@glexco/kernel';
+import { ROLES } from '@glexco/contracts';
 import {
+  assertMissionIsUsable,
   isCompletable,
   viewMission,
   type Mission,
+  type MissionObjective,
   type MissionView,
   type StudentFacts,
 } from '../domain/mission';
@@ -183,3 +188,114 @@ export class MyMissionsUseCase implements UseCase<{ kitId: string }, MyMissionsO
 }
 
 export type { Mission, StudentFacts };
+
+// ---------------------------------------------------------------------------
+// Escribir una mision
+// ---------------------------------------------------------------------------
+
+export interface CreateMissionInput {
+  kitId: string;
+  weekNumber: number;
+  title: string;
+  description?: string | undefined;
+  objectives: {
+    kind: string;
+    target: number;
+    courseId?: string | null | undefined;
+    assessmentId?: string | null | undefined;
+  }[];
+  xpReward: number;
+}
+
+/**
+ * Crea o corrige una mision semanal.
+ *
+ * Era lo unico que faltaba de las misiones: el modelo estaba entero desde el
+ * primer dia -incluido `origin`, porque el cliente ya dijo que institucion y
+ * docentes podrian ajustarlas- y `assertMissionIsUsable` validaba sin que nadie
+ * la llamara. Las misiones solo entraban por el sembrador, con acceso directo a
+ * la base, asi que en un entorno donde PostgreSQL no esta expuesto -Railway- no
+ * habia forma de publicar ninguna.
+ *
+ * **El origen se deduce de quien escribe, nunca del cuerpo.** Es la misma regla
+ * que gobierna las evaluaciones: si viniera en la peticion, un administrador de
+ * colegio podria publicar una mision como contenido de GLEXCO y colarla en
+ * todos los colegios que tienen ese kit.
+ *
+ * Es idempotente por identificador para que se pueda sembrar: volver a
+ * escribirla actualiza su texto y sus objetivos en vez de dejar dos misiones en
+ * la misma semana.
+ */
+export class CreateMissionUseCase
+  implements UseCase<CreateMissionInput, { missionId: string }>
+{
+  constructor(
+    private readonly missions: MissionRepository,
+    private readonly unitOfWork: UnitOfWork,
+    private readonly logger: LoggerPort,
+    private readonly uuid: () => string,
+  ) {}
+
+  async execute(
+    input: CreateMissionInput,
+    context: ExecutionContext,
+  ): Promise<{ missionId: string }> {
+    const actor = context.actor;
+    if (!actor) {
+      throw new BusinessRuleError('ACTOR_REQUIRED', 'Esta operacion exige estar autenticado.');
+    }
+
+    const esPlataforma = actor.roles.some(
+      (role) =>
+        role === ROLES.PLATFORM_OWNER ||
+        role === ROLES.PLATFORM_ADMIN ||
+        role === ROLES.CONTENT_MANAGER,
+    );
+
+    // Una mision de institucion sin institucion no tiene dueno, y una de GLEXCO
+    // con institucion dejaria de ser comun a todos: los dos casos son datos
+    // corruptos que despues nadie sabe interpretar.
+    if (!esPlataforma && !actor.institutionId) {
+      throw new ForbiddenError(
+        'MISSION_INSTITUTION_REQUIRED',
+        'Tu cuenta no pertenece a ninguna institucion.',
+      );
+    }
+
+    const mission: Mission = {
+      id: this.uuid(),
+      kitId: input.kitId,
+      origin: esPlataforma ? 'glexco' : 'institution',
+      institutionId: esPlataforma ? null : (actor.institutionId ?? null),
+      weekNumber: input.weekNumber,
+      title: input.title.trim(),
+      description: input.description?.trim() ?? '',
+      objectives: input.objectives.map((objective) => ({
+        kind: objective.kind as MissionObjective['kind'],
+        target: objective.target,
+        courseId: objective.courseId ?? null,
+        assessmentId: objective.assessmentId ?? null,
+      })),
+      xpReward: input.xpReward,
+    };
+
+    // La validacion del dominio, que hasta ahora no llamaba nadie. Cubre lo que
+    // deja una mision imposible de completar: sin objetivos, con un objetivo de
+    // aprobar una evaluacion que no dice cual, o sin recompensa.
+    assertMissionIsUsable(mission);
+
+    await this.unitOfWork.run(async (tx) => {
+      await this.missions.save(mission, tx);
+    });
+
+    this.logger.info('Mision publicada', {
+      missionId: mission.id,
+      kitId: mission.kitId,
+      origin: mission.origin,
+      weekNumber: mission.weekNumber,
+      correlationId: context.correlationId,
+    });
+
+    return { missionId: mission.id };
+  }
+}

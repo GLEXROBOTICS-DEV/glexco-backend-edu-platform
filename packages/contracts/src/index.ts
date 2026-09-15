@@ -11,3 +11,4 @@ export * from './schemas/institutions';
 export * from './schemas/catalog';
 export * from './schemas/media';
 export * from './schemas/assessment';
+export * from './schemas/learning';

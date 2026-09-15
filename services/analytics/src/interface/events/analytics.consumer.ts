@@ -83,6 +83,20 @@ interface KitPublishedPayload {
   grade?: string;
 }
 
+/**
+ * Lo que se lee de una evaluacion publicada: sus enunciados y nada mas.
+ *
+ * Se declara AQUI y no se importa del servicio de evaluacion, como el resto de
+ * payloads de este archivo: importarlo ataria los dos servicios en compilacion,
+ * que es justo lo que el bus existe para evitar. `questions` es opcional porque
+ * los eventos anteriores a este cambio no lo traen, y un consumidor que reviente
+ * con un evento viejo del stream bloquea la cola entera.
+ */
+interface AssessmentPublishedPayload {
+  assessmentId: string;
+  questions?: { questionId: string; prompt: string; position: number }[];
+}
+
 interface InstitutionSuspendedPayload {
   institutionId: string;
 }
@@ -106,6 +120,7 @@ export function buildAnalyticsConsumer(deps: AnalyticsConsumerDeps): EventConsum
       EVENTS.INSTITUTION_CREATED,
       EVENTS.INSTITUTION_SUSPENDED,
       EVENTS.KIT_PUBLISHED,
+      EVENTS.ASSESSMENT_PUBLISHED,
     ],
     logger: deps.natsLogger,
   });
@@ -258,6 +273,45 @@ export function buildAnalyticsConsumer(deps: AnalyticsConsumerDeps): EventConsum
         payload.program ?? '',
         payload.grade ?? '',
       ],
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // Evaluacion publicada -> los ENUNCIADOS de sus preguntas
+  // -------------------------------------------------------------------------
+  //
+  // Sin esto, "lo que mas falla tu salon" listaba "Pregunta 1, Pregunta 2".
+  // Es el dato mas accionable que tiene un docente -no le dice que su clase va
+  // mal, le dice que volver a explicar el lunes- y sin el enunciado no sirve
+  // para eso, que es lo unico para lo que existe.
+  //
+  // El enunciado llega por EVENTO y no consultando el schema de evaluacion: es
+  // el invariante 9, y ademas el rol de base de datos de analitica no tiene
+  // permiso sobre ese schema.
+  consumer.on<AssessmentPublishedPayload>(EVENTS.ASSESSMENT_PUBLISHED, async (event, tx) => {
+    const preguntas = event.payload.questions ?? [];
+    if (preguntas.length === 0) return;
+
+    // Una sola sentencia y no una por pregunta: publicar un examen de treinta
+    // preguntas son treinta idas y vueltas dentro de la transaccion del
+    // consumidor, y esa transaccion sostiene el bloqueo mientras tanto.
+    const valores = preguntas
+      .map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`)
+      .join(', ');
+
+    await (tx.client as PoolClient).query(
+      `INSERT INTO analytics.question_directory (question_id, assessment_id, prompt, position)
+       VALUES ${valores}
+       ON CONFLICT (question_id) DO UPDATE SET
+         prompt     = EXCLUDED.prompt,
+         position   = EXCLUDED.position,
+         updated_at = now()`,
+      preguntas.flatMap((pregunta) => [
+        pregunta.questionId,
+        event.payload.assessmentId,
+        pregunta.prompt,
+        pregunta.position,
+      ]),
     );
   });
 

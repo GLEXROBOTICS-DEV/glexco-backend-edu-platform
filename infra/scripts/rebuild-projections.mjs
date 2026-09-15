@@ -414,17 +414,24 @@ const SOURCES = [
     schema: 'assessment',
     aggregateType: 'Assessment',
     /**
-     * Hoy no lo consume nadie, asi que reproducirlo no hace nada. Esta registrado
-     * de todas formas porque el proximo consumidor que lo escuche -el catalogo de
-     * evaluaciones del panel de GLEXCO es el candidato- necesitara exactamente
-     * esto el dia que se despliegue, y ese es el dia en que nadie se acuerda de
-     * escribir el guion.
+     * Alimenta `analytics.question_directory`: los ENUNCIADOS de las preguntas.
+     *
+     * Estuvo registrado sin consumidor -"por si acaso"- y ese dia llego: sin el
+     * enunciado, "lo que mas falla tu salon" listaba "Pregunta 1, Pregunta 2",
+     * y es el dato con el que un docente decide que volver a explicar.
+     *
+     * Es el mismo caso que el directorio de kits: las evaluaciones ya publicadas
+     * no se vuelven a publicar, asi que emitir el enunciado solo a partir de hoy
+     * dejaria la pantalla igual para todo lo que ya existe.
+     *
+     * Reproducirlo es seguro porque su manejador es un `upsert` por
+     * `question_id`: reescribe el mismo enunciado y no acumula nada.
      */
     from: 'assessment.assessments',
     where: "status = 'published'",
     cursor: 'id::text',
     columns: `id, version, kit_id, origin, institution_id, classroom_id, kind, title,
-              updated_at, jsonb_array_length(questions) AS question_count`,
+              updated_at, questions, jsonb_array_length(questions) AS question_count`,
     build: (row) => ({
       aggregateId: row.id,
       version: row.version,
@@ -438,6 +445,13 @@ const SOURCES = [
         kind: row.kind,
         title: row.title,
         questionCount: Number(row.question_count),
+        // Solo el enunciado: la clave de correccion no sale de este servicio,
+        // ni siquiera hacia la analitica.
+        questions: (row.questions ?? []).map((question, index) => ({
+          questionId: question.id,
+          prompt: question.prompt,
+          position: index + 1,
+        })),
         publishedAt: iso(row.updated_at),
       },
     }),
@@ -562,6 +576,19 @@ const PROJECTIONS = [
     },
     feeds: 'catalog.course.published.v1',
     note: 'sin esto no se puede completar una leccion: el servicio no la conoce',
+  },
+  {
+    target: { service: 'analytics', sql: 'SELECT count(*) FROM analytics.question_directory' },
+    source: {
+      service: 'assessment',
+      // `AS count` y `::int`: el comparador lee `rows[0].count`, asi que sin el
+      // alias la cifra esperada salia NaN y el informe decia "ok" sin haber
+      // comparado nada -que es la peor forma de fallar de un informe-.
+      sql: `SELECT coalesce(sum(jsonb_array_length(questions)), 0)::int AS count
+              FROM assessment.assessments WHERE status = 'published'`,
+    },
+    feeds: 'assessment.assessment.published.v1',
+    note: 'enunciado en "lo que mas falla tu salon"; vacio = una lista de "Pregunta N"',
   },
   {
     target: { service: 'analytics', sql: 'SELECT count(*) FROM analytics.kit_directory' },

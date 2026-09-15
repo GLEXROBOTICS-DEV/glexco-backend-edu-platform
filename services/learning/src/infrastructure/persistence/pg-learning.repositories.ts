@@ -637,6 +637,41 @@ export class PgMissionRepository implements MissionRepository {
     }));
   }
 
+  async save(mission: Mission, tx: TransactionContext): Promise<void> {
+    // Nace publicada: una mision no tiene preguntas que preparar aparte -sus
+    // objetivos viajan con ella-, asi que un borrador solo anadiria un paso que
+    // nadie querria dar.
+    //
+    // `ON CONFLICT DO UPDATE` y no `DO NOTHING`: es lo que permite corregir una
+    // errata del enunciado o ajustar un objetivo sin dejar dos misiones en la
+    // misma semana, y lo que hace que sembrar dos veces no duplique nada.
+    await (tx as PgTransaction).client.query(
+      `INSERT INTO learning.missions
+         (id, kit_id, origin, institution_id, week_number, title, description,
+          objectives, xp_reward, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,'published')
+       ON CONFLICT (id) DO UPDATE SET
+         week_number = EXCLUDED.week_number,
+         title       = EXCLUDED.title,
+         description = EXCLUDED.description,
+         objectives  = EXCLUDED.objectives,
+         xp_reward   = EXCLUDED.xp_reward,
+         status      = 'published',
+         updated_at  = now()`,
+      [
+        mission.id,
+        mission.kitId,
+        mission.origin,
+        mission.institutionId,
+        mission.weekNumber,
+        mission.title,
+        mission.description,
+        JSON.stringify(mission.objectives),
+        mission.xpReward,
+      ],
+    );
+  }
+
   async factsFor(studentId: string, kitId: string): Promise<StudentFacts> {
     const [porCurso, aprobadas, resumen] = await Promise.all([
       // Lecciones completadas del kit, agrupadas por curso. Una sola consulta

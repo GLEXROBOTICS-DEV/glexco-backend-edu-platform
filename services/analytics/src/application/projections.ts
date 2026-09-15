@@ -108,6 +108,17 @@ export interface ClassroomDashboard {
   hardestQuestions: {
     assessmentId: string;
     questionId: string;
+    /**
+     * El enunciado, si el directorio ya lo conoce.
+     *
+     * `null` mientras no llega -una evaluacion publicada antes de que existiera
+     * el directorio, o el hueco de unos segundos hasta que el evento se
+     * consume-. Nombrarla es cosa de la pantalla, que es la unica que tiene
+     * idioma de usuario.
+     */
+    prompt: string | null;
+    /** Su numero dentro de la evaluacion, para nombrarla si falta el enunciado. */
+    position: number | null;
     answered: number;
     missed: number;
     missRate: number;

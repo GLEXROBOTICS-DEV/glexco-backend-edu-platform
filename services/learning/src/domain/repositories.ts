@@ -108,6 +108,19 @@ export interface MissionRepository {
   publishedForKit(kitId: string, institutionId: string | null): Promise<Mission[]>;
 
   /**
+   * Escribe una mision, ya publicada.
+   *
+   * Nace publicada y no en borrador, a diferencia de una evaluacion: una mision
+   * no tiene preguntas que preparar aparte -sus objetivos viajan con ella- asi
+   * que un estado intermedio solo anadiria un paso que nadie querria dar.
+   *
+   * Es idempotente por identificador, que es lo que permite sembrarla: volver a
+   * escribir la misma mision actualiza su texto y sus objetivos en vez de
+   * duplicarla en la semana.
+   */
+  save(mission: Mission, tx: TransactionContext): Promise<void>;
+
+  /**
    * Lo que la plataforma ya sabe del alumno, medido de los HECHOS.
    *
    * No hay tabla de progreso de misiones: esto sale de `lesson_progress` y de

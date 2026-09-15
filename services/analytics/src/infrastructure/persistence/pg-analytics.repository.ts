@@ -300,12 +300,21 @@ export class PgAnalyticsQueryRepository implements AnalyticsQueryRepository {
       question_id: string;
       answered: number;
       missed: number;
+      prompt: string | null;
+      position: number | null;
     }>(
-      `SELECT assessment_id, question_id, answered, missed
-       FROM analytics.question_miss_facts
-       WHERE classroom_id = $1 AND answered >= 3
-       ORDER BY (missed::numeric / answered) DESC, missed DESC
-       LIMIT 10`,
+      // LEFT JOIN y no JOIN: una pregunta cuyo enunciado todavia no ha llegado
+      // -o que se publico antes de que existiera el directorio- tiene que
+      // seguir apareciendo. La que mas se falla es justo la que no puede
+      // faltar, y es el mismo motivo por el que el directorio de kits tambien
+      // se cruza por la izquierda.
+      `SELECT f.assessment_id, f.question_id, f.answered, f.missed,
+              d.prompt, d.position
+         FROM analytics.question_miss_facts f
+         LEFT JOIN analytics.question_directory d ON d.question_id = f.question_id
+        WHERE f.classroom_id = $1 AND f.answered >= 3
+        ORDER BY (f.missed::numeric / f.answered) DESC, f.missed DESC
+        LIMIT 10`,
       [classroomId],
     );
 
@@ -323,6 +332,11 @@ export class PgAnalyticsQueryRepository implements AnalyticsQueryRepository {
       hardestQuestions: hardest.map((entry) => ({
         assessmentId: entry.assessment_id,
         questionId: entry.question_id,
+        // El enunciado, cuando se conoce. La pantalla decide como llamarla si
+        // no: aqui no se inventa un "Pregunta N" porque ese texto es visible y
+        // tendria que traducirse, y este servicio no tiene idioma de usuario.
+        prompt: entry.prompt,
+        position: entry.position,
         answered: entry.answered,
         missed: entry.missed,
         missRate: Number(((entry.missed / entry.answered) * 100).toFixed(2)),
