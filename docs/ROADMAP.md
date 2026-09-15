@@ -189,8 +189,17 @@ El servicio del que dependen todos los demás.
 **Pendiente:** nada bloqueante. Lo que queda son mejoras que dependen de tener
 frontend o clientes reales:
 
-- [ ] Tarea periódica de limpieza de subidas abandonadas (`listAbandoned` ya
-      existe; falta programarla).
+- [x] **Tarea periódica de limpieza de subidas abandonadas.** `listAbandoned`
+      llevaba fases escrito sin que lo llamara nadie, así que las filas en
+      `pending` se acumulaban para siempre. Lo que costaba dinero no era la fila
+      sino el OBJETO: una URL prefirmada se puede usar sin que nadie confirme
+      después, así que el archivo llega al bucket y se paga indefinidamente sin
+      aparecer en ninguna pantalla.
+
+      Borra **primero el objeto y después la fila**: al revés, un fallo del
+      almacén dejaría el archivo sin nada que lo nombre. Espera 24 horas antes
+      de dar una subida por muerta —el aula que empieza el viernes y termina el
+      lunes existe— y solo la ejecuta una réplica, con cerrojo distribuido.
 - [ ] Contratar el proveedor de video real y configurarlo (`VIDEO_PROVIDER_URL`).
       **Bloqueo de negocio, no de código.** Al 15 de septiembre de 2026 no hay
       ningún vídeo subido, así que no frena nada: la decisión del cliente es que
@@ -450,8 +459,15 @@ frontend o clientes reales:
 
       Las escribe GLEXCO y vienen con el kit. El campo `origin` existe desde el
       primer día porque el cliente ya dijo que institución y docentes podrán
-      ajustarlas más adelante; **la pantalla de autoría es lo que falta**, no el
-      modelo.
+      ajustarlas más adelante.
+
+      **Y ya se pueden publicar**: `POST /learning/missions`. El modelo estaba
+      entero y `assertMissionIsUsable` validaba sin que nadie la llamara, así que
+      las misiones solo entraban por el sembrador escribiendo directo en la base
+      —y en un entorno donde PostgreSQL no está expuesto, que es como debe estar,
+      no había forma de publicar ninguna—. El origen se deduce de quien llama y
+      nunca del cuerpo, igual que en las evaluaciones. Queda la PANTALLA de
+      autoría; el camino ya existe.
 - [x] **Certificados con firma Ed25519, QR y verificación pública** sin iniciar
       sesión. La firma es asimétrica y no un HMAC a propósito: cualquiera puede
       comprobar un certificado con la clave pública, sin pedirnos permiso y sin

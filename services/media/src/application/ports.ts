@@ -9,6 +9,16 @@ export interface MediaAssetRepository {
   save(asset: MediaAsset, tx: TransactionContext): Promise<void>;
   /** Subidas que quedaron a medias, para la limpieza periodica. */
   listAbandoned(olderThan: Date, limit: number): Promise<MediaAsset[]>;
+
+  /**
+   * Borra una subida abandonada.
+   *
+   * Es el UNICO borrado real del servicio, y solo lo usa la limpieza: una
+   * subida confirmada no se borra nunca por aqui -hay entregas y correcciones
+   * colgando de ella-, se marca. Aqui se borra porque la fila no llego a
+   * significar nada: nadie confirmo esa subida.
+   */
+  delete(id: MediaAssetId, tx: TransactionContext): Promise<void>;
 }
 
 /**

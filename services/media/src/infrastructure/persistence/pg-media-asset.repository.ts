@@ -126,6 +126,17 @@ export class PgMediaAssetRepository implements MediaAssetRepository {
     }
   }
 
+  async delete(id: MediaAssetId, tx: TransactionContext): Promise<void> {
+    // Solo si sigue en `pending`: entre que la limpieza la leyo y llega aqui, el
+    // usuario puede haber confirmado por fin su subida. Sin esa condicion, la
+    // tarea borraria una evidencia recien confirmada y el docente veria
+    // desaparecer lo que estaba a punto de corregir.
+    await (tx as PgTransaction).client.query(
+      `DELETE FROM media.media_assets WHERE id = $1 AND status = 'pending'`,
+      [id.value],
+    );
+  }
+
   /**
    * Subidas que se quedaron a medias.
    *

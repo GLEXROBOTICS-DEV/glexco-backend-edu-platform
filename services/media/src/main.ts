@@ -32,12 +32,23 @@ import {
   ensureStream,
 } from '@glexco/nest-platform';
 import type { NatsConnection } from 'nats';
+import { AbandonedUploadsTask } from './application/abandoned-uploads.task';
+import type { MediaAssetRepository } from './application/ports';
 import { MediaModule } from './media.module';
+import {
+  CLOCK,
+  LOGGER_PORT,
+  MEDIA_REPOSITORY,
+  OBJECT_STORAGE,
+  UNIT_OF_WORK,
+} from './tokens';
+import type { Clock, LoggerPort, ObjectStorage } from '@glexco/kernel';
 /* eslint-enable import/first */
 
 async function main(): Promise<void> {
   let nats: NatsConnection | null = null;
   let outboxRelay: OutboxRelay | null = null;
+  let cleanupTask: AbandonedUploadsTask | null = null;
 
   const app = await bootstrapService({
     module: MediaModule,
@@ -78,12 +89,27 @@ async function main(): Promise<void> {
         );
       }
 
+      // Limpieza de subidas abandonadas. `listAbandoned` llevaba fases escrito
+      // sin que lo llamara nadie, asi que las filas en `pending` -y los objetos
+      // que si llegaron al bucket- se acumulaban indefinidamente. El cerrojo
+      // distribuido garantiza que solo una replica la ejecute.
+      cleanupTask = new AbandonedUploadsTask(
+        instance.get<MediaAssetRepository>(MEDIA_REPOSITORY),
+        instance.get<ObjectStorage>(OBJECT_STORAGE),
+        instance.get(UNIT_OF_WORK),
+        new RedisDistributedLock(redis),
+        instance.get<Clock>(CLOCK),
+        instance.get<LoggerPort>(LOGGER_PORT),
+      );
+      cleanupTask.start();
+
       instance.get(HealthController).markReady();
     },
 
     onShutdown: async () => {
       app.get(HealthController, { strict: false })?.markDraining();
 
+      cleanupTask?.stop();
       await outboxRelay?.stop().catch(() => undefined);
       await nats?.drain().catch(() => undefined);
 
