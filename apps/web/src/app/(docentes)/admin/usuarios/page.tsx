@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { ROLE_CREATION_MATRIX, type Role } from '@glexco/contracts';
+import { safeLabel } from '../../../../lib/catalog';
 import { requireSession } from '../../../../lib/session';
 import { fetchPlatformInstitutions } from '../../../../lib/analytics';
 import { Card, CardSkeleton, SectionTitle } from '../../../../components/ui';
@@ -10,16 +12,6 @@ import { StaffForm } from '../../../../components/admin-forms';
 
 export const metadata: Metadata = { title: 'Cuentas de personal' };
 
-/** Nombres visibles de los roles. La clave es la que guarda el backend. */
-const ROLE_LABELS: Record<string, string> = {
-  platform_owner: 'Dueño de plataforma',
-  platform_admin: 'Administrador de GLEXCO',
-  content_manager: 'Equipo de contenidos',
-  support_agent: 'Soporte',
-  commercial_agent: 'Comercial',
-  institution_admin: 'Dirección de colegio',
-  teacher: 'Docente',
-};
 
 /**
  * Cuentas de personal.
@@ -47,20 +39,23 @@ export default async function AdminUsuarios() {
   // no se muestra un formulario que va a fallar en cada envío.
   if (creables.length === 0) redirect('/admin');
 
+  // El nombre visible del rol sale del CATALOGO y no de un mapa en español
+  // aquí dentro: es vocabulario que ve el usuario y cambia con su idioma, como
+  // los grados o los tipos de evaluación. La clave es la que guarda el backend.
+  const vocab = await getTranslations();
+  const t = await getTranslations('admin');
+
   const roles = creables.map((role) => ({
     value: role,
-    label: ROLE_LABELS[role] ?? role,
+    label: safeLabel(vocab, 'roles', role),
   }));
 
   return (
     <>
-      <PageHeader
-        title="Cuentas de personal"
-        subtitle="Docentes, dirección y equipo de GLEXCO. Los alumnos se registran con el código de su libro."
-      />
+      <PageHeader title={t('cuentasTitulo')} subtitle={t('cuentasSubtitulo')} />
 
       <Card>
-        <SectionTitle id="nueva">Crear una cuenta</SectionTitle>
+        <SectionTitle id="nueva">{t('crearCuenta')}</SectionTitle>
         <Suspense fallback={<CardSkeleton />}>
           <Formulario roles={roles} />
         </Suspense>

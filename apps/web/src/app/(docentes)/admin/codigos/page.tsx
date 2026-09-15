@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { PERMISSIONS } from '@glexco/contracts';
@@ -29,15 +30,14 @@ export default async function AdminCodigos() {
     redirect('/admin');
   }
 
+  const t = await getTranslations('admin');
+
   return (
     <>
-      <PageHeader
-        title="Códigos de activación"
-        subtitle="Las tiradas de imprenta. Cada código es un acceso pagado y solo se muestra una vez."
-      />
+      <PageHeader title={t('codigosTitulo')} subtitle={t('codigosSubtitulo')} />
 
       <Card>
-        <SectionTitle id="nuevo">Generar un lote</SectionTitle>
+        <SectionTitle id="nuevo">{t('generarLote')}</SectionTitle>
         <Suspense fallback={<CardSkeleton />}>
           <Formulario />
         </Suspense>
@@ -51,13 +51,14 @@ async function Formulario() {
     fetchAllKits(),
     fetchPlatformInstitutions(),
   ]);
+  const t = await getTranslations('admin');
 
   if (kits.failed || kits.items.length === 0) {
     return (
       <EmptyState
         level={3}
-        title="No hay kits publicados"
-        description="Un lote de códigos se emite contra un kit. Publica uno primero en Contenidos."
+        title={t('sinKitsPublicados')}
+        description={t('sinKitsPublicadosAyuda')}
       />
     );
   }

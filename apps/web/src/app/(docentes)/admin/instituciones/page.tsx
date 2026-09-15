@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { PERMISSIONS } from '@glexco/contracts';
@@ -33,15 +34,17 @@ export default async function AdminInstituciones() {
     redirect('/admin');
   }
 
+  const t = await getTranslations('admin');
+
   return (
     <>
       <PageHeader
-        title="Instituciones"
-        subtitle="Alta de colegios y sus licencias. Lo primero que ocurre en la vida de un cliente."
+        title={t('institucionesTitulo')}
+        subtitle={t('institucionesSubtituloReal')}
       />
 
       <Card>
-        <SectionTitle id="nueva">Dar de alta un colegio</SectionTitle>
+        <SectionTitle id="nueva">{t('altaInstitucion')}</SectionTitle>
         <InstitutionForm />
       </Card>
 
@@ -54,28 +57,27 @@ export default async function AdminInstituciones() {
 
 async function Cartera() {
   const { items, failed } = await fetchPlatformInstitutions();
+  const t = await getTranslations('admin');
+  const comun = await getTranslations('comun');
 
   if (failed) {
     return (
       <EmptyState
-        title="No pudimos leer la cartera"
-        description="Vuelve a intentarlo en un momento."
+        title={t('noPudimosLeerCartera')}
+        description={comun('reintentar')}
       />
     );
   }
 
   if (items.length === 0) {
     return (
-      <EmptyState
-        title="Todavía no hay colegios"
-        description="El primero que des de alta aparecerá aquí con sus cifras."
-      />
+      <EmptyState title={t('sinColegios')} description={t('sinColegiosAyuda')} />
     );
   }
 
   return (
     <section aria-labelledby="cartera" data-institutions={items.length}>
-      <SectionTitle id="cartera">Colegios ({items.length})</SectionTitle>
+      <SectionTitle id="cartera">{t('colegiosConCuenta', { cuantos: items.length })}</SectionTitle>
 
       <ul className="grid list-none gap-[var(--portal-gap)]">
         {items.map((institution) => (

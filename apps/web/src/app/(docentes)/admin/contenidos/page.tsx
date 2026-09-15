@@ -32,11 +32,13 @@ export default async function AdminContenidos() {
     redirect('/admin');
   }
 
+  const t = await getTranslations('admin');
+
   return (
     <>
       <PageHeader
-        title="Contenidos"
-        subtitle="Kits y su estado de publicación. Un borrador pasa por revisión antes de llegar a un aula."
+        title={t('contenidosTitulo')}
+        subtitle={t('contenidosSubtituloReal')}
       />
 
       <Suspense fallback={<CardSkeleton />}>
@@ -56,28 +58,27 @@ const ESTADOS: Record<string, { label: string; state: 'done' | 'doing' | 'idle' 
 async function Kits() {
   const { items, failed } = await fetchAllKits({ includeUnpublished: true });
   const vocab = await getTranslations();
+  const t = await getTranslations('admin');
+  const comun = await getTranslations('comun');
 
   if (failed) {
     return (
       <EmptyState
-        title="No pudimos leer el catálogo"
-        description="Vuelve a intentarlo en un momento."
+        title={t('noPudimosLeerCatalogo')}
+        description={comun('reintentar')}
       />
     );
   }
 
   if (items.length === 0) {
     return (
-      <EmptyState
-        title="Todavía no hay kits"
-        description="Los kits se crean con el contenido del libro de cada grado."
-      />
+      <EmptyState title={t('sinKits')} description={t('sinKitsAyuda')} />
     );
   }
 
   return (
     <section aria-labelledby="kits" data-kits={items.length}>
-      <SectionTitle id="kits">Kits ({items.length})</SectionTitle>
+      <SectionTitle id="kits">{t('kitsConCuenta', { cuantos: items.length })}</SectionTitle>
 
       <ul className="grid list-none gap-3">
         {items.map((kit) => {
