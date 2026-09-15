@@ -186,6 +186,45 @@ endpoint, y no borra: archiva, porque hay entregas colgando y notas ya puestas.
 Los tres duplicados quedaron archivados en Railway y el portal del alumno ya
 pinta uno de cada.
 
+### 8. Lo que estaba construido y no tenía camino
+
+El patrón de la segunda mitad de la sesión, y conviene leerlo antes de buscar
+nada: **casi todo lo que faltaba estaba escrito y no lo llamaba nadie.** Cuatro
+casos, todos encontrados tirando del hilo de un síntoma distinto:
+
+- **`Assessment.archive()`.** Se podía publicar una evaluación y no retirarla,
+  así que una publicada por error la seguían viendo los alumnos y la única
+  salida era tocar la base. Salió al ir a limpiar tres duplicados que yo mismo
+  dejé en producción.
+- **La autoría de misiones.** El modelo estaba entero —incluido `origin`— y
+  `assertMissionIsUsable` validaba sin que nadie la invocara: las misiones solo
+  entraban por el sembrador, escribiendo directo en la base. En Railway, donde
+  PostgreSQL no está expuesto, no había forma de publicar ninguna. Salió porque
+  el cliente vio «Todavía no hay misiones para tu kit» en la Zona de retos.
+- **`listAbandoned`.** Escrito en la Fase 3 y nunca programado. Lo que costaba
+  no eran las filas en `pending` sino los objetos: una URL prefirmada se usa sin
+  que nadie confirme después, y el archivo se paga indefinidamente sin aparecer
+  en ninguna pantalla.
+- **El enunciado de las preguntas.** La instantánea de reproducción estaba
+  registrada «por si algún día alguien la consume». Ese día llegó.
+
+**La lección operativa, para no repetirla:** un `grep` de métodos públicos sin
+llamantes habría encontrado los cuatro. La pantalla no falla cuando esto pasa —
+responde 200 y enseña un UUID, un estado vacío o nada—, así que no hay alerta que
+lo delate.
+
+### 9. Sembrar en un entorno sin acceso a la base
+
+Los retos y las misiones se sembraron **en Railway por la API pública**, porque
+el sembrador oficial necesita conexión directa a PostgreSQL y allí la base no
+está expuesta —ni debe estarlo—.
+
+Y de ahí salieron tres duplicados en producción: la comprobación de «si ya
+existe, no lo repitas» preguntaba a `GET /assessments` con la cuenta de GLEXCO,
+y **ese listado devuelve cero para el personal de plataforma** porque filtra por
+institución y GLEXCO no tiene. Queda anotado porque es exactamente el tipo de
+suposición que parece obvia y no lo es.
+
 ### Estado al cerrar
 
 | Comprobación | Resultado |
@@ -218,12 +257,16 @@ se pondrá roja.
 
 ### Qué falta
 
-1. **i18n de lo que queda**: Admin entero y los componentes de cliente del
-   docente (`admin-forms`, `grading-form`, `assessment-editor`, `rubric-editor`,
-   `classroom-form`, `announcement-form`). Cuando llegue ese bloque conviene
-   sacar sus espacios del `CLIENT_NAMESPACES` global —se serializa en el HTML de
-   cada página— y declararlos por sección; hay un `SectionMessages` escrito para
-   eso y sin usar, y `web-check.mjs` tendría que aprender a leer las dos fuentes.
+1. **i18n: lo que queda son cuatro componentes de cliente** —`admin-forms`,
+   `assessment-editor`, `rubric-editor`, `classroom-form` y
+   `announcement-form`—. El Admin entero y el formulario de corrección ya están,
+   y con ellos el montaje: sus espacios los declara el layout de `(docentes)`
+   con `SectionMessages`, así que **no viajan al portal del alumno**, y
+   `web-check.mjs` ya lee las dos fuentes.
+
+   Al traducirlos volverá a saltar la comprobación de seguridad si alguna clave
+   nueva contiene la palabra «correcta»: lo que se mueve es la **clave** al
+   espacio `docenteServidor`, nunca la comprobación. Hay tres ahí por ese motivo.
 2. La parte manual de accesibilidad, que `pnpm a11y` no puede cubrir.
 3. Lo de siempre: autoría de misiones, certificaciones de plataforma,
    configuración de Admin, recursos del docente, notificaciones y Fase 8.
