@@ -44,6 +44,7 @@ import {
 import { PgClassroomDirectory } from './application/directory';
 import {
   AddQuestionUseCase,
+  ArchiveAssessmentUseCase,
   CloneAssessmentUseCase,
   CreateAssessmentUseCase,
   GetAssessmentUseCase,
@@ -214,6 +215,12 @@ export const loadAssessmentConfig = (): AssessmentConfig =>
       inject: [ASSESSMENT_REPOSITORY, UNIT_OF_WORK, CLOCK, SECURE_RANDOM, LOGGER_PORT],
     },
     {
+      provide: ArchiveAssessmentUseCase,
+      useFactory: (...args: ConstructorParameters<typeof ArchiveAssessmentUseCase>) =>
+        new ArchiveAssessmentUseCase(...args),
+      inject: [ASSESSMENT_REPOSITORY, UNIT_OF_WORK, CLOCK],
+    },
+    {
       provide: GetAssessmentUseCase,
       useFactory: (...args: ConstructorParameters<typeof GetAssessmentUseCase>) =>
         new GetAssessmentUseCase(...args),
@@ -279,6 +286,7 @@ export const loadAssessmentConfig = (): AssessmentConfig =>
         AddQuestionUseCase,
         PublishAssessmentUseCase,
         CloneAssessmentUseCase,
+        ArchiveAssessmentUseCase,
         ListAssessmentsUseCase,
         GetAssessmentUseCase,
       ],

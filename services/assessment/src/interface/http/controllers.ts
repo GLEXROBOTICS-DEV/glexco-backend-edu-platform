@@ -31,6 +31,7 @@ import { z } from 'zod';
 import type { ExecutionContext as UseCaseContext } from '@glexco/kernel';
 import {
   AddQuestionUseCase,
+  ArchiveAssessmentUseCase,
   CloneAssessmentUseCase,
   CreateAssessmentUseCase,
   GetAssessmentUseCase,
@@ -86,6 +87,7 @@ export class AssessmentsController {
     private readonly addQuestion: AddQuestionUseCase,
     private readonly publish: PublishAssessmentUseCase,
     private readonly clone: CloneAssessmentUseCase,
+    private readonly archive: ArchiveAssessmentUseCase,
     private readonly list: ListAssessmentsUseCase,
     private readonly get: GetAssessmentUseCase,
   ) {}
@@ -170,6 +172,26 @@ export class AssessmentsController {
       { assessmentId, classroomId: body?.classroomId },
       contextFrom(request),
     );
+  }
+
+  /**
+   * Retira una evaluacion del banco.
+   *
+   * `Assessment.archive()` existia sin ningun camino que lo llamara: se podia
+   * publicar y no retirar, asi que una evaluacion publicada por error -o
+   * duplicada al sembrar- la seguian viendo los alumnos y la unica salida era
+   * tocar la base a mano.
+   *
+   * No borra: archiva. Hay entregas colgando y notas ya puestas.
+   */
+  @Post(':assessmentId/archive')
+  @RequirePermissions(PERMISSIONS.ASSESSMENT_UPDATE)
+  @HttpCode(HttpStatus.OK)
+  async archiveAssessment(
+    @Param('assessmentId') assessmentId: string,
+    @Req() request: Request,
+  ) {
+    return this.archive.execute({ assessmentId }, contextFrom(request));
   }
 }
 

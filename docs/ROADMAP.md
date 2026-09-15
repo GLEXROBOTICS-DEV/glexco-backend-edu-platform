@@ -73,13 +73,18 @@ El servicio del que dependen todos los demás.
       servicios en ejecución.
 - [x] **65 pruebas** en memoria, sin Docker, en ~60 ms.
 
-**Pendiente para dar la fase por cerrada del todo:**
+**Lo que quedaba pendiente, y ya está:**
 
-- [ ] Ejecutar la prueba de humo con la infraestructura levantada (bloqueado por
-      Docker; WSL pendiente de instalar).
-- [ ] Pruebas de integración con Postgres y Redis reales.
-- [ ] Envío real de correos (depende del servicio `engagement`, Fase 7). Hoy se
-      emite el token y el evento; falta quien los consuma.
+- [x] Prueba de humo con la infraestructura levantada. El bloqueo de Docker se
+      resolvió al mover el proyecto de máquina; hoy `pnpm smoke` pasa **96**
+      comprobaciones de punta a punta.
+- [x] Pruebas de integración con Postgres y Redis reales. Son `pnpm smoke` y
+      `pnpm concurrency` (**18**): no hay una suite aparte porque duplicaría lo
+      mismo con dobles peores.
+- [x] Envío real de correos. `engagement` consume los eventos y manda
+      verificación y recuperación. **En local salen a Mailpit, que acepta todo y
+      no entrega nada**: falta un SMTP de verdad, que es asunto de negocio y no
+      de código.
 
 ## ✅ Fase 2 — Instituciones, salones y licencias
 
@@ -187,6 +192,10 @@ frontend o clientes reales:
 - [ ] Tarea periódica de limpieza de subidas abandonadas (`listAbandoned` ya
       existe; falta programarla).
 - [ ] Contratar el proveedor de video real y configurarlo (`VIDEO_PROVIDER_URL`).
+      **Bloqueo de negocio, no de código.** Al 15 de septiembre de 2026 no hay
+      ningún vídeo subido, así que no frena nada: la decisión del cliente es que
+      **el vídeo va por enlace** y la foto se sube reducida en el equipo del
+      alumno.
 - [ ] Endpoints de alta y edición de contenido (hoy se siembra por SQL; el
       cambio de estado de publicación sí está).
 - [x] `GET /catalog/kits`: índice de kits publicados, para elegir uno al crear
@@ -336,6 +345,13 @@ frontend o clientes reales:
 
       Un rango y no un número fijo porque una clase rara vez se divide exacta:
       con 23 alumnos y grupos de 4, tres se quedarían sin poder entregar.
+- [x] **Retirar una evaluación del banco** (`POST /assessments/:id/archive`).
+      `Assessment.archive()` existía desde el primer día **sin ningún camino que
+      lo llamara**: se podía publicar y no retirar, así que una evaluación
+      publicada por error la seguían viendo los alumnos y la única salida era
+      tocar la base a mano. No borra, archiva: hay entregas colgando y notas ya
+      puestas, y borrarla dejaría a esos alumnos con un resultado que apunta a
+      algo que no existe.
 - [ ] Portal docente, lo que falta: recursos pedagógicos y capacitación docente.
 - [x] **Tipo de pregunta `ordering`**, con corrección automática y puntuación
       **parcial**: cuenta cuántas piezas quedaron en su sitio. En una pregunta de

@@ -400,6 +400,58 @@ export class PublishAssessmentUseCase
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Archiva una evaluacion.
+ *
+ * `Assessment.archive()` existia desde el primer dia **sin ningun camino que lo
+ * llamara**: se podia publicar y no retirar. Y hace falta por algo mas que por
+ * ordenar el banco: una evaluacion publicada por error -o duplicada al sembrar-
+ * la ven los alumnos, y la unica forma de quitarla era tocar la base a mano.
+ *
+ * No se borra, se archiva, y esa es la decision: hay entregas colgando de ella y
+ * notas ya puestas. Borrarla dejaria a esos alumnos con un resultado que apunta
+ * a algo que no existe, y a los dashboards contando una evaluacion fantasma.
+ */
+export class ArchiveAssessmentUseCase
+  implements UseCase<{ assessmentId: string }, { assessmentId: string; status: string }>
+{
+  constructor(
+    private readonly assessments: AssessmentRepository,
+    private readonly unitOfWork: UnitOfWork,
+    private readonly clock: Clock,
+  ) {}
+
+  async execute(
+    input: { assessmentId: string },
+    context: ExecutionContext,
+  ): Promise<{ assessmentId: string; status: string }> {
+    const actor = actorFrom(context);
+    const now = this.clock.now();
+
+    return this.unitOfWork.run(async (tx) => {
+      const assessment = await this.assessments.findByIdForUpdate(
+        AssessmentId.create(input.assessmentId),
+        tx,
+      );
+
+      if (!assessment) {
+        throw new NotFoundError('ASSESSMENT_NOT_FOUND', 'La evaluacion no existe.');
+      }
+
+      // La misma regla que para editar: un docente no archiva una evaluacion de
+      // GLEXCO -es la misma para todos los colegios- ni una de otra institucion.
+      assessment.assertEditableBy(actor);
+      assessment.archive(now);
+
+      await this.assessments.save(assessment, tx);
+
+      return { assessmentId: assessment.id.value, status: assessment.status };
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 export interface TeacherAssessmentSummary {
   assessmentId: string;
   title: string;
