@@ -143,13 +143,56 @@ decía «ya existía» y la dejaba rota para siempre. Ahora `crearActividad` mir
 también el estado: si la encuentra en borrador, le añade la pregunta y la
 publica.
 
+### 6. El límite de altas: el aula no es un ataque
+
+Lo pidió el cliente, y al abrirlo salió que el diagnóstico que llevaba meses
+anotado estaba **incompleto**. La deuda decía «10 altas por IP y hora», pero el
+alta institucional pasa por DOS límites y el otro es más estricto: **cinco
+códigos de activación por IP y hora**. Una clase se bloqueaba en el quinto
+alumno, no en el décimo, y por acertar su propio código.
+
+Dos cambios, y ninguno relaja nada:
+
+- **El alta institucional se cuenta por SALÓN**; la independiente sigue por IP.
+  El cliente precisó que también habrá alumnos que estudien desde casa, así que
+  sustituir una vía por la otra habría dejado el alta independiente sin
+  protección. Lo que impide que el límite por salón sea una puerta abierta no es
+  su número: es que **el salón ya tiene tope de plazas**.
+- **El límite de códigos cuenta FALLOS, no intentos.** Quien recorre el espacio
+  de claves falla casi siempre; una clase con sus códigos impresos no falla
+  nunca. El contador se consulta ANTES de mirar el código —para que quien agotó
+  sus cinco fallos no siga sondeando aunque acierte— y solo lo consume el fallo.
+  Eso pidió un `peek()` en el limitador; la decisión la sigue tomando `consume`,
+  que sigue siendo atómico.
+
+Comprobado contra la plataforma, que es donde se ve: **doce altas seguidas del
+mismo salón desde la misma IP sin una sola bloqueada**, y la fuerza bruta cayendo
+en el quinto fallo.
+
+### 7. Archivar una evaluación, y los duplicados que hubo que limpiar
+
+Al sembrar los retos **en producción** se colaron tres duplicados: la
+comprobación de «si ya existe, no lo repitas» preguntaba a `GET /assessments`
+con la cuenta de GLEXCO, y ese listado devuelve **cero** para el personal de
+plataforma —filtra por institución y GLEXCO no tiene—. La segunda pasada no vio
+los de la primera.
+
+Limpiarlos destapó otro hueco de los de esta casa: **`Assessment.archive()`
+existía desde el primer día sin ningún camino que lo llamara**. Se podía
+publicar y no retirar, así que una evaluación publicada por error la seguían
+viendo los alumnos y la única salida era tocar la base a mano. Ahora hay
+endpoint, y no borra: archiva, porque hay entregas colgando y notas ya puestas.
+
+Los tres duplicados quedaron archivados en Railway y el portal del alumno ya
+pinta uno de cada.
+
 ### Estado al cerrar
 
 | Comprobación | Resultado |
 |---|---|
 | `pnpm build --force` | 15/15 |
 | `pnpm typecheck` | 21/21 |
-| `pnpm test` | **284** (20 nuevas del trabajo en grupo) |
+| `pnpm test` | **291** (20 del trabajo en grupo + 7 de los límites) |
 | `pnpm smoke` | 96 |
 | `pnpm concurrency` | **18** (4 nuevas: la carrera por un compañero) |
 | `pnpm smoke:web` | 243 |
@@ -175,19 +218,16 @@ se pondrá roja.
 
 ### Qué falta
 
-1. **El límite de altas por IP**, con las dos vías que pidió el cliente: por
-   salón cuando el alta es institucional, y algo que siga protegiendo el alta
-   independiente desde una conexión doméstica.
-2. **i18n de lo que queda**: Admin entero y los componentes de cliente del
+1. **i18n de lo que queda**: Admin entero y los componentes de cliente del
    docente (`admin-forms`, `grading-form`, `assessment-editor`, `rubric-editor`,
    `classroom-form`, `announcement-form`). Cuando llegue ese bloque conviene
    sacar sus espacios del `CLIENT_NAMESPACES` global —se serializa en el HTML de
    cada página— y declararlos por sección; hay un `SectionMessages` escrito para
    eso y sin usar, y `web-check.mjs` tendría que aprender a leer las dos fuentes.
-3. La parte manual de accesibilidad, que `pnpm a11y` no puede cubrir.
-4. Lo de siempre: autoría de misiones, certificaciones de plataforma,
+2. La parte manual de accesibilidad, que `pnpm a11y` no puede cubrir.
+3. Lo de siempre: autoría de misiones, certificaciones de plataforma,
    configuración de Admin, recursos del docente, notificaciones y Fase 8.
-5. Deuda: `StudentWeakSpots` sigue enseñando «Pregunta 1» en vez del enunciado, y
+4. Deuda: `StudentWeakSpots` sigue enseñando «Pregunta 1» en vez del enunciado, y
    los 2144 usuarios de prueba con dígitos en el apellido siguen sin poder entrar.
 
 ---
