@@ -170,8 +170,82 @@ export function AssessmentCreateForm({
         </label>
       </div>
 
+      <GroupWorkFields />
+
       <SubmitButton disabled={kits.length === 0} />
     </form>
+  );
+}
+
+/**
+ * Trabajo en grupo: la casilla y el rango de integrantes.
+ *
+ * Los dos numeros se muestran SIEMPRE, no solo al marcar la casilla. Mostrarlos
+ * al marcar exigiria JavaScript, y este formulario tiene que poder enviarse sin
+ * el: sin JavaScript los campos no apareceria y el docente marcaria "en grupo"
+ * sin poder decir de cuantos. Lo que hace `details` es plegarlos, que es una
+ * ayuda visual y no un requisito.
+ *
+ * El rango va de 2 a 10 en los dos campos porque el limite real lo comprueba el
+ * servidor -el navegador solo puede sugerir-, y el dominio rechaza igual un
+ * maximo menor que el minimo.
+ */
+function GroupWorkFields() {
+  return (
+    <details className="rounded-lg border border-line-200 bg-surface-50 px-4 py-3">
+      <summary className="cursor-pointer text-sm font-medium text-ink-700">
+        Trabajo en grupo <span className="font-normal text-ink-500">(opcional)</span>
+      </summary>
+
+      <label className="mt-3 flex items-start gap-2.5 text-sm text-ink-700">
+        <input
+          type="checkbox"
+          name="isGroupWork"
+          value="1"
+          className="mt-0.5 size-4 shrink-0 rounded border-line-300 text-brand-600"
+        />
+        <span>
+          <span className="font-medium text-ink-900">Se hace en grupo</span>
+          <span className="block text-xs text-ink-500">
+            El alumno elige a sus compañeros al empezar, y la nota es la misma para
+            todos. Quien ya empezó con un grupo deja de aparecer en la lista de los
+            demás.
+          </span>
+        </span>
+      </label>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium text-ink-700">Mínimo de integrantes</span>
+          <input
+            type="number"
+            name="groupMinSize"
+            min={2}
+            max={10}
+            defaultValue={2}
+            className="field"
+          />
+        </label>
+
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium text-ink-700">Máximo de integrantes</span>
+          <input
+            type="number"
+            name="groupMaxSize"
+            min={2}
+            max={10}
+            defaultValue={4}
+            className="field"
+          />
+        </label>
+      </div>
+
+      <p className="mt-2 text-xs text-ink-500">
+        Se cuenta al alumno que forma el grupo. Un rango —y no un número fijo—
+        porque una clase rara vez se divide exacta: con 23 alumnos y grupos de 4,
+        tres se quedarían sin poder entregar.
+      </p>
+    </details>
   );
 }
 

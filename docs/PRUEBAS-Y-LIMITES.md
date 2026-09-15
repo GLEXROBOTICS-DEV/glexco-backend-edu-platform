@@ -126,8 +126,8 @@ carga compila bajo demanda y tarda unos segundos: eso tampoco es un fallo.
 
 ## 5. Cómo leer los números de referencia
 
-Los números que aparecen en la documentación —build 15/15, typecheck 21/21, 264
-pruebas, smoke 96, concurrencia 14, smoke:web 243— **son de la ejecución que los
+Los números que aparecen en la documentación —build 15/15, typecheck 21/21, 284
+pruebas, smoke 96, concurrencia 18, smoke:web 243— **son de la ejecución que los
 escribió**, no un contrato que se cumpla solo. Dos avisos:
 
 - **`pnpm build` con caché de Turborepo no prueba nada.** Un `15/15` con
@@ -139,8 +139,14 @@ escribió**, no un contrato que se cumpla solo. Dos avisos:
   una base sucia no sirve para comparar**; si el número importa, siembra de cero
   antes.
 
-Lo que sí es estable y se puede exigir sin preparativos: `pnpm test` (264, en
+Lo que sí es estable y se puede exigir sin preparativos: `pnpm test` (284, en
 memoria y sin Docker), `pnpm typecheck` (21/21) y `pnpm build --force` (15/15).
+
+**`pnpm concurrency` también necesita los contadores limpios.** Sus cinco
+comprobaciones registran alumnos por la API, así que lanzarla dos veces seguidas
+—o después de un `smoke`— hace fallar la 3.3 con cuatro errores que parecen de la
+outbox y son del límite de altas. Limpia y vuelve a lanzarla antes de buscar
+nada en el código.
 
 ---
 

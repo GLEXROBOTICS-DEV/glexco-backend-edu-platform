@@ -48,6 +48,7 @@ import {
   CreateClassroomUseCase,
   ListClassroomRosterUseCase,
   ListInstitutionTeachersUseCase,
+  ListMyClassmatesUseCase,
   ListMyClassroomsUseCase,
   ListClassroomsUseCase,
   ListSelectableClassroomsUseCase,
@@ -151,6 +152,7 @@ export class ClassroomsController {
     private readonly enrollStudent: EnrollStudentUseCase,
     private readonly listRoster: ListClassroomRosterUseCase,
     private readonly listMine: ListMyClassroomsUseCase,
+    private readonly listClassmates: ListMyClassmatesUseCase,
     private readonly listTeachers: ListInstitutionTeachersUseCase,
   ) {}
 
@@ -238,6 +240,18 @@ export class ClassroomsController {
   @Get('mine')
   async mine(@Req() request: Request) {
     return this.listMine.execute(undefined, contextFrom(request));
+  }
+
+  /**
+   * Los companeros del salon del propio alumno, para formar grupo.
+   *
+   * Sin `@RequirePermissions` y por el mismo motivo que `mine`: solo devuelve
+   * lo del salon del actor, y un alumno no tiene `CLASSROOM_READ` a proposito.
+   * Va antes de `:classroomId/roster` para que `mine` no se lea como un id.
+   */
+  @Get('mine/classmates')
+  async myClassmates(@Req() request: Request) {
+    return this.listClassmates.execute(undefined, contextFrom(request));
   }
 
   /**

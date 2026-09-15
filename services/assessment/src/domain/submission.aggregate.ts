@@ -126,6 +126,16 @@ interface SubmissionState {
   institutionId: string | null;
   classroomId: string | null;
   attemptNumber: number;
+  /**
+   * Los integrantes del grupo, incluido `studentId`. Vacio si es individual.
+   *
+   * Se guarda la lista completa y no "los otros": al corregir hay que repartir
+   * la nota entre TODOS, y una lista que excluye al autor obliga a acordarse de
+   * sumarlo en cada sitio donde se recorra. Ese olvido deja a quien entrego sin
+   * su propia nota, que es el fallo mas dificil de ver porque la pantalla del
+   * docente si la muestra.
+   */
+  memberIds: string[];
   answers: Answer[];
   status: SubmissionStatus;
   score: number | null;
@@ -170,6 +180,11 @@ export class Submission extends AggregateRoot<SubmissionId> {
     institutionId: string | null;
     classroomId: string | null;
     attemptNumber: number;
+    /**
+     * Los companeros elegidos, SIN el propio alumno: es lo que manda el
+     * selector del portal. Aqui se le anade antes de validar el tamano.
+     */
+    groupmateIds?: readonly string[];
     now: Date;
   }): Submission {
     if (input.assessment.status !== 'published') {
@@ -198,12 +213,28 @@ export class Submission extends AggregateRoot<SubmissionId> {
       );
     }
 
+    // El grupo se arma aqui y no en el caso de uso: el tamano admitido es una
+    // regla de la actividad, y comprobarla fuera del dominio significaria que el
+    // sembrador o un consumidor de eventos podrian crear grupos que la propia
+    // actividad dice no admitir.
+    const groupmates = (input.groupmateIds ?? []).filter((id) => id !== input.studentId);
+    const memberIds = groupmates.length > 0 ? [input.studentId, ...groupmates] : [];
+
+    if (input.assessment.groupWork) {
+      // Incluso sin companeros elegidos se valida: un grupal con la lista vacia
+      // tiene que fallar por tamano, no colarse como entrega individual.
+      input.assessment.assertGroupIsValid(memberIds.length > 0 ? memberIds : [input.studentId]);
+    } else {
+      input.assessment.assertGroupIsValid(memberIds);
+    }
+
     const submission = new Submission(input.id, {
       assessmentId: input.assessment.id.value,
       studentId: input.studentId,
       institutionId: input.institutionId,
       classroomId: input.classroomId,
       attemptNumber: input.attemptNumber,
+      memberIds,
       answers: [],
       status: SUBMISSION_STATUS.IN_PROGRESS,
       score: null,
@@ -477,34 +508,53 @@ export class Submission extends AggregateRoot<SubmissionId> {
 
     const assessmentState = assessment.snapshot();
 
-    this.record(
-      (version) =>
-        new SubmissionGraded(
-          {
-            submissionId: this.id.value,
-            assessmentId: this.state.assessmentId,
-            studentId: this.state.studentId,
-            classroomId: this.state.classroomId,
-            // La del alumno, no la de la evaluacion.
-            institutionId: this.state.institutionId,
-            kitId: assessmentState.kitId,
-            origin: assessmentState.origin,
-            kind: assessmentState.kind,
-            score,
-            maxScore,
-            // Ya lo fijo `finalise`; el evento nunca lleva un `passed` nulo.
-            passed: this.state.passed ?? false,
-            attemptNumber: this.state.attemptNumber,
-            gradedAt: now.toISOString(),
-            questionOutcomes,
-          },
-          version,
-          {
-            actorId: gradedBy ?? this.state.studentId,
-            tenantId: this.state.institutionId ?? undefined,
-          },
-        ),
-    );
+    // La nota llega a CADA integrante, con un evento por cabeza.
+    //
+    // Es lo que hace que un trabajo en grupo cuente: la analitica archiva por
+    // (alumno, evaluacion) y el progreso tambien, asi que un solo evento daria
+    // la nota a quien pulso entregar y dejaria a los demas sin nada en su
+    // portal, sin insignia y sin contar en la media de su salon -aunque el
+    // docente vea la entrega corregida en su pantalla-.
+    //
+    // Y los fallos por pregunta van SOLO en el evento de quien entrego. El
+    // grupo respondio una vez: repetirlos por cada integrante multiplicaria por
+    // cuatro la muestra de "lo que mas falla tu salon", que es justo el dato con
+    // el que el docente decide que volver a explicar.
+    const destinatarios =
+      this.state.memberIds.length > 0 ? this.state.memberIds : [this.state.studentId];
+
+    for (const studentId of destinatarios) {
+      const esQuienEntrego = studentId === this.state.studentId;
+
+      this.record(
+        (version) =>
+          new SubmissionGraded(
+            {
+              submissionId: this.id.value,
+              assessmentId: this.state.assessmentId,
+              studentId,
+              classroomId: this.state.classroomId,
+              // La del alumno, no la de la evaluacion.
+              institutionId: this.state.institutionId,
+              kitId: assessmentState.kitId,
+              origin: assessmentState.origin,
+              kind: assessmentState.kind,
+              score,
+              maxScore,
+              // Ya lo fijo `finalise`; el evento nunca lleva un `passed` nulo.
+              passed: this.state.passed ?? false,
+              attemptNumber: this.state.attemptNumber,
+              gradedAt: now.toISOString(),
+              questionOutcomes: esQuienEntrego ? questionOutcomes : [],
+            },
+            version,
+            {
+              actorId: gradedBy ?? this.state.studentId,
+              tenantId: this.state.institutionId ?? undefined,
+            },
+          ),
+      );
+    }
   }
 
   get status(): SubmissionStatus {

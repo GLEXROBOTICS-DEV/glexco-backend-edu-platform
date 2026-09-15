@@ -265,6 +265,7 @@ async function main() {
   const assessments = await seedAssessments(people);
   // Despues de las evaluaciones: la mision de la semana 2 apunta a una de
   // ellas, y sembrarla antes la dejaria con un objetivo imposible de cumplir.
+  await seedChallenges(people);
   await seedMissions(assessments);
   await seedSubmissions(people, assessments);
   await seedProgress(people);
@@ -1731,3 +1732,197 @@ main()
     await admin.end().catch(() => undefined);
     process.exit(1);
   });
+
+/**
+ * Retos de construccion: los del kit y los que publica cada docente.
+ *
+ * Son los que llenan "Zona de retos" en Discover y "Proyectos y desafios" en
+ * Academy. No hay dominio nuevo detras: **un reto ES una evaluacion** de tipo
+ * `practical`, y un proyecto final una de tipo `project`. Por eso se siembran
+ * aqui, por la API real, y no en una tabla propia.
+ *
+ * Se siembran de los DOS origenes a proposito, porque la pantalla los separa y
+ * con un solo origen no se nota:
+ *
+ * - Los de **GLEXCO** vienen con el kit y son iguales para todos los colegios.
+ *   El docente no los edita: los duplica.
+ * - Los del **docente** son de su salon y los escribe el.
+ *
+ * Y uno de cada tipo se siembra **en grupo**, que es lo unico que ejercita el
+ * selector de companeros: sin una actividad grupal sembrada, la pantalla existe
+ * y no la ve nadie hasta que un docente crea la primera a mano.
+ */
+async function seedChallenges(people) {
+  const created = [];
+  const glexco = token(people.staff.glexco.id, ['platform_owner'], null);
+  const teachers = [people.staff.docente1, people.staff.docente2, people.staff.docente3];
+
+  for (const [index, kit] of KITS.entries()) {
+    // --- El reto del kit, de GLEXCO ---
+    const reto = RETOS_DE_KIT[index] ?? RETOS_DE_KIT[0];
+
+    const idReto = await crearActividad({
+      as: glexco,
+      kitId: kit.id,
+      title: reto.title,
+      description: reto.description,
+      kind: 'practical',
+      // En grupo: es un montaje con el kit delante, que es justo lo que en un
+      // aula se hace entre varios porque no hay un kit por alumno.
+      groupWork: { minSize: 2, maxSize: 3 },
+      question: {
+        type: 'short_answer',
+        prompt: reto.prompt,
+        options: [],
+        correctOptions: [],
+        points: 20,
+      },
+      etiqueta: `reto de kit    ${kit.code}`,
+    });
+    if (idReto) created.push({ id: idReto, kitId: kit.id, origin: 'glexco' });
+
+    // --- El reto del docente, para SU salon ---
+    const classroom = CLASSROOMS[index];
+    const teacher = teachers[index];
+    if (!classroom || !teacher) continue;
+
+    const propio = RETOS_DE_DOCENTE[index] ?? RETOS_DE_DOCENTE[0];
+
+    const idPropio = await crearActividad({
+      as: token(teacher.id, ['teacher'], INSTITUTION.id),
+      kitId: kit.id,
+      classroomId: classroom.id,
+      title: propio.title,
+      description: propio.description,
+      kind: 'project',
+      // Individual: es la entrega de un proyecto personal, y tener las dos
+      // formas sembradas es lo que permite ver en la demo que la pantalla del
+      // alumno cambia segun la actividad.
+      question: {
+        type: 'file_upload',
+        prompt: propio.prompt,
+        options: [],
+        correctOptions: [],
+        points: 20,
+      },
+      etiqueta: `reto docente   ${classroom.name}`,
+    });
+    if (idPropio) created.push({ id: idPropio, kitId: kit.id, origin: 'institution' });
+  }
+
+  return created;
+}
+
+/**
+ * Crea una actividad y la publica, o adopta la que ya exista.
+ *
+ * La comprobacion previa por titulo es la misma de `seedAssessments` y por el
+ * mismo motivo: la API no impide dos actividades con el mismo titulo -y hace
+ * bien-, asi que sin esto cada siembra anadia una copia y el alumno acababa con
+ * la misma lista repetida cuatro veces.
+ */
+async function crearActividad({
+  as,
+  kitId,
+  classroomId,
+  title,
+  description,
+  kind,
+  groupWork,
+  question,
+  etiqueta,
+}) {
+  const already = await admin.query(
+    `SELECT id, status, jsonb_array_length(questions) AS preguntas
+       FROM assessment.assessments
+      WHERE kit_id = $1 AND title = $2 LIMIT 1`,
+    [kitId, title],
+  );
+
+  if (already.rows[0]) {
+    const fila = already.rows[0];
+
+    // Adoptar no basta si quedo a medias. Pasa cuando la pregunta se rechaza
+    // -un tipo que no esta en el vocabulario, por ejemplo-: la actividad se crea
+    // igual y se queda en borrador, invisible para el alumno, y la siguiente
+    // siembra decia "ya existia" y la dejaba rota para siempre.
+    if (fila.status === 'published') {
+      console.log(`  ${etiqueta} (ya existia)`);
+      return fila.id;
+    }
+
+    if (Number(fila.preguntas) === 0) {
+      await api(`/assessments/${fila.id}/questions`, { method: 'POST', body: question, as });
+    }
+    await api(`/assessments/${fila.id}/publish`, { method: 'POST', body: {}, as });
+    console.log(`  ${etiqueta} (completada)`);
+    return fila.id;
+  }
+
+  const creada = await api('/assessments', {
+    method: 'POST',
+    body: {
+      kitId,
+      title,
+      description,
+      kind,
+      passingScore: 60,
+      ...(classroomId ? { classroomId } : {}),
+      ...(groupWork ? { groupWork } : {}),
+    },
+    as,
+  });
+
+  if (creada.status !== 201) {
+    console.log(`  ! ${etiqueta}: ${creada.status} ${JSON.stringify(creada.body).slice(0, 140)}`);
+    return null;
+  }
+
+  const id = creada.body.assessmentId;
+  await api(`/assessments/${id}/questions`, { method: 'POST', body: question, as });
+  await api(`/assessments/${id}/publish`, { method: 'POST', body: {}, as });
+
+  console.log(`  ${etiqueta}${groupWork ? ` (en grupo de ${groupWork.minSize}-${groupWork.maxSize})` : ''}`);
+  return id;
+}
+
+const RETOS_DE_KIT = [
+  {
+    title: 'Reto: el robot que esquiva obstaculos',
+    description:
+      'Monta un robot con el sensor de distancia y consigue que recorra el aula sin chocar. Subid una foto del montaje o el enlace a un video.',
+    prompt: 'Contad como repartisteis el trabajo y que os costo mas: el montaje o la programacion.',
+  },
+  {
+    title: 'Reto: el brazo que clasifica por color',
+    description:
+      'Programad el brazo para separar piezas segun su color. Vale con que distinga dos.',
+    prompt: 'Explicad como decide el robot de que color es una pieza y que pasa cuando se equivoca.',
+  },
+  {
+    title: 'Reto: el robot seguidor de linea mas rapido',
+    description:
+      'Ajustad los parametros del seguidor de linea para completar el circuito en el menor tiempo.',
+    prompt: 'Que cambiasteis para ganar tiempo y que dejasteis igual. Poned los dos tiempos.',
+  },
+];
+
+const RETOS_DE_DOCENTE = [
+  {
+    title: 'Proyecto final: un robot que ayude en casa',
+    description:
+      'Piensa un robot que resuelva algo de tu casa, montalo con las piezas que tengas y explicalo.',
+    prompt: 'Que problema resuelve tu robot, como lo hace, y que le falta para funcionar de verdad.',
+  },
+  {
+    title: 'Proyecto final: un robot para el recreo',
+    description: 'Disena un robot que sirva para un juego del patio. Lo importante es la idea.',
+    prompt: 'Describe tu robot y las reglas del juego en el que se usa.',
+  },
+  {
+    title: 'Proyecto final: automatizar una tarea del colegio',
+    description:
+      'Elige una tarea repetitiva del colegio y propon como automatizarla con lo que has aprendido.',
+    prompt: 'Que tarea elegiste, que sensores harian falta y cuanto tiempo ahorraria.',
+  },
+];

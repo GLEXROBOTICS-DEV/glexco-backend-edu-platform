@@ -539,3 +539,58 @@ export class ListInstitutionTeachersUseCase
     return { items: await this.teachers.listByInstitution(actor.institutionId) };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Mis companeros de clase, para formar grupo
+// ---------------------------------------------------------------------------
+
+export interface Classmate {
+  studentId: string;
+  fullName: string | null;
+}
+
+/**
+ * Los companeros del salon del propio alumno.
+ *
+ * Existe para una sola pantalla: el selector de companeros de una actividad en
+ * grupo. Un alumno no puede elegir con quien trabaja si no ve nombres, y hasta
+ * ahora la unica forma de listar una clase era `ListClassroomRosterUseCase`, que
+ * exige `CLASSROOM_READ` -un permiso de docente- y devuelve ademas el estado de
+ * matricula y el kit de cada uno.
+ *
+ * **Devuelve el nombre y nada mas.** Ni correo, ni fecha de nacimiento, ni si
+ * activo su kit, ni sus notas. Son menores de edad y esto lo ve otro menor: lo
+ * unico que necesita para elegir companero es reconocerlos.
+ *
+ * **El salon sale de SU matricula, no de un parametro.** Aceptar un
+ * `classroomId` convertiria esto en un directorio de alumnos de cualquier salon
+ * de cualquier colegio para quien teclee identificadores, que es justo el
+ * aislamiento que sostiene la plataforma.
+ *
+ * Y no se incluye a si mismo: el selector pregunta "con quien trabajas", y una
+ * casilla con tu propio nombre solo sirve para marcarla por error.
+ */
+export class ListMyClassmatesUseCase implements UseCase<void, { items: Classmate[] }> {
+  constructor(
+    private readonly classrooms: ClassroomRepository,
+    private readonly students: StudentDirectory,
+  ) {}
+
+  async execute(_input: void, context: ExecutionContext): Promise<{ items: Classmate[] }> {
+    const actor = actorProfile(context);
+    const mios = await this.classrooms.listByStudent(actor.userId);
+
+    // Sin salon no hay companeros: un alumno independiente trabaja solo, y eso
+    // es una lista vacia y no un error.
+    const salon = mios[0];
+    if (!salon) return { items: [] };
+
+    const rows = await this.students.listRoster(salon.id);
+
+    return {
+      items: rows
+        .filter((row) => row.status === 'active' && row.studentId !== actor.userId)
+        .map((row) => ({ studentId: row.studentId, fullName: row.fullName })),
+    };
+  }
+}

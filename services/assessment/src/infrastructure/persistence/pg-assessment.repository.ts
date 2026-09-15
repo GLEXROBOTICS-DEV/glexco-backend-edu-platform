@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import {
   ConcurrencyError,
+  ConflictError,
   decodeCursor,
   encodeCursor,
   normalizeLimit,
@@ -43,6 +44,8 @@ interface AssessmentRow {
   due_at: Date | null;
   status: PublicationStatus;
   submission_count: number;
+  group_min_size: number | null;
+  group_max_size: number | null;
   version: number;
   created_at: Date;
   updated_at: Date;
@@ -51,7 +54,8 @@ interface AssessmentRow {
 const A_COLUMNS = `
   id, kit_id, course_id, origin, institution_id, classroom_id, author_id, kind,
   title, description, questions, passing_score, max_attempts, time_limit_minutes,
-  due_at, status, submission_count, version, created_at, updated_at
+  due_at, status, submission_count, group_min_size, group_max_size,
+  version, created_at, updated_at
 `;
 
 export class PgAssessmentRepository implements AssessmentRepository {
@@ -96,9 +100,10 @@ export class PgAssessmentRepository implements AssessmentRepository {
       `INSERT INTO assessment.assessments
          (id, kit_id, course_id, origin, institution_id, classroom_id, author_id,
           kind, title, description, questions, passing_score, max_attempts,
-          time_limit_minutes, due_at, status, submission_count, version,
+          time_limit_minutes, due_at, status, submission_count,
+          group_min_size, group_max_size, version,
           created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
        ON CONFLICT (id) DO UPDATE
           SET title              = EXCLUDED.title,
               description        = EXCLUDED.description,
@@ -110,6 +115,8 @@ export class PgAssessmentRepository implements AssessmentRepository {
               due_at             = EXCLUDED.due_at,
               status             = EXCLUDED.status,
               submission_count   = EXCLUDED.submission_count,
+              group_min_size     = EXCLUDED.group_min_size,
+              group_max_size     = EXCLUDED.group_max_size,
               version            = EXCLUDED.version,
               updated_at         = EXCLUDED.updated_at
         WHERE assessment.assessments.version < EXCLUDED.version`,
@@ -131,6 +138,8 @@ export class PgAssessmentRepository implements AssessmentRepository {
         state.dueAt,
         state.status,
         state.submissionCount,
+        state.groupWork?.minSize ?? null,
+        state.groupWork?.maxSize ?? null,
         assessment.version,
         state.createdAt,
         state.updatedAt,
@@ -259,13 +268,30 @@ interface SubmissionRow {
   started_at: Date;
   submitted_at: Date | null;
   graded_at: Date | null;
+  member_ids: string[] | null;
   version: number;
 }
 
+/**
+ * Los integrantes llegan con la entrega, en la misma consulta.
+ *
+ * Con una segunda llamada, cada sitio que carga una entrega tendria que
+ * acordarse de pedirlos, y el que se olvidara veria un grupo VACIO -o sea, una
+ * entrega individual- sin ningun error: la nota se repartiria solo a quien
+ * entrego y los demas se quedarian sin ella.
+ *
+ * El subselect nombra la tabla sin alias porque todas las consultas de aqui la
+ * usan asi.
+ */
 const S_COLUMNS = `
   id, assessment_id, student_id, institution_id, classroom_id, attempt_number, answers, status,
   score, max_score, passed, graded_by, feedback, started_at, submitted_at,
-  graded_at, version
+  graded_at, version,
+  (
+    SELECT coalesce(array_agg(m.student_id::text ORDER BY m.created_at), ARRAY[]::text[])
+    FROM assessment.submission_members m
+    WHERE m.submission_id = submissions.id
+  ) AS member_ids
 `;
 
 export class PgSubmissionRepository implements SubmissionRepository {
@@ -338,6 +364,65 @@ export class PgSubmissionRepository implements SubmissionRepository {
     if (result.rowCount === 0 && submission.version > 1) {
       throw new ConcurrencyError('Submission', submission.id.value, submission.version, -1);
     }
+
+    // Los integrantes se escriben UNA vez, al crear el grupo.
+    //
+    // `ON CONFLICT DO NOTHING` sobre la clave primaria (entrega, alumno) y no
+    // sobre la unica de (actividad, alumno, intento): la primera absorbe el
+    // reintento inocente -guardar la misma entrega dos veces- y la segunda,
+    // que es la que dice "este alumno ya esta en otro grupo", tiene que
+    // REVENTAR. Silenciarla convertiria el fichaje doble en una entrega que se
+    // guarda a medias: el alumno aparece en un grupo y no en el otro, y el que
+    // se quedo sin el no se entera hasta que le falta la nota.
+    if (state.memberIds.length > 0) {
+      const valores = state.memberIds
+        .map((_, indice) => `($1, $2, $${indice + 4}, $3)`)
+        .join(', ');
+
+      try {
+        await client.query(
+          `INSERT INTO assessment.submission_members
+             (submission_id, assessment_id, student_id, attempt_number)
+           VALUES ${valores}
+           ON CONFLICT (submission_id, student_id) DO NOTHING`,
+          [
+            submission.id.value,
+            state.assessmentId,
+            state.attemptNumber,
+            ...state.memberIds,
+          ],
+        );
+      } catch (error) {
+        // 23505 = unique_violation. Aqui solo puede venir de la restriccion
+        // `submission_members_one_group_per_attempt`, porque la de la clave
+        // primaria la absorbe el `ON CONFLICT` de arriba.
+        //
+        // Es la carrera real de un aula: dos grupos eligen al mismo companero
+        // en el mismo minuto y los dos vieron la lista cuando aun estaba libre.
+        // Gana el primero que escribe, y el segundo recibe un mensaje que dice
+        // QUE hacer -volver a mirar la lista- en vez de un 500.
+        if ((error as { code?: string }).code === '23505') {
+          throw new ConflictError(
+            'GROUP_MEMBER_TAKEN',
+            'Alguno de tus companeros ya empezo esta actividad con otro grupo. Vuelve a abrir la lista para ver quien sigue libre.',
+            { assessmentId: state.assessmentId },
+          );
+        }
+        throw error;
+      }
+    }
+  }
+
+  async listGroupedStudents(assessmentId: string, attemptNumber: number): Promise<string[]> {
+    // Del pool de LECTURA: alimenta una pantalla y no decide nada. Quien decide
+    // es el indice unico al insertar.
+    const { rows } = await this.readPool.query<{ student_id: string }>(
+      `SELECT student_id
+         FROM assessment.submission_members
+        WHERE assessment_id = $1 AND attempt_number = $2`,
+      [assessmentId, attemptNumber],
+    );
+    return rows.map((row) => row.student_id);
   }
 
   /**
@@ -445,6 +530,12 @@ function toAssessment(row: AssessmentRow): Assessment {
       dueAt: row.due_at,
       status: row.status,
       submissionCount: row.submission_count,
+      // Las dos columnas van juntas por restriccion `CHECK`, asi que basta
+      // mirar una para saber si la actividad es grupal.
+      groupWork:
+        row.group_min_size === null || row.group_min_size === undefined
+          ? null
+          : { minSize: row.group_min_size, maxSize: row.group_max_size! },
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     },
@@ -461,6 +552,10 @@ function toSubmission(row: SubmissionRow): Submission {
       institutionId: row.institution_id,
       classroomId: row.classroom_id,
       attemptNumber: row.attempt_number,
+      // Llega de `submission_members` por la consulta que carga la entrega. Sin
+      // integrantes es individual, que es lo que son todas las anteriores a
+      // esta migracion.
+      memberIds: row.member_ids ?? [],
       answers: row.answers ?? [],
       status: row.status,
       score: row.score,

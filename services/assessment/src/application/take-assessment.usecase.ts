@@ -58,6 +58,21 @@ export interface StartAttemptOutput {
   questions: StudentQuestion[];
 }
 
+export interface StartAttemptInput {
+  assessmentId: string;
+  classroomId?: string | undefined;
+  /**
+   * Los companeros elegidos en el selector, SIN el propio alumno.
+   *
+   * Que un alumno no este ya en otro grupo NO se comprueba aqui: lo garantiza
+   * el indice unico de `submission_members`. Comprobarlo antes de insertar
+   * dejaria pasar a los dos grupos que pulsan a la vez, que es justo el caso que
+   * ocurre en un aula -treinta alumnos empezando la misma actividad en el mismo
+   * minuto- y no el raro.
+   */
+  groupmateIds?: readonly string[] | undefined;
+}
+
 /**
  * Abre un intento.
  *
@@ -76,7 +91,7 @@ export interface StartAttemptOutput {
  * Si ya hay un intento abierto se devuelve ESE, no uno nuevo: al alumno se le
  * cerro el portatil del laboratorio y vuelve, no esta empezando de cero.
  */
-export class StartAttemptUseCase implements UseCase<{ assessmentId: string; classroomId?: string | undefined }, StartAttemptOutput> {
+export class StartAttemptUseCase implements UseCase<StartAttemptInput, StartAttemptOutput> {
   constructor(
     private readonly assessments: AssessmentRepository,
     private readonly submissions: SubmissionRepository,
@@ -87,7 +102,7 @@ export class StartAttemptUseCase implements UseCase<{ assessmentId: string; clas
   ) {}
 
   async execute(
-    input: { assessmentId: string; classroomId?: string | undefined },
+    input: StartAttemptInput,
     context: ExecutionContext,
   ): Promise<StartAttemptOutput> {
     const student = studentFrom(context);
@@ -164,6 +179,7 @@ export class StartAttemptUseCase implements UseCase<{ assessmentId: string; clas
         institutionId: student.institutionId,
         classroomId: input.classroomId ?? null,
         attemptNumber: used + 1,
+        groupmateIds: input.groupmateIds,
         now,
       });
 
@@ -653,4 +669,84 @@ function recommendationsFor(best: MyAttemptSummary | null, passingScore: number)
     'Vuelve a ver el tutorial de la leccion y repasa la ficha de trabajo.',
     'Si algo no te cuadra, preguntaselo a tu docente antes de volver a intentarlo.',
   ];
+}
+
+// ---------------------------------------------------------------------------
+
+export interface AvailableGroupmatesOutput {
+  /** `null` si la actividad es individual. */
+  groupWork: { minSize: number; maxSize: number } | null;
+  /** Companeros ya comprometidos en esta actividad, incluido uno mismo si ya empezo. */
+  takenStudentIds: string[];
+  /** El intento al que corresponde la lista. */
+  attemptNumber: number;
+}
+
+/**
+ * Quien queda libre para formar grupo.
+ *
+ * Devuelve los COGIDOS y no los libres, y la diferencia importa: este servicio
+ * no conoce el salon del alumno -eso es de instituciones- ni su lista de
+ * companeros. El portal, que ya la tiene pintada, resta.
+ *
+ * **Esto no decide nada.** Dos alumnos que abren la pantalla a la vez ven los
+ * dos la misma lista libre; quien impide el fichaje doble es el indice unico de
+ * `submission_members` al escribir. Esta consulta existe para que la pantalla no
+ * ofrezca a alguien que ya no esta disponible, que es distinto de garantizarlo.
+ */
+export class AvailableGroupmatesUseCase
+  implements UseCase<{ assessmentId: string }, AvailableGroupmatesOutput>
+{
+  constructor(
+    private readonly assessments: AssessmentRepository,
+    private readonly submissions: SubmissionRepository,
+  ) {}
+
+  async execute(
+    input: { assessmentId: string },
+    context: ExecutionContext,
+  ): Promise<AvailableGroupmatesOutput> {
+    const student = studentFrom(context);
+
+    const assessment = await this.assessments.findById(AssessmentId.create(input.assessmentId));
+
+    if (!assessment) {
+      throw new NotFoundError('ASSESSMENT_NOT_FOUND', 'La evaluacion no existe.');
+    }
+
+    // Mismo aislamiento que al abrir un intento: una actividad de otro colegio
+    // no existe para este alumno, y el error es el mismo que si no existiera
+    // para que no se puedan enumerar probando identificadores.
+    if (
+      assessment.institutionId !== null &&
+      assessment.institutionId !== student.institutionId
+    ) {
+      throw new NotFoundError('ASSESSMENT_NOT_FOUND', 'La evaluacion no existe.');
+    }
+
+    const group = assessment.groupWork;
+    if (!group) {
+      return { groupWork: null, takenStudentIds: [], attemptNumber: 1 };
+    }
+
+    // El intento al que va a entrar este alumno. La lista de cogidos es POR
+    // INTENTO: en el segundo intento los grupos se rehacen, y devolver los del
+    // primero dejaria al salon entero marcado como no disponible.
+    const anteriores = await this.submissions.listByStudent(
+      assessment.id.value,
+      student.userId,
+    );
+    const attemptNumber = anteriores.length + 1;
+
+    const takenStudentIds = await this.submissions.listGroupedStudents(
+      assessment.id.value,
+      attemptNumber,
+    );
+
+    return {
+      groupWork: { minSize: group.minSize, maxSize: group.maxSize },
+      takenStudentIds,
+      attemptNumber,
+    };
+  }
 }

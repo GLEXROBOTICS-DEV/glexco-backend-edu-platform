@@ -7,6 +7,191 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 18 — 2026-09-15 — Actividades en grupo, i18n del portal e infraestructura recuperada
+
+Sesión larga y con tres bloques que no se parecen: recuperar el proyecto en una
+máquina nueva, terminar la traducción de las pantallas que faltaban, y construir
+el trabajo en grupo que pidió el cliente a mitad de sesión.
+
+### 1. La máquina nueva, y lo que costó levantarla
+
+El ZIP llegó íntegro y `.git` dentro, pero el remoto estaba **un commit por
+delante**: `dfab829` ya contenía exactamente los tres archivos que en la copia
+estaban sueltos o sin registrar. Se comprobó que `AGENTS.md` del ZIP era idéntico
+al publicado, se guardó el estado local en un `stash` y se avanzó por
+fast-forward. Clonar habría dado lo mismo; el ZIP no aportó nada que GitHub no
+tuviera.
+
+**MinIO ya no se descarga de Docker Hub sin cuenta.** `pnpm infra:up` moría con
+`pull access denied for minio/minio ... may require docker login`, que se lee
+como un problema de credenciales y no como lo que es, y el fallo de una sola
+imagen aborta el compose entero —las otras cinco quedan en `Interrupted`—. Se
+apuntan a `quay.io`, que es el registro oficial de MinIO y no pide cuenta.
+
+Y sobre una base recién migrada **hubo que ejecutar `pnpm projections`**: el
+primer `pnpm smoke` falló en «los ve por su NOMBRE, no por su identificador»,
+que es el síntoma exacto de una proyección que nace vacía. El comando de la
+sesión 15 se pagó otra vez.
+
+### 2. Un documento nuevo: cómo probar sin pelearse con las defensas
+
+`docs/PRUEBAS-Y-LIMITES.md`, a petición del cliente. Nace de haber perdido media
+sesión en lo mismo: **una batería de pruebas hace lo que hace un ataque** —muchas
+altas y muchos canjes desde una IP en segundos—, así que los límites saltan y el
+`429` se lee como un fallo del código.
+
+Recoge los límites reales con su fuente en el código, el procedimiento —limpiar
+**antes** de medir, en el mismo comando—, y sobre todo lo que limpiar Redis
+**no** arregla: el bloqueo de cuenta vive en PostgreSQL, y los tres intentos
+gastados de una evaluación también.
+
+Con dos avisos que salieron de esta sesión: un `pnpm build` que dice `15/15` con
+`>>> FULL TURBO` **no ha compilado nada**, y `pnpm smoke:web` no es determinista
+sobre una base con poso —se vieron 234, 240 y 242 sobre 243 sin tocar una línea—.
+La regla que lo ordena todo está en la cabecera: los límites no se relajan para
+que pase una prueba.
+
+### 3. i18n: lo que el cliente veía en español
+
+El cliente señaló que el acceso y el registro seguían sin traducir, y tenía
+razón: `ingresar/page.tsx` traducía el titular y el panel de marca, y el
+formulario de debajo —«Correo», «Contraseña», «Olvidé mi contraseña»— estaba en
+español. El registro entero, la recuperación y la verificación no tenían ni una
+clave. Quedan traducidos los cinco.
+
+Del Teacher Center: la barra, el panel principal, el banco de evaluaciones, el
+detalle, la bandeja de corrección, el salón y la lista de clase.
+
+**El catálogo pasa de 468 a 662 claves en paridad es/en.**
+
+Tres cosas que no eran traducir y salieron al hacerlo:
+
+- **El tipo y el estado de una evaluación vivían en dos mapas en español dentro
+  de `lib/`.** Es vocabulario VISIBLE y cambia con el idioma de quien mira, así
+  que va al catálogo con la clave que guarda el backend, como los grados. Es
+  exactamente lo que el roadmap pedía no volver a hacer.
+- **La lista de clase formateaba la fecha con `es-PE` fijo**, el mismo fallo que
+  ya se corrigió en el portal del alumno: media frase en inglés y la fecha en
+  español.
+- **`web-check.mjs` leía `CLIENT_NAMESPACES` partiendo por comas**, así que una
+  clave precedida de un comentario se daba por no declarada y la comprobación
+  pedía añadir algo que YA estaba en la lista. Es la peor forma de fallar: manda
+  a buscar el error donde no está. Ahora lee las entradas entrecomilladas.
+
+### 4. Actividades en grupo
+
+Lo pidió el cliente a mitad de sesión: que el docente pueda marcar una actividad
+como grupal con un tamaño, que el alumno elija a sus compañeros al empezar, y que
+**quien ya empezó con un grupo deje de aparecerles a los demás**.
+
+**La garantía no es la lista, es el índice único.** La lista de compañeros libres
+es una cortesía: entre que se pinta y que el alumno pulsa, otro grupo puede
+fichar a alguien, y dos grupos que pulsan a la vez ven los dos la misma lista
+libre. Quien lo impide es `submission_members_one_group_per_attempt`, un índice
+sobre `(actividad, alumno, intento)`. Es la misma garantía que sostiene el canje
+de un código de libro, y por la misma razón: comprobar antes de insertar es la
+condición de carrera clásica, y en un aula treinta alumnos empiezan la misma
+actividad en el mismo minuto.
+
+Lleva el **número de intento** en la clave porque los grupos se rehacen al
+reintentar: sin él, el segundo intento de la clase entera chocaría contra el
+primero y nadie podría repetir.
+
+**La nota llega a cada integrante, con un evento por cabeza.** La analítica
+archiva por `(alumno, evaluación)` y el progreso también, así que un solo evento
+daría la nota a quien pulsó entregar y dejaría a los demás sin nada en su portal,
+sin insignia y sin contar en la media de su salón —aunque el docente viera la
+entrega corregida en su pantalla—. Pero **los fallos por pregunta van solo en el
+evento de quien entregó**: el grupo respondió una vez, y repetirlos por
+integrante multiplicaría por cuatro la muestra de «lo que más falla tu salón»,
+que es el dato con el que el docente decide qué repasar.
+
+**El selector se pregunta ANTES de abrir el intento**, y es la única excepción a
+la regla de abrir el intento al cargar la pantalla. Una vez abierto, la entrega
+ya es de una sola persona, y meter al grupo después significaría rehacerla
+borrando lo que se hubiera escrito. Se resuelve sin una llamada extra: se intenta
+abrir sin compañeros, y la respuesta distingue los dos casos —si ya había un
+intento abierto el backend lo devuelve, y si no, falla por tamaño de grupo—.
+
+Funciona **sin JavaScript**: es un `<form action>` con casillas dentro de un
+`<details>`, que se abre porque es HTML. Con JavaScript solo se gana el estado
+del botón mientras se envía.
+
+Hizo falta un endpoint nuevo en instituciones, `GET /classrooms/mine/classmates`:
+un alumno no puede elegir compañeros sin ver nombres, y la única forma de listar
+una clase exigía `CLASSROOM_READ`, que es un permiso de docente. **Devuelve el
+nombre y nada más** —ni correo, ni kit, ni notas—: son menores y esto lo ve otro
+menor. Y el salón sale de su propia matrícula, nunca de un parámetro.
+
+**No se pudo exponer el cambio de grupalidad después de crear**, y no es un
+olvido: `updateDetails` no tiene caso de uso ni endpoint —solo lo usaban las
+pruebas—, así que el rango se fija al crear. El dominio ya rechaza cambiarlo con
+entregas hechas, que es la regla que importa.
+
+### 5. El sembrador: retos de kit y retos de docente
+
+Tres retos de construcción de GLEXCO (uno por kit, **en grupo de 2 a 3**) y tres
+proyectos finales publicados por cada docente para su salón, individuales. Es lo
+que llena «Zona de retos» en Discover y «Proyectos y desafíos» en Academy, y sin
+una actividad grupal sembrada el selector de compañeros existía sin que lo viera
+nadie.
+
+Al sembrarlos salió un fallo del propio sembrador que conviene no repetir: el
+tipo `open_text` **no existe** en el vocabulario —es `short_answer`—, la API
+rechazó la pregunta, la actividad se quedó en borrador… y la siguiente siembra
+decía «ya existía» y la dejaba rota para siempre. Ahora `crearActividad` mira
+también el estado: si la encuentra en borrador, le añade la pregunta y la
+publica.
+
+### Estado al cerrar
+
+| Comprobación | Resultado |
+|---|---|
+| `pnpm build --force` | 15/15 |
+| `pnpm typecheck` | 21/21 |
+| `pnpm test` | **284** (20 nuevas del trabajo en grupo) |
+| `pnpm smoke` | 96 |
+| `pnpm concurrency` | **18** (4 nuevas: la carrera por un compañero) |
+| `pnpm smoke:web` | 243 |
+| `pnpm projections:check` | 14 proyecciones, todas cuadran |
+
+La comprobación de concurrencia nueva es la que importa: **de 20 peticiones
+simultáneas que piden al mismo compañero, exactamente una se lo lleva** y las
+otras 19 reciben `409 GROUP_MEMBER_TAKEN`. Si algún día alguien "arregla" esto
+comprobando disponibilidad en el caso de uso y quita el índice, esa comprobación
+se pondrá roja.
+
+### Decisiones del cliente recogidas en esta sesión
+
+- **Evidencias**: las fotos se suben —el navegador las reduce antes de salir del
+  dispositivo— y **los vídeos van por enlace**, para no pagar el almacenamiento.
+  Queda documentado como la política, no como una de dos opciones.
+- **Proveedor de vídeo y SMTP**: siguen sin decidir. No hay vídeos subidos
+  todavía, así que no bloquea.
+- **La contraseña de PostgreSQL ya se rotó.** Sale de la lista de deudas.
+- **El límite de altas por IP**: hay que cambiarlo por algo que distinga el alta
+  contra un salón, teniendo en cuenta que también habrá alumnos independientes
+  desde casa. **Pendiente, no empezado.**
+
+### Qué falta
+
+1. **El límite de altas por IP**, con las dos vías que pidió el cliente: por
+   salón cuando el alta es institucional, y algo que siga protegiendo el alta
+   independiente desde una conexión doméstica.
+2. **i18n de lo que queda**: Admin entero y los componentes de cliente del
+   docente (`admin-forms`, `grading-form`, `assessment-editor`, `rubric-editor`,
+   `classroom-form`, `announcement-form`). Cuando llegue ese bloque conviene
+   sacar sus espacios del `CLIENT_NAMESPACES` global —se serializa en el HTML de
+   cada página— y declararlos por sección; hay un `SectionMessages` escrito para
+   eso y sin usar, y `web-check.mjs` tendría que aprender a leer las dos fuentes.
+3. La parte manual de accesibilidad, que `pnpm a11y` no puede cubrir.
+4. Lo de siempre: autoría de misiones, certificaciones de plataforma,
+   configuración de Admin, recursos del docente, notificaciones y Fase 8.
+5. Deuda: `StudentWeakSpots` sigue enseñando «Pregunta 1» en vez del enunciado, y
+   los 2144 usuarios de prueba con dígitos en el apellido siguen sin poder entrar.
+
+---
+
 ## Sesión 17 — 2026-09-15 — Publicación autorizada del estado local
 
 ### Qué se hizo y por qué

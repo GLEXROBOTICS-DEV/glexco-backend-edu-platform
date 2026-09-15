@@ -39,6 +39,18 @@ export const SUPPORTED_QUESTION_TYPES = [
   QUESTION_TYPES.FILE_UPLOAD,
 ] as const;
 
+/**
+ * Tope duro del tamano de grupo, compartido por el esquema y el dominio.
+ *
+ * Es un limite de seguridad antes que pedagogico: sin el, una peticion podria
+ * declarar un grupo con mil alumnos inventados y obligar al servicio a
+ * comprobarlos uno a uno.
+ *
+ * Va ANTES del esquema que lo usa: una `const` no se eleva, y declararla debajo
+ * revienta al cargar el modulo, no al validar.
+ */
+export const MAX_GROUP_SIZE = 10;
+
 export const createAssessmentSchema = z.object({
   kitId: uuidSchema,
   courseId: uuidSchema.optional(),
@@ -63,8 +75,39 @@ export const createAssessmentSchema = z.object({
   timeLimitMinutes: z.coerce.number().int().min(1).max(480).optional(),
 
   dueAt: z.string().datetime({ message: 'errors.validation.date_invalid' }).optional(),
+
+  /**
+   * Actividad en grupo. Ausente = individual.
+   *
+   * El rango se valida aqui **y** en el dominio, y no sobra: este esquema solo
+   * cubre la via HTTP, y el banco de GLEXCO entra por el sembrador. La regla
+   * que importa -que el maximo no sea menor que el minimo- se comprueba con
+   * `refine` porque un campo no puede mirar al otro por su cuenta.
+   */
+  groupWork: z
+    .object({
+      minSize: z.coerce.number().int().min(2).max(MAX_GROUP_SIZE),
+      maxSize: z.coerce.number().int().min(2).max(MAX_GROUP_SIZE),
+    })
+    .refine((value) => value.maxSize >= value.minSize, {
+      message: 'errors.validation.group_size_range',
+      path: ['maxSize'],
+    })
+    .optional(),
 });
 export type CreateAssessmentRequest = z.infer<typeof createAssessmentSchema>;
+
+/**
+ * Los companeros elegidos al empezar una actividad en grupo.
+ *
+ * Van SIN el propio alumno -es quien manda la peticion- y como maximo uno menos
+ * que el tope: el servidor le anade a el antes de comprobar el tamano.
+ */
+export const startAttemptSchema = z.object({
+  classroomId: uuidSchema.optional(),
+  groupmateIds: z.array(uuidSchema).max(MAX_GROUP_SIZE - 1).optional(),
+});
+export type StartAttemptRequest = z.infer<typeof startAttemptSchema>;
 
 export const addQuestionSchema = z
   .object({

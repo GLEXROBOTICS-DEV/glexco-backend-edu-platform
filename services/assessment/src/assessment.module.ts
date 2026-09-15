@@ -51,6 +51,7 @@ import {
   PublishAssessmentUseCase,
 } from './application/manage-assessment.usecase';
 import {
+  AvailableGroupmatesUseCase,
   GradeSubmissionUseCase,
   SaveAnswerUseCase,
   MyResultUseCase,
@@ -239,6 +240,12 @@ export const loadAssessmentConfig = (): AssessmentConfig =>
       ],
     },
     {
+      provide: AvailableGroupmatesUseCase,
+      useFactory: (...args: ConstructorParameters<typeof AvailableGroupmatesUseCase>) =>
+        new AvailableGroupmatesUseCase(...args),
+      inject: [ASSESSMENT_REPOSITORY, SUBMISSION_REPOSITORY],
+    },
+    {
       provide: MyResultUseCase,
       useFactory: (...args: ConstructorParameters<typeof MyResultUseCase>) =>
         new MyResultUseCase(...args),
@@ -304,6 +311,7 @@ export const loadAssessmentConfig = (): AssessmentConfig =>
         SubmitAttemptUseCase,
         GradeSubmissionUseCase,
         MyResultUseCase,
+        AvailableGroupmatesUseCase,
       ],
     },
 

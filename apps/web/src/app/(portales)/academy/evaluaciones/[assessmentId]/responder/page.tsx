@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { requireSession } from '../../../../../../lib/session';
 import { startAttempt } from '../../../../../../lib/assessment.actions';
+import { fetchGroupOptions } from '../../../../../../lib/assessments';
 import { fetchMyClassroom } from '../../../../../../lib/classrooms';
+import { GroupPicker } from '../../../../../../components/group-picker';
 import { QuizForm } from '../../../../../../components/quiz-form';
 import { EmptyState } from '../../../../../../components/ui';
 
@@ -32,14 +34,45 @@ export default async function AcademyEvaluacion({
   // Se exige sesion aunque el nombre no se use en esta pantalla: el layout ya
   // comprueba, pero Next renderiza layout y pagina en paralelo y sin esto la
   // pagina abriria un intento con el token que hubiera.
-  await requireSession();
+  const session = await requireSession();
   const { assessmentId } = await params;
 
   // El salon se resuelve ANTES de abrir el intento y viaja con el: una entrega
   // sin salon no aparece en la bandeja de correccion de ningun docente, asi que
   // lo abierto a mano se quedaria sin corregir para siempre.
   const classroomId = await fetchMyClassroom();
+
+  // **En una actividad de grupo hay que preguntar ANTES de abrir el intento.**
+  // Una vez abierto, la entrega ya es de una sola persona y meter al grupo
+  // despues significaria rehacerla borrando lo que se hubiera escrito.
+  //
+  // Se intenta abrir SIN companeros y la respuesta distingue los dos casos sin
+  // una llamada extra: si ya tenia un intento abierto con su grupo el backend
+  // lo devuelve, y si no lo tenia falla por tamano de grupo.
+  const grupo = await fetchGroupOptions(assessmentId);
   const state = await startAttempt(assessmentId, classroomId);
+
+  if (grupo.groupWork && state.error) {
+    return (
+      <>
+        <section>
+          <a href="/academy/evaluaciones" className="text-sm font-medium text-brand-600 hover:underline">
+            &larr; Mis evaluaciones
+          </a>
+        </section>
+
+        <GroupPicker
+          assessmentId={assessmentId}
+          classroomId={classroomId}
+          classmates={grupo.available}
+          takenCount={grupo.takenCount}
+          minSize={grupo.groupWork.minSize}
+          maxSize={grupo.groupWork.maxSize}
+          studentName={`${session.firstName} ${session.lastName}`}
+        />
+      </>
+    );
+  }
 
   if (state.error || !state.attempt) {
     return (

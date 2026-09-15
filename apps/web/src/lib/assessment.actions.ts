@@ -25,10 +25,16 @@ export interface AttemptState {
 export async function startAttempt(
   assessmentId: string,
   classroomId: string | null,
+  groupmateIds?: readonly string[],
 ): Promise<AttemptState> {
   const result = await api<OpenAttempt>(`/assessments/${assessmentId}/attempts`, {
     method: 'POST',
-    body: classroomId ? { classroomId } : {},
+    body: {
+      ...(classroomId ? { classroomId } : {}),
+      // Solo si hay alguno: un array vacio en una actividad individual la haria
+      // fallar por tamano de grupo.
+      ...(groupmateIds && groupmateIds.length > 0 ? { groupmateIds } : {}),
+    },
   });
 
   if (!result.ok) {
@@ -36,6 +42,44 @@ export async function startAttempt(
   }
 
   return { attempt: result.data };
+}
+
+/**
+ * Abre el intento de una actividad EN GRUPO, desde el formulario del selector.
+ *
+ * Es una accion de formulario y no una llamada desde el navegador por lo mismo
+ * que el resto: el token vive en una cookie que el JavaScript no lee. Y al ser
+ * un `<form action>`, el selector funciona sin JavaScript.
+ *
+ * Al terminar **recarga la misma pantalla** en vez de redirigir: si el grupo se
+ * formo, la pantalla ya encuentra el intento abierto y pinta las preguntas; y
+ * si alguien fue fichado por otro grupo entre medias, se vuelve a pintar el
+ * selector con la lista ya actualizada y el aviso de lo que paso.
+ */
+export async function startGroupAttempt(
+  _previous: AttemptState,
+  formData: FormData,
+): Promise<AttemptState> {
+  const assessmentId = formData.get('assessmentId');
+  const classroomId = formData.get('classroomId');
+
+  if (typeof assessmentId !== 'string' || assessmentId.length === 0) {
+    return { error: 'No sabemos qué actividad estás abriendo.' };
+  }
+
+  const groupmateIds = formData
+    .getAll('groupmateIds')
+    .filter((value): value is string => typeof value === 'string' && value.length > 0);
+
+  const state = await startAttempt(
+    assessmentId,
+    typeof classroomId === 'string' && classroomId.length > 0 ? classroomId : null,
+    groupmateIds,
+  );
+
+  if (!state.error) revalidatePath(`/discover/evaluaciones/${assessmentId}/responder`);
+
+  return state;
 }
 
 export interface SubmitState {

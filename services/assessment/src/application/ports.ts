@@ -61,4 +61,16 @@ export interface SubmissionRepository {
 
   /** Bandeja de correccion del docente. */
   listPendingForClassroom(classroomId: string, page: CursorQuery): Promise<CursorPage<Submission>>;
+
+  /**
+   * Quienes ya estan en un grupo de esta actividad, en este intento.
+   *
+   * Es lo que permite que el selector de companeros no ofrezca a quien ya
+   * empezo con otros. **No es la garantia**: dos alumnos que pulsan a la vez
+   * verian los dos la misma lista libre. La garantia es el indice unico de
+   * `submission_members`; esto es lo que evita el error en el 99% de los casos,
+   * que es distinto y tambien hace falta -que la pantalla ofrezca algo que
+   * despues rechaza es la forma mas rapida de que nadie se fie de ella-.
+   */
+  listGroupedStudents(assessmentId: string, attemptNumber: number): Promise<string[]>;
 }

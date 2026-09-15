@@ -10,6 +10,7 @@ import {
 import {
   ASSESSMENT_TYPES,
   EVENTS,
+  MAX_GROUP_SIZE,
   QUESTION_TYPES,
   type AssessmentType,
   type PublicationStatus,
@@ -210,9 +211,39 @@ interface AssessmentState {
   status: PublicationStatus;
   /** Cuantas entregas hay. Decide si el cuestionario todavia puede cambiar. */
   submissionCount: number;
+  /** `null` = se hace individualmente. Ver `GroupWork`. */
+  groupWork: GroupWork | null;
   createdAt: Date;
   updatedAt: Date;
 }
+
+/**
+ * Una actividad que se hace EN GRUPO.
+ *
+ * Guarda el tamano admitido y no la lista de grupos: los grupos los arma cada
+ * alumno al empezar, y quien ya esta en uno desaparece de la lista de los
+ * demas. Eso vive en las entregas, que es donde estan los hechos.
+ *
+ * El tamano es un rango y no un numero fijo porque una clase rara vez se divide
+ * exacta: con 23 alumnos y grupos de 4 alguien se queda fuera, y la alternativa
+ * -dejar a tres alumnos sin poder entregar- no es una regla, es un fallo.
+ */
+export interface GroupWork {
+  /** Minimo de integrantes, contando a quien crea el grupo. Nunca menos de 2. */
+  minSize: number;
+  /** Maximo de integrantes, contando a quien crea el grupo. */
+  maxSize: number;
+}
+
+/**
+ * Tope duro del tamano de grupo.
+ *
+ * Se reexporta de `@glexco/contracts` en vez de repetir el numero: el esquema
+ * Zod y el dominio tienen que rechazar exactamente lo mismo, y dos copias de un
+ * limite se separan en cuanto alguien cambia una. El `CHECK` de la migracion es
+ * la tercera copia y la unica que no se puede importar; lleva su nota.
+ */
+export { MAX_GROUP_SIZE };
 
 export interface AssessmentActor {
   userId: string;
@@ -261,6 +292,7 @@ export class Assessment extends AggregateRoot<AssessmentId> {
     maxAttempts?: number;
     timeLimitMinutes?: number | null;
     dueAt?: Date | null;
+    groupWork?: GroupWork | null;
     now: Date;
   }): Assessment {
     Guard.againstEmpty(input.title, 'title');
@@ -290,6 +322,9 @@ export class Assessment extends AggregateRoot<AssessmentId> {
       );
     }
 
+    const groupWork = input.groupWork ?? null;
+    if (groupWork) assertGroupWorkIsUsable(groupWork);
+
     const assessment = new Assessment(input.id, {
       kitId: input.kitId,
       courseId: input.courseId ?? null,
@@ -312,6 +347,7 @@ export class Assessment extends AggregateRoot<AssessmentId> {
       dueAt: input.dueAt ?? null,
       status: 'draft',
       submissionCount: 0,
+      groupWork,
       createdAt: input.now,
       updatedAt: input.now,
     });
@@ -467,12 +503,31 @@ export class Assessment extends AggregateRoot<AssessmentId> {
       maxAttempts?: number;
       timeLimitMinutes?: number | null;
       dueAt?: Date | null;
+      groupWork?: GroupWork | null;
     },
     now: Date,
   ): void {
     // Estos SI se pueden cambiar con entregas hechas: mover la fecha de entrega
     // o corregir una errata del enunciado no invalida ninguna nota.
     this.touch();
+
+    // El trabajo en grupo NO, y por el mismo motivo que las preguntas: hay
+    // grupos ya formados. Pasar a individual dejaria entregas con integrantes
+    // que la actividad dice no admitir, y estrechar el rango dejaria grupos
+    // validos fuera de sus propias reglas. Las dos cosas se descubren al
+    // corregir, cuando ya no hay arreglo.
+    if (input.groupWork !== undefined) {
+      if (this.state.submissionCount > 0) {
+        throw new BusinessRuleError(
+          'ASSESSMENT_GROUPS_ALREADY_FORMED',
+          'Ya hay entregas, asi que el trabajo en grupo no se puede cambiar. Duplica la actividad y adapta la copia.',
+          { submissionCount: this.state.submissionCount },
+        );
+      }
+
+      if (input.groupWork) assertGroupWorkIsUsable(input.groupWork);
+      this.state.groupWork = input.groupWork;
+    }
 
     if (input.title !== undefined) {
       Guard.againstEmpty(input.title, 'title');
@@ -626,8 +681,101 @@ export class Assessment extends AggregateRoot<AssessmentId> {
     return this.state.timeLimitMinutes;
   }
 
+  /** `null` cuando la actividad se hace individualmente. */
+  get groupWork(): GroupWork | null {
+    return this.state.groupWork;
+  }
+
+  /**
+   * Comprueba que estos integrantes forman un grupo valido para esta actividad.
+   *
+   * `memberIds` los trae ENTEROS, incluido quien crea el grupo: contar al autor
+   * aparte obliga a recordar en cada pantalla si el "3" del docente incluye o no
+   * al que pulsa, y esa duda acaba siempre en grupos de tamano equivocado.
+   *
+   * Lo que NO se comprueba aqui es que los companeros existan, sean de su salon
+   * o esten libres: eso son hechos de otros agregados y de la base. Aqui solo
+   * vive lo que la actividad declara sobre su propio tamano.
+   */
+  assertGroupIsValid(memberIds: readonly string[]): void {
+    const group = this.state.groupWork;
+
+    if (!group) {
+      if (memberIds.length > 0) {
+        throw new BusinessRuleError(
+          'ASSESSMENT_IS_INDIVIDUAL',
+          'Esta actividad se hace individualmente.',
+        );
+      }
+      return;
+    }
+
+    const distintos = new Set(memberIds);
+    if (distintos.size !== memberIds.length) {
+      throw new BusinessRuleError(
+        'GROUP_MEMBER_REPEATED',
+        'Hay un companero repetido en el grupo.',
+      );
+    }
+
+    if (distintos.size < group.minSize || distintos.size > group.maxSize) {
+      throw new BusinessRuleError(
+        'GROUP_SIZE_NOT_ALLOWED',
+        group.minSize === group.maxSize
+          ? `Esta actividad se hace en grupos de ${group.minSize}.`
+          : `Esta actividad se hace en grupos de ${group.minSize} a ${group.maxSize} alumnos.`,
+        { minSize: group.minSize, maxSize: group.maxSize, received: distintos.size },
+      );
+    }
+  }
+
   snapshot(): Readonly<AssessmentState> {
     return this.state;
+  }
+}
+
+/**
+ * Comprueba que un rango de tamano de grupo se pueda cumplir.
+ *
+ * Las tres cosas que se rechazan son las tres formas de dejar una actividad
+ * imposible de entregar, y ninguna da un error entendible mas adelante:
+ *
+ * - **Un grupo de uno no es un grupo.** Si el docente queria individual, la
+ *   casilla de trabajo en grupo es la que hay que desmarcar; admitir `minSize`
+ *   1 crearia dos formas de decir lo mismo y ninguna pantalla sabria cual leer.
+ * - **Un maximo por debajo del minimo** no lo cumple ningun grupo, y el alumno
+ *   solo se entera al intentar empezar.
+ * - **Un maximo sin tope** deja que una peticion declare un grupo con mil
+ *   integrantes inventados y obligue al servicio a comprobarlos uno a uno.
+ */
+function assertGroupWorkIsUsable(groupWork: GroupWork): void {
+  if (!Number.isInteger(groupWork.minSize) || !Number.isInteger(groupWork.maxSize)) {
+    throw new BusinessRuleError(
+      'GROUP_SIZE_INVALID',
+      'El tamano del grupo se cuenta en alumnos enteros.',
+    );
+  }
+
+  if (groupWork.minSize < 2) {
+    throw new BusinessRuleError(
+      'GROUP_SIZE_TOO_SMALL',
+      'Un grupo necesita al menos dos alumnos. Si la actividad es individual, no la marques como grupal.',
+    );
+  }
+
+  if (groupWork.maxSize < groupWork.minSize) {
+    throw new BusinessRuleError(
+      'GROUP_SIZE_RANGE_INVALID',
+      'El maximo de integrantes no puede ser menor que el minimo.',
+    );
+  }
+
+  if (groupWork.maxSize > MAX_GROUP_SIZE) {
+    throw new BusinessRuleError(
+      'GROUP_SIZE_TOO_LARGE',
+      `Un grupo no puede pasar de ${MAX_GROUP_SIZE} alumnos.`,
+      { maxSize: MAX_GROUP_SIZE },
+    );
   }
 }
 

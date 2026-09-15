@@ -356,14 +356,17 @@ tráfico real son cientos de megas por vídeo desde nuestro ancho de banda.
 ### Deudas anotadas que siguen abiertas
 
 - **El límite de altas es por IP**, y una clase de treinta alumnos detrás del NAT
-  de su colegio lo agota en el minuto tres. Es una decisión del cliente: lo
-  razonable es una excepción para las IP declaradas de una institución con
-  licencia vigente.
+  de su colegio lo agota en el minuto tres. **El cliente pidió cambiarlo el 15 de
+  septiembre de 2026**, con un matiz que condiciona el diseño: *también habrá
+  alumnos independientes que estudien desde casa*, así que no vale sustituir el
+  límite por IP por uno por salón y ya. Hacen falta las dos vías: el alta contra
+  un salón de una institución con licencia vigente se cuenta por salón, y el alta
+  independiente sigue contándose por IP. **Pendiente, no empezado.**
 - **MinIO y Mailpit son provisionales.** Hay que sustituirlos por Cloudflare R2 y
   un SMTP con SPF, DKIM y DMARC antes de que entre nadie real.
-- **La contraseña de PostgreSQL conviene rotarla**: se imprimió en la terminal
-  durante la sesión 13. La pimienta de los códigos NO se puede rotar —invalidaría
-  todos los códigos emitidos—.
+- ~~La contraseña de PostgreSQL conviene rotarla.~~ **Rotada; el cliente lo
+  confirmó el 15 de septiembre de 2026.** La pimienta de los códigos sigue sin
+  poder rotarse —invalidaría todos los códigos emitidos—.
 - **Los certificados dependen de `CERTIFICATE_PRIVATE_KEY`**, que está solo en el
   servicio `learning` de Railway. Si se pierde, todo lo emitido deja de
   verificarse. Cada certificado lleva impresa la huella de su clave justamente
@@ -387,11 +390,17 @@ portales acabaron sin el marco del diseño.
 
 Anótalas y pregúntalas cuando toquen; no las decidas por tu cuenta.
 
-- **Evidencias en vídeo.** El roadmap de la Fase 5 decía "evidencias (foto/vídeo)
-  del alumno". El cliente aclaró que los colegios no suben vídeo, y después pidió
-  no quitar la subida con proveedor. Estado actual: **se admiten los dos
-  caminos** —subida de vídeo por proveedor y enlace externo—. Si eso no es lo que
-  quiere, hay que acotarlo.
+- ~~**Evidencias en vídeo.**~~ **Decidido el 15 de septiembre de 2026.** La foto
+  **se sube** —el navegador la reduce en el equipo del alumno antes de que salga
+  del dispositivo, porque un móvil produce fotos de 12 MB— y el **vídeo se envía
+  como enlace**, nunca subido: es una decisión de coste, el almacenamiento y el
+  ancho de banda de un vídeo por alumno no los paga la plataforma. El alumno lo
+  publica en el Drive o el OneDrive de su centro, o en YouTube, y pega el enlace.
+
+  Los dos caminos siguen existiendo en el código y eso es correcto: lo que
+  cambia es cuál se documenta y se enseña. `ALLOW_BUCKET_VIDEO` sigue siendo la
+  válvula para desarrollar, y en producción el arranque aborta sin
+  `VIDEO_PROVIDER_URL`.
 - **Proveedor de vídeo.** Falta contratarlo y configurar `VIDEO_PROVIDER_URL`.
   Mientras esté vacío, el vídeo se sirve del bucket propio, que vale para
   desarrollar y nada más: **en producción el arranque aborta sin esa variable**.

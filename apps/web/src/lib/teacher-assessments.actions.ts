@@ -37,6 +37,29 @@ export async function createAssessment(
   const passing = formData.get('passingScore');
   const dueAt = formData.get('dueAt');
 
+  // El grupo solo viaja si la casilla esta marcada. Los dos numeros estan
+  // SIEMPRE en el formulario -tienen que estarlo para que funcione sin
+  // JavaScript-, asi que mandarlos siempre convertiria en grupal cualquier
+  // actividad creada sin tocar ese bloque.
+  const esGrupal = formData.get('isGroupWork') === '1';
+  const minSize = Number(formData.get('groupMinSize'));
+  const maxSize = Number(formData.get('groupMaxSize'));
+
+  if (esGrupal) {
+    if (!Number.isInteger(minSize) || !Number.isInteger(maxSize)) {
+      return { error: 'El tamaño del grupo se cuenta en alumnos enteros.' };
+    }
+    if (minSize < 2) {
+      return {
+        error:
+          'Un grupo necesita al menos dos alumnos. Si la actividad es individual, desmarca “Se hace en grupo”.',
+      };
+    }
+    if (maxSize < minSize) {
+      return { error: 'El máximo de integrantes no puede ser menor que el mínimo.' };
+    }
+  }
+
   const result = await api<{ assessmentId: string }>('/assessments', {
     method: 'POST',
     body: {
@@ -58,6 +81,7 @@ export async function createAssessment(
       ...(typeof dueAt === 'string' && dueAt.length > 0
         ? { dueAt: new Date(dueAt).toISOString() }
         : {}),
+      ...(esGrupal ? { groupWork: { minSize, maxSize } } : {}),
     },
   });
 

@@ -57,6 +57,8 @@ export interface CreateAssessmentInput {
   maxAttempts?: number | undefined;
   timeLimitMinutes?: number | undefined;
   dueAt?: string | undefined;
+  /** Rango de integrantes. Ausente = la actividad se hace individualmente. */
+  groupWork?: { minSize: number; maxSize: number } | null | undefined;
 }
 
 /**
@@ -113,6 +115,7 @@ export class CreateAssessmentUseCase implements UseCase<CreateAssessmentInput, {
       maxAttempts: input.maxAttempts ?? undefined,
       timeLimitMinutes: input.timeLimitMinutes ?? null,
       dueAt: input.dueAt ? new Date(input.dueAt) : null,
+      groupWork: input.groupWork ?? null,
       now,
     });
 

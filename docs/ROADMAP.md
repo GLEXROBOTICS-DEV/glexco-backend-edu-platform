@@ -313,6 +313,29 @@ frontend o clientes reales:
 - [x] **Lista de alumnos del salón** con quién activó su kit y quién se
       descolgó, y **ficha individual de cada alumno** con sus notas y su
       evolución. La dirección ve las de todo su colegio.
+- [x] **Actividades en grupo.** El docente marca la actividad como grupal y fija
+      un rango de integrantes; el alumno elige a sus compañeros al empezar, con
+      un desplegable de casillas que funciona sin JavaScript.
+
+      **Quien ya empezó con un grupo desaparece de la lista de los demás, y eso
+      no lo garantiza la lista.** Entre que se pinta y que el alumno pulsa, otro
+      grupo puede ficharle, y dos que pulsan a la vez ven los dos la misma lista
+      libre. Lo garantiza un índice único sobre (actividad, alumno, intento) en
+      `submission_members`: la misma pieza que hace que un código de libro se
+      canjee una sola vez, y por la misma razón. Comprobar antes de insertar es
+      la condición de carrera clásica, y en un aula treinta alumnos empiezan la
+      misma actividad en el mismo minuto.
+
+      **La nota llega a cada integrante, con un evento por cabeza**, porque la
+      analítica y el progreso archivan por (alumno, evaluación): con un solo
+      evento, los compañeros de quien pulsó entregar se quedarían sin nota en su
+      portal y sin contar en la media de su salón. Pero los **fallos por
+      pregunta** van solo en el evento de quien entregó: el grupo respondió una
+      vez, y repetirlos inflaría el dato con el que el docente decide qué
+      repasar.
+
+      Un rango y no un número fijo porque una clase rara vez se divide exacta:
+      con 23 alumnos y grupos de 4, tres se quedarían sin poder entregar.
 - [ ] Portal docente, lo que falta: recursos pedagógicos y capacitación docente.
 - [x] **Tipo de pregunta `ordering`**, con corrección automática y puntuación
       **parcial**: cuenta cuántas piezas quedaron en su sitio. En una pregunta de

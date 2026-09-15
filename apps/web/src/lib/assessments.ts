@@ -192,3 +192,69 @@ export async function fetchMyResult(assessmentId: string): Promise<MyResult | nu
 
   return result.data;
 }
+
+// ---------------------------------------------------------------------------
+// Trabajo en grupo
+// ---------------------------------------------------------------------------
+
+export interface Classmate {
+  studentId: string;
+  fullName: string | null;
+}
+
+/** Lo que hace falta para pintar el selector de companeros. */
+export interface GroupOptions {
+  /** `null` = la actividad es individual y no hay nada que elegir. */
+  groupWork: { minSize: number; maxSize: number } | null;
+  /** Companeros del salon que TODAVIA no estan en ningun grupo. */
+  available: Classmate[];
+  /** Cuantos ya empezaron con otros. Se dice en pantalla, no se esconde. */
+  takenCount: number;
+}
+
+/**
+ * Quien queda libre para formar grupo en esta actividad.
+ *
+ * Cruza dos servicios a proposito, y cada uno pone lo que es suyo: evaluacion
+ * sabe quien esta ya comprometido -es el dueno de las entregas- e instituciones
+ * sabe quien es companero de quien y como se llama. Pedirle los nombres a
+ * evaluacion le obligaria a conocer el directorio de alumnos, que es de otro.
+ *
+ * **La lista que sale de aqui no es una garantia, es una cortesia.** Entre que
+ * se pinta y que el alumno pulsa, otro grupo puede fichar a alguien; quien lo
+ * impide de verdad es el indice unico del servicio de evaluacion. Por eso el
+ * formulario tiene que saber tratar el error de "ya lo cogieron" y no darlo por
+ * imposible.
+ */
+export async function fetchGroupOptions(assessmentId: string): Promise<GroupOptions> {
+  const [disponibilidad, companeros] = await Promise.all([
+    api<{
+      groupWork: { minSize: number; maxSize: number } | null;
+      takenStudentIds: string[];
+    }>(`/assessments/${assessmentId}/groupmates`),
+    api<{ items: Classmate[] }>('/classrooms/mine/classmates'),
+  ]);
+
+  if (!disponibilidad.ok) {
+    console.error('No se pudo leer la disponibilidad de grupo', {
+      code: disponibilidad.error.code,
+      correlationId: disponibilidad.error.correlationId,
+    });
+    // Se trata como individual: es lo que ya hacia el portal antes de que
+    // existieran los grupos, asi que el alumno puede seguir trabajando. Lo que
+    // NO se hace es inventar una lista de companeros.
+    return { groupWork: null, available: [], takenCount: 0 };
+  }
+
+  const group = disponibilidad.data.groupWork;
+  if (!group) return { groupWork: null, available: [], takenCount: 0 };
+
+  const cogidos = new Set(disponibilidad.data.takenStudentIds);
+  const todos = companeros.ok ? companeros.data.items : [];
+
+  return {
+    groupWork: group,
+    available: todos.filter((companero) => !cogidos.has(companero.studentId)),
+    takenCount: todos.filter((companero) => cogidos.has(companero.studentId)).length,
+  };
+}

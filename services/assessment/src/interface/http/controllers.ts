@@ -18,11 +18,13 @@ import {
   gradeSubmissionSchema,
   listAssessmentsSchema,
   saveAnswerSchema,
+  startAttemptSchema,
   type AddQuestionRequest,
   type CreateAssessmentRequest,
   type GradeSubmissionRequest,
   type ListAssessmentsQuery,
   type SaveAnswerRequest,
+  type StartAttemptRequest,
 } from '@glexco/contracts';
 import { RequirePermissions, zodBody, zodQuery } from '@glexco/nest-platform';
 import { z } from 'zod';
@@ -36,6 +38,7 @@ import {
   PublishAssessmentUseCase,
 } from '../../application/manage-assessment.usecase';
 import {
+  AvailableGroupmatesUseCase,
   GradeSubmissionUseCase,
   SaveAnswerUseCase,
   MyResultUseCase,
@@ -185,6 +188,7 @@ export class AttemptsController {
     private readonly submit: SubmitAttemptUseCase,
     private readonly grade: GradeSubmissionUseCase,
     private readonly myResult: MyResultUseCase,
+    private readonly groupmates: AvailableGroupmatesUseCase,
   ) {}
 
   /**
@@ -207,13 +211,33 @@ export class AttemptsController {
   @HttpCode(HttpStatus.CREATED)
   async startAttempt(
     @Param('assessmentId') assessmentId: string,
-    @Body() body: { classroomId?: string },
+    @Body(zodBody(startAttemptSchema)) body: StartAttemptRequest,
     @Req() request: Request,
   ) {
     return this.start.execute(
-      { assessmentId, classroomId: body?.classroomId },
+      {
+        assessmentId,
+        classroomId: body?.classroomId,
+        groupmateIds: body?.groupmateIds,
+      },
       contextFrom(request),
     );
+  }
+
+  /**
+   * Quien sigue libre para formar grupo en esta actividad.
+   *
+   * Devuelve solo identificadores: los nombres los pone el portal, que ya tiene
+   * la lista de su salon. Mandarlos desde aqui obligaria a este servicio a
+   * conocer el directorio de alumnos, que es de otro.
+   */
+  @Get(':assessmentId/groupmates')
+  @RequirePermissions(PERMISSIONS.ASSESSMENT_SUBMIT)
+  async availableGroupmates(
+    @Param('assessmentId') assessmentId: string,
+    @Req() request: Request,
+  ) {
+    return this.groupmates.execute({ assessmentId }, contextFrom(request));
   }
 
   /** Guarda una respuesta sin entregar. */

@@ -41,6 +41,7 @@ const { ROLES, ROLE_PERMISSIONS } = contracts;
 const IDENTITY = 'http://localhost:3101';
 const INSTITUTIONS = 'http://localhost:3102';
 const CATALOG = 'http://localhost:3103';
+const ASSESSMENT = 'http://localhost:3105';
 
 /** Numero de peticiones simultaneas. Veinte basta para que la carrera se
  *  manifieste siempre y sigue siendo un numero realista: un salon entero
@@ -99,6 +100,17 @@ async function queryCatalog(sql, params = []) {
 
 async function queryInstitutions(sql, params = []) {
   const client = new pg.Client({ connectionString: requireEnv('DATABASE_URL_INSTITUTIONS') });
+  await client.connect();
+  try {
+    const { rows } = await client.query(sql, params);
+    return rows;
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
+async function queryAssessment(sql, params = []) {
+  const client = new pg.Client({ connectionString: requireEnv('DATABASE_URL_ASSESSMENT') });
   await client.connect();
   try {
     const { rows } = await client.query(sql, params);
@@ -465,6 +477,107 @@ async function waitFor(probe, timeoutMs, intervalMs = 1_000) {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// 3.5  Un alumno no puede acabar en dos grupos de la misma actividad
+// ---------------------------------------------------------------------------
+
+/**
+ * La carrera real de un aula.
+ *
+ * Treinta alumnos abren la misma actividad en el mismo minuto, y dos grupos
+ * eligen al mismo companero porque los dos vieron la lista cuando aun estaba
+ * libre. **Comprobar antes de insertar no lo impide**: las dos peticiones pasan
+ * la comprobacion y las dos escriben. Lo impide el indice unico
+ * `submission_members_one_group_per_attempt`, y esto es lo que lo demuestra.
+ *
+ * Si algun dia alguien "arregla" esto comprobando disponibilidad en el caso de
+ * uso y quitando el indice, esta comprobacion se pondra roja.
+ */
+async function checkGroupMemberIsClaimedOnce() {
+  section('3.5  Un alumno en un solo grupo por actividad');
+
+  const { institutionId } = await seedInstitution();
+
+  // Uno disputado y N que se lo pelean, todos del mismo colegio: la actividad
+  // es de institucion y el aislamiento rechazaria a los de fuera.
+  const disputado = (await seedUsers(1, { institutionId }))[0];
+  const aspirantes = await seedUsers(CONCURRENCY, { institutionId });
+
+  const kit = await seedCatalog({ codeCount: 1 });
+  const autor = (await seedUsers(1, { roles: [ROLES.TEACHER], institutionId }))[0];
+  const autorToken = mintAccessToken({
+    userId: autor.id,
+    roles: autor.roles,
+    institutionId,
+  });
+
+  const creada = await postJson(`${ASSESSMENT}/api/v1/assessments`, autorToken, {
+    kitId: kit.kitId,
+    title: `Reto en grupo ${Date.now()}`,
+    kind: 'practical',
+    groupWork: { minSize: 2, maxSize: 2 },
+  });
+
+  const assessmentId = creada.body?.assessmentId;
+  report('La actividad en grupo se crea', creada.status === 201, `status=${creada.status}`);
+  if (!assessmentId) return;
+
+  await postJson(`${ASSESSMENT}/api/v1/assessments/${assessmentId}/questions`, autorToken, {
+    type: 'short_answer',
+    prompt: 'Explicad como repartisteis el montaje.',
+    options: [],
+    correctOptions: [],
+    points: 10,
+  });
+  await postJson(`${ASSESSMENT}/api/v1/assessments/${assessmentId}/publish`, autorToken, {});
+
+  // Todos los tokens ANTES de disparar: firmar dentro del Promise.all
+  // introduciria decenas de milisegundos entre peticiones y la carrera dejaria
+  // de serlo.
+  const tokens = aspirantes.map((alumno) =>
+    mintAccessToken({ userId: alumno.id, roles: alumno.roles, institutionId }),
+  );
+
+  const results = await Promise.all(
+    tokens.map((token) =>
+      postJson(`${ASSESSMENT}/api/v1/assessments/${assessmentId}/attempts`, token, {
+        groupmateIds: [disputado.id],
+      }),
+    ),
+  );
+
+  const ganaron = results.filter((r) => r.status === 201);
+  const rechazados = results.filter(
+    (r) => r.status === 409 && r.body?.code === 'GROUP_MEMBER_TAKEN',
+  );
+  const otros = results.filter((r) => !ganaron.includes(r) && !rechazados.includes(r));
+
+  report(
+    `Exactamente 1 grupo se lleva al companero de ${CONCURRENCY} simultaneos`,
+    ganaron.length === 1,
+    `exitos=${ganaron.length}`,
+  );
+  report(
+    `Los otros ${CONCURRENCY - 1} reciben 409 GROUP_MEMBER_TAKEN`,
+    rechazados.length === CONCURRENCY - 1,
+    `409=${rechazados.length}, otros=${otros.length} ${JSON.stringify(
+      otros.slice(0, 2).map((r) => ({ status: r.status, code: r.body?.code })),
+    )}`,
+  );
+
+  const filas = await queryAssessment(
+    `SELECT submission_id FROM assessment.submission_members
+      WHERE assessment_id = $1 AND student_id = $2`,
+    [assessmentId, disputado.id],
+  );
+
+  report(
+    'El alumno disputado esta en UN solo grupo',
+    filas.length === 1,
+    `filas=${filas.length}`,
+  );
+}
+
 async function main() {
   console.log(`${colors.bold}Comprobaciones de concurrencia GLEXCO${colors.reset}`);
   console.log(`${colors.dim}${CONCURRENCY} peticiones simultaneas por prueba${colors.reset}`);
@@ -478,6 +591,7 @@ async function main() {
     ['3.2', checkClassroomCapacity],
     ['3.3', checkOutboxSurvivesBusOutage],
     ['3.4', checkEventDeduplication],
+    ['3.5', checkGroupMemberIsClaimedOnce],
   ];
 
   for (const [id, check] of checks) {
