@@ -1,5 +1,87 @@
 # Traspaso a otra máquina
 
+## Estado vigente — 15 de septiembre de 2026
+
+**Empieza por [AGENTS.md](../AGENTS.md) y la última entrada de
+[BITACORA.md](BITACORA.md).** Esta sección prevalece sobre las notas históricas
+que siguen, conservadas por sus procedimientos operativos.
+
+### Copia completa de esta máquina
+
+El ZIP de este traspaso incluye todos los archivos de la carpeta del proyecto:
+código, documentación, diseños, `.git`, `.env`, dependencias, compilaciones y
+cachés. **Contiene secretos locales: es una copia privada para el traslado.**
+Las exclusiones de `.env` y archivos generados descritas más abajo corresponden
+al ZIP antiguo, no a esta copia.
+
+Los enlaces de pnpm se conservan como enlaces simbólicos dentro del ZIP; algunos
+extractores de Windows no los restauran. Extrae en una ruta corta (por ejemplo,
+`C:\glexco`) y ejecuta `pnpm install --frozen-lockfile --force` para reconstruir
+las dependencias y sus enlaces en la nueva PC. Usa Node >= 22 y pnpm 11.25.0,
+la versión fijada en `package.json`. Conserva el `.env` trasladado y revisa
+puertos/rutas locales; `pnpm setup` solo hace falta si no existe configuración.
+
+Los volúmenes de Docker y los datos de Railway están fuera de esta carpeta y
+**no forman parte del ZIP**. Para una base local nueva, levanta Docker, aplica
+las ocho migraciones por servicio indicadas abajo, arranca los nueve servicios
+y el portal, y ejecuta `pnpm seed`. Para conservar datos existentes se necesita
+una copia y restauración separada de base de datos y almacenamiento.
+
+### Git comprobado contra el remoto
+
+**Actualización posterior al ZIP:** el usuario autorizó publicar los cuatro
+commits y registrar `AGENTS.md` junto con la documentación, sin coautoría.
+La descripción siguiente corresponde a la instantánea del ZIP anterior al
+push. Al retomar esa copia, comprobar el estado local y remoto antes de
+sincronizar; sus documentos locales pueden coincidir parcialmente con lo que
+ya se haya publicado. Ver la sesión 17 de la bitácora.
+
+Se ejecutó `git fetch origin`. `main` local está cuatro commits por delante de
+`origin/main`, sin commits remotos pendientes de incorporar:
+
+- `d432d23`: rúbricas de corrección y preguntas de emparejar.
+- `12b7f5c`: comprobaciones del portal para emparejar y rúbricas.
+- `ae15f91`: guía de demostración.
+- `d63da16`: rutas reales en la guía de demostración (HEAD de la copia).
+
+`AGENTS.md` todavía no está registrado en Git. Los cambios de esta revisión en
+`docs/BITACORA.md` y este documento también quedan locales. No se hizo commit ni
+push: el encargo fue comprobar el estado y preparar el traslado. El ZIP conserva
+todo lo anterior; clonar GitHub todavía no produce el mismo estado.
+
+Antes de continuar desde otra PC, revisa `git status`, ejecuta `git fetch origin`
+y compara las ramas. Queda pendiente registrar la documentación y subir los
+cuatro commits locales junto con ella cuando se decida publicar esos cambios.
+No hagas un pull automático con modificaciones locales sin revisar.
+
+### Qué sigue realmente
+
+Según [ROADMAP.md](ROADMAP.md) y [GUIA-DEMOSTRACION.md](GUIA-DEMOSTRACION.md):
+
+1. Completar i18n de Teacher Center y Admin y revisar accesibilidad manual.
+2. Contratar/configurar SMTP real y proveedor privado de vídeo.
+3. Crear autoría de misiones, certificaciones a nivel de plataforma y
+   configuración de Admin; recursos pedagógicos y capacitación docente.
+4. Notificaciones, mesa de ayuda y base de conocimiento.
+5. Fase 8: carga, seguridad, CI/CD, réplicas de lectura, restauración de copias,
+   alertas/runbooks y manifiestos AWS/Huawei.
+6. Revisar la deuda documentada: 2144 usuarios de prueba con dígitos en apellidos
+   no pueden ingresar; `StudentWeakSpots` sigue sin conectar al enunciado.
+
+Ya están implementados i18n del alumno, retos y portafolio, misiones semanales,
+certificados, rúbricas, `ordering`, `matching`, gestión de instituciones/personal/
+códigos/contenidos en Admin y exportación CSV/PDF. No repetirlos como pendientes.
+
+Últimos resultados **históricos**, no reejecutados en esta revisión: build 15/15,
+typecheck 21/21, 264 pruebas, smoke 96, concurrencia 14 y smoke:web 243. Al
+restaurar, ejecutar las comprobaciones; los números antiguos de abajo no son un
+contrato vigente. Este traslado verifica archivos, no el funcionamiento actual
+del despliegue de Railway.
+
+---
+
+## Notas históricas de los traspasos anteriores
+
 Este documento es para la instancia de Claude que retome el proyecto desde el
 zip. Léelo entero antes de tocar nada; después sigue el orden de
 [CLAUDE.md](../CLAUDE.md).

@@ -7,6 +7,69 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 17 — 2026-09-15 — Publicación autorizada del estado local
+
+### Qué se hizo y por qué
+
+Tras recibir la instrucción explícita de hacer push sin coautoría, se preparó
+un commit con `AGENTS.md` y la documentación del traslado, junto con los cuatro
+commits locales pendientes. Se volvió a consultar `origin`: no había cambios
+remotos nuevos. La comprobación `git diff --check` pasó sin errores.
+
+El commit no lleva `Co-Authored-By` ni atribución a Codex. No se cambió código
+de aplicación ni se repitieron pruebas funcionales para esta actualización de
+documentación. El push se verifica comparando el HEAD local con `origin/main`.
+
+### Qué falta
+
+Los pendientes de producto siguen en la sección vigente de `TRASPASO.md`.
+El ZIP ya entregado conserva la instantánea anterior al push; después de
+extraerlo, revisar sus cambios locales antes de sincronizarlo con GitHub.
+
+---
+
+## Sesión 16 — 2026-09-15 — Revisión del remoto y copia para otra PC
+
+### Qué se hizo
+
+- Se consultó el remoto con `git fetch origin`: `main` local (`d63da16`) tiene
+  cuatro commits que aún no están en `origin/main`, y no hay commits remotos
+  pendientes de incorporar. Son `d432d23`, `12b7f5c`, `ae15f91` y `d63da16`.
+- Antes de editar, el único archivo sin registrar era `AGENTS.md`; no había
+  modificaciones en archivos versionados ni stashes. No se hizo commit ni push.
+- Se actualizó `docs/TRASPASO.md` con el estado de Git, el alcance de la copia,
+  cómo recuperar las dependencias en otra PC y los pendientes vigentes.
+- Se preparó el traslado completo de la carpeta a un ZIP en Descargas, incluidos
+  `.git`, `.env`, todos los `.md`, dependencias y archivos generados. El paquete
+  incorpora un manifiesto de archivos y hashes para comprobar su integridad.
+
+### Por qué
+
+El usuario pidió todos los archivos locales. Por eso esta copia privada incluye
+la configuración ignorada por Git, a diferencia del ZIP antiguo. Las dependencias
+de pnpm usan enlaces que deben reconstruirse en la PC de destino. Los volúmenes
+de Docker y los datos alojados en Railway no viven en el repositorio y requieren
+su propio respaldo si se quieren trasladar también.
+
+La bitácora acababa en la sesión 15, pero el código y el roadmap ya incluían
+trabajo posterior: traducción del alumno, retos/portafolio, misiones, Admin,
+CSV/PDF, rúbricas y emparejamiento. Se consolidó el estado en el traspaso sin
+inventar sesiones ni presentar las pruebas antiguas como recién ejecutadas.
+
+### Qué falta
+
+- Registrar `AGENTS.md` y las actualizaciones de documentación y publicar los
+  cuatro commits pendientes cuando se decida subirlos.
+- En la nueva PC: restaurar el ZIP, reinstalar dependencias, revisar `.env`,
+  levantar infraestructura, migrar/sembrar una base nueva y ejecutar verificaciones.
+- Producto: i18n docente/Admin, accesibilidad manual, SMTP/vídeo, autoría de
+  misiones, certificaciones/configuración de plataforma, capacitación docente,
+  notificaciones/soporte y endurecimiento operativo (Fase 8).
+- Deuda documentada: usuarios masivos con apellidos inválidos y conectar
+  `StudentWeakSpots` con enunciados. Detalle vigente en `docs/TRASPASO.md`.
+
+---
+
 ## Sesión 15 — 2026-09-04 — El comando de reconstrucción de proyecciones
 
 La sesión 14 cerró señalando lo mismo cuatro veces: cada consumidor nuevo nace
