@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getFormatter } from 'next-intl/server';
+import { getFormatter, getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { requireSession } from '../../../../../../lib/session';
 import { fetchPendingSubmissions, fetchRoster, studentLabel } from '../../../../../../lib/grading';
@@ -15,6 +15,7 @@ export default async function GradingInboxPage({
 }) {
   await requireSession();
   const { classroomId } = await params;
+  const t = await getTranslations('docente');
 
   return (
     <>
@@ -23,14 +24,12 @@ export default async function GradingInboxPage({
           href={`/docentes/salones/${classroomId}`}
           className="text-sm font-medium text-brand-600 hover:underline"
         >
-          ← Cómo va el salón
+          {t('volverAComoVa')}
         </a>
         <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="mt-1 font-semibold">
-          Por corregir
+          {t('porCorregir')}
         </h1>
-        <p className="mt-1 text-sm text-ink-500">
-          Las entregas que esperan tu puntuación. Lo de marcar ya está corregido.
-        </p>
+        <p className="mt-1 text-sm text-ink-500">{t('porCorregirSubtitulo')}</p>
       </section>
 
       <Suspense fallback={<CardSkeleton />}>
@@ -49,6 +48,7 @@ export default async function GradingInboxPage({
  */
 async function Inbox({ classroomId }: { classroomId: string }) {
   const format = await getFormatter();
+  const t = await getTranslations('docente');
   const [pending, roster] = await Promise.all([
     fetchPendingSubmissions(classroomId),
     fetchRoster(classroomId),
@@ -57,8 +57,8 @@ async function Inbox({ classroomId }: { classroomId: string }) {
   if (pending.failed) {
     return (
       <EmptyState
-        title="No pudimos cargar la bandeja"
-        description="Puede que este salón no sea tuyo, o que el servicio esté volviendo. Vuelve a intentarlo."
+        title={t('noPudimosCargarBandeja')}
+        description={t('noPudimosCargarBandejaAyuda')}
       />
     );
   }
@@ -66,9 +66,9 @@ async function Inbox({ classroomId }: { classroomId: string }) {
   if (pending.items.length === 0) {
     return (
       <EmptyState
-        title="No tienes nada por corregir"
-        description="Cuando tus alumnos entreguen algo abierto —una respuesta escrita, una foto del robot, un enlace a su vídeo— aparecerá aquí."
-        action={{ href: `/docentes/salones/${classroomId}`, label: 'Ver cómo va el salón' }}
+        title={t('nadaPorCorregir')}
+        description={t('nadaPorCorregirAyuda')}
+        action={{ href: `/docentes/salones/${classroomId}`, label: t('verComoVaElSalon') }}
       />
     );
   }
@@ -76,7 +76,7 @@ async function Inbox({ classroomId }: { classroomId: string }) {
   return (
     <section aria-labelledby="pendientes" className="grid gap-[var(--portal-gap)]">
       <SectionTitle id="pendientes">
-        {pending.items.length} {pending.items.length === 1 ? 'entrega' : 'entregas'}
+        {t('cuantasEntregas', { cuantas: pending.items.length })}
       </SectionTitle>
 
       <ul className="grid list-none gap-3">
@@ -93,8 +93,10 @@ async function Inbox({ classroomId }: { classroomId: string }) {
                 </p>
                 <p className="mt-0.5 text-sm text-ink-500">
                   {item.assessmentTitle}
-                  {item.origin === 'glexco' ? ' · GLEXCO' : ' · tu evaluación'}
-                  {item.attemptNumber > 1 ? ` · intento ${item.attemptNumber}` : ''}
+                  {item.origin === 'glexco' ? ` · ${t('origenGlexco')}` : ` · ${t('origenTuya')}`}
+                  {item.attemptNumber > 1
+                    ? ` · ${t('intentoNumero', { numero: item.attemptNumber })}`
+                    : ''}
                 </p>
               </div>
 
@@ -113,11 +115,12 @@ async function Inbox({ classroomId }: { classroomId: string }) {
                   data-pending={item.pendingQuestions}
                   className="font-medium tabular-nums text-ink-900"
                 >
-                  {item.pendingQuestions}{' '}
-                  {item.pendingQuestions === 1 ? 'pregunta' : 'preguntas'}
+                  {t('cuantasPreguntas', { cuantas: item.pendingQuestions })}
                 </p>
                 <p className="text-ink-400">
-                  {item.submittedAt ? `Entregó el ${shortDate(format, item.submittedAt)}` : 'Sin fecha'}
+                  {item.submittedAt
+                    ? t('entregoEl', { fecha: shortDate(format, item.submittedAt) })
+                    : t('sinFecha')}
                 </p>
               </div>
             </a>

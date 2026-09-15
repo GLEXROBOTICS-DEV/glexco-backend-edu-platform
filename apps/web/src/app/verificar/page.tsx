@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { gatewayUrl } from '../../lib/api';
 import { RegistrationShell } from '../registro/shell';
 
@@ -26,24 +27,23 @@ export default async function VerificarPage({ searchParams }: PageProps) {
   const token = typeof raw === 'string' ? raw : '';
 
   const ok = token ? await confirm(token) : false;
+  const t = await getTranslations('verificar');
 
   return (
     <RegistrationShell step={0}>
       <div className="text-center" data-verified={ok ? '1' : '0'}>
         <h1 className="font-display text-2xl font-semibold">
-          {ok ? 'Tu correo está confirmado' : 'Este enlace ya no sirve'}
+          {ok ? t('confirmado') : t('gastado')}
         </h1>
         <p className="mt-3 text-sm text-ink-700">
-          {ok
-            ? 'Gracias. Ya puedes entrar a tu portal con tu correo y tu contraseña.'
-            : 'Los enlaces de confirmación sirven una sola vez y caducan a los dos días. Si ya confirmaste tu cuenta, simplemente ingresa.'}
+          {ok ? t('confirmadoAyuda') : t('gastadoAyuda')}
         </p>
 
         <a
           href="/ingresar"
           className="btn btn-primary mt-6"
         >
-          Ir a ingresar
+          {t('irAIngresar')}
         </a>
       </div>
     </RegistrationShell>

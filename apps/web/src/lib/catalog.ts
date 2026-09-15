@@ -207,7 +207,7 @@ export function gradeLabel(t: (key: string) => string, grade: string): string {
  * mostrar una etiqueta fea. Aqui se prefiere la etiqueta fea: el alumno ve su
  * material y quien mantenga esto ve la clave sin traducir.
  */
-function safeLabel(t: (key: string) => string, space: string, key: string): string {
+export function safeLabel(t: (key: string) => string, space: string, key: string): string {
   if (!key) return '';
   try {
     return t(space + '.' + key);

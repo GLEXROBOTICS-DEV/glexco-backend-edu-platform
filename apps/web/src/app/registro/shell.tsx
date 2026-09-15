@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { BrandPanel } from '../../components/brand-panel';
 
 /**
@@ -8,7 +9,7 @@ import { BrandPanel } from '../../components/brand-panel';
  * puerta. Cuando eran dos bloques calcados, cualquier retoque en uno dejaba al
  * otro atras y las dos mitades de la misma puerta acababan sin parecerse.
  */
-export function RegistrationShell({
+export async function RegistrationShell({
   step,
   children,
 }: {
@@ -16,12 +17,11 @@ export function RegistrationShell({
   step: 0 | 1 | 2;
   children: React.ReactNode;
 }) {
+  const t = await getTranslations('registro');
+
   return (
     <main id="contenido" className="flex min-h-dvh flex-col lg:flex-row">
-      <BrandPanel
-        headline="Tu libro abre tu kit"
-        description="Crea tu cuenta con el código que viene dentro y empieza a construir con uKit, uGoT, Yanshee y toda la línea GLEXCO – UBTECH."
-      />
+      <BrandPanel headline={t('marcaTitular')} description={t('marcaDescripcion')} />
 
       <section className="flex flex-1 items-center justify-center bg-surface-50 px-6 py-12">
         <div className="w-full max-w-[26.5rem]">
@@ -52,12 +52,14 @@ export function RegistrationShell({
  * El estado va tambien en texto (`Paso 1 de 2`) y no solo en el color de los
  * puntos, que es lo unico que un lector de pantalla puede anunciar.
  */
-function Pasos({ current }: { current: 1 | 2 }) {
+async function Pasos({ current }: { current: 1 | 2 }) {
+  const t = await getTranslations('registro');
+
   return (
     <div className="mb-6" data-step={current}>
-      <p className="text-sm font-medium text-ink-500">Paso {current} de 2</p>
+      <p className="text-sm font-medium text-ink-500">{t('paso', { actual: current })}</p>
       <h1 className="mt-1 font-display text-2xl font-semibold">
-        {current === 1 ? 'Crea tu cuenta' : 'Tus datos y tu código'}
+        {current === 1 ? t('tituloPaso1') : t('tituloPaso2')}
       </h1>
       <div className="mt-3 flex gap-1.5" aria-hidden="true">
         <span className="h-1 flex-1 rounded-full bg-brand-600" />

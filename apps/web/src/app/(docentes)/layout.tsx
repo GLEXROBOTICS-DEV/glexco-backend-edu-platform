@@ -53,16 +53,18 @@ export default async function DocentesLayout({ children }: { children: React.Rea
   // si esta mirando un colegio o toda la plataforma, antes de leer una cifra.
   const portal = session.portal === 'admin' ? 'admin' : 'teacher';
 
+  const t = await getTranslations('docente');
+
   const items: NavItem[] = [
-    { href: '/docentes', label: 'Mis salones', icon: <ClassroomIcon />, exact: true },
-    { href: '/docentes/evaluaciones', label: 'Evaluaciones', icon: <GradingIcon /> },
-    { href: '/docentes/anuncios', label: 'Anuncios', icon: <AnnouncementIcon /> },
+    { href: '/docentes', label: t('navSalones'), icon: <ClassroomIcon />, exact: true },
+    { href: '/docentes/evaluaciones', label: t('navEvaluaciones'), icon: <GradingIcon /> },
+    { href: '/docentes/anuncios', label: t('navAnuncios'), icon: <AnnouncementIcon /> },
   ];
   if (isAdmin) {
-    items.push({ href: '/docentes/institucion', label: 'Mi institución', icon: <InstitutionIcon /> });
+    items.push({ href: '/docentes/institucion', label: t('navInstitucion'), icon: <InstitutionIcon /> });
   }
   if (isPlatform) {
-    items.push({ href: '/admin', label: 'Plataforma', icon: <DashboardIcon />, exact: true });
+    items.push({ href: '/admin', label: t('navPlataforma'), icon: <DashboardIcon />, exact: true });
   }
 
   // Las pantallas de gestion se anaden POR PERMISO y una a una, no en bloque
@@ -73,29 +75,35 @@ export default async function DocentesLayout({ children }: { children: React.Rea
   if (session.permissions.includes(PERMISSIONS.INSTITUTION_CREATE)) {
     items.push({
       href: '/admin/instituciones',
-      label: 'Instituciones',
+      label: t('navInstituciones'),
       icon: <InstitutionIcon />,
     });
   }
   if (creaAlgunRol(session.roles)) {
-    items.push({ href: '/admin/usuarios', label: 'Personal', icon: <StudentsIcon /> });
+    items.push({ href: '/admin/usuarios', label: t('navPersonal'), icon: <StudentsIcon /> });
   }
   if (session.permissions.includes(PERMISSIONS.ACTIVATION_CODE_GENERATE)) {
-    items.push({ href: '/admin/codigos', label: 'Codigos', icon: <ActivationCodeIcon /> });
+    items.push({ href: '/admin/codigos', label: t('navCodigos'), icon: <ActivationCodeIcon /> });
   }
   if (session.permissions.includes(PERMISSIONS.CONTENT_PUBLISH)) {
-    items.push({ href: '/admin/contenidos', label: 'Contenidos', icon: <CourseIcon /> });
+    items.push({ href: '/admin/contenidos', label: t('navContenidos'), icon: <CourseIcon /> });
   }
 
   return (
     <AppShell
       portal={portal}
-      label={portal === 'admin' ? 'Admin' : 'Teacher Center'}
+      label={portal === 'admin' ? t('etiquetaAdmin') : t('etiquetaTeacherCenter')}
       homeHref="/docentes"
       accountHref="/docentes/cuenta"
       items={items}
       session={session}
-      subtitle={portal === 'admin' ? 'GLEXCO' : isAdmin ? 'Dirección' : 'Docente'}
+      subtitle={
+        portal === 'admin'
+          ? t('subtituloGlexco')
+          : isAdmin
+            ? t('subtituloDireccion')
+            : t('subtituloDocente')
+      }
       onLogout={logout}
       tour={tourFor(portal, await getTranslations('tour'))}
     >

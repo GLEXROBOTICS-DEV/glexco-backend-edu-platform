@@ -65,6 +65,7 @@ export default async function RegistroPage({ searchParams }: PageProps) {
 
   const ready = grade !== '' && (accountType === 'independent' || institution !== null);
   const vocab = await getTranslations();
+  const t = await getTranslations('registro');
 
   if (!ready) {
     return (
@@ -88,11 +89,11 @@ export default async function RegistroPage({ searchParams }: PageProps) {
     <RegistrationShell step={2}>
       <div className="mb-6 rounded-lg border border-line-200 bg-white px-4 py-3 text-sm">
         <p className="font-medium text-ink-900">
-          {institution ? institution.name : 'Cuenta independiente'}
+          {institution ? institution.name : t('cuentaIndependiente')}
         </p>
         <p className="mt-0.5 text-ink-500">
           {gradeLabel(vocab, grade)}
-          {institution ? ` · ${institution.city}` : ' · sin colegio'}
+          {institution ? ` · ${institution.city}` : ` · ${t('sinColegio')}`}
         </p>
         {/* Un enlace y no un boton "atras": conserva la URL del paso 1 con lo
             ya tecleado, asi que corregir el grado no obliga a escribir de nuevo
@@ -103,7 +104,7 @@ export default async function RegistroPage({ searchParams }: PageProps) {
           }`}
           className="mt-2 inline-block font-medium text-brand-600 hover:underline"
         >
-          Cambiar colegio o grado
+          {t('cambiarColegioGrado')}
         </a>
       </div>
 
@@ -138,26 +139,29 @@ async function PrimerPaso({
 }) {
   const isInstitutional = accountType === 'institutional';
   const vocab = await getTranslations();
+  const t = await getTranslations('registro');
 
   return (
     <>
       <div
         role="group"
-        aria-label="Tipo de cuenta"
+        aria-label={t('tipoCuenta')}
         className="mb-6 grid gap-2 sm:grid-cols-2"
         data-step="tipo"
       >
         <TipoOpcion
           href="/registro?tipo=institucional"
           selected={isInstitutional}
-          title="Estudio en un colegio"
-          description="Tu colegio te dio un código."
+          title={t('institucionalTitulo')}
+          description={t('institucionalDescripcion')}
+          selectedLabel={t('seleccionado')}
         />
         <TipoOpcion
           href="/registro?tipo=independiente"
           selected={!isInstitutional}
-          title="Compré el libro por mi cuenta"
-          description="Sin colegio, solo con tu código."
+          title={t('independienteTitulo')}
+          description={t('independienteDescripcion')}
+          selectedLabel={t('seleccionado')}
         />
       </div>
 
@@ -175,10 +179,10 @@ async function PrimerPaso({
         {isInstitutional ? (
           <div>
             <label htmlFor="colegio" className="block text-sm font-medium text-ink-700">
-              Código de tu colegio
+              {t('codigoColegio')}
             </label>
             <p id="colegio-ayuda" className="mt-1 text-sm text-ink-500">
-              Te lo da tu docente o la coordinación de tu colegio.
+              {t('codigoColegioAyuda')}
             </p>
             <input
               id="colegio"
@@ -194,7 +198,7 @@ async function PrimerPaso({
             />
             {notFound ? (
               <p id="colegio-error" role="alert" className="mt-1.5 text-sm text-danger">
-                No encontramos ningún colegio con ese código. Revísalo con tu docente.
+                {t('colegioNoEncontrado')}
               </p>
             ) : null}
           </div>
@@ -202,7 +206,7 @@ async function PrimerPaso({
 
         <div>
           <label htmlFor="grado" className="block text-sm font-medium text-ink-700">
-            ¿En qué grado estás?
+            {t('enQueGrado')}
           </label>
           <select
             id="grado"
@@ -211,7 +215,7 @@ async function PrimerPaso({
             required
             className="field mt-1.5"
           >
-            <option value="">Elige tu grado…</option>
+            <option value="">{t('eligeGrado')}</option>
             {ORDERED_GRADES.map((value) => (
               <option key={value} value={value}>
                 {gradeLabel(vocab, value)}
@@ -224,14 +228,14 @@ async function PrimerPaso({
           type="submit"
           className="btn btn-primary btn-block"
         >
-          Continuar
+          {t('continuar')}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-ink-500">
-        ¿Ya tienes cuenta?{' '}
+        {t('yaTienesCuenta')}{' '}
         <a href="/ingresar" className="font-medium text-brand-600 hover:underline">
-          Ingresa aquí
+          {t('ingresaAqui')}
         </a>
       </p>
     </>
@@ -251,11 +255,13 @@ function TipoOpcion({
   selected,
   title,
   description,
+  selectedLabel,
 }: {
   href: string;
   selected: boolean;
   title: string;
   description: string;
+  selectedLabel: string;
 }) {
   return (
     <a
@@ -272,7 +278,7 @@ function TipoOpcion({
         {title}
         {/* El estado no se comunica solo con color ni solo con un borde: para
             quien no distingue el uno del otro, esta palabra es la unica senal. */}
-        {selected ? <span className="sr-only"> (seleccionado)</span> : null}
+        {selected ? <span className="sr-only"> {selectedLabel}</span> : null}
       </span>
       <span className="mt-0.5 block text-sm text-ink-500">{description}</span>
     </a>

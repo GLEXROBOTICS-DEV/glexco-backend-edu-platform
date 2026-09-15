@@ -18,6 +18,7 @@ export default async function DocentesHome() {
   // "mis salones" sobre una lista que incluye los de otros tres docentes es
   // decirle algo falso, y ademas le hace dudar de si esta viendo lo que debe.
   const manages = session.portal === 'institution' || session.portal === 'admin';
+  const t = await getTranslations('docente');
 
   return (
     <>
@@ -26,11 +27,16 @@ export default async function DocentesHome() {
           vacio no aparece nunca. Antes solo se llegaba a crear un salon si no
           tenias ninguno... y el enlace daba 404. */}
       <PageHeader
-        title={manages ? 'Dirección' : 'Panel principal'}
-        subtitle={`${session.firstName} ${session.lastName} · año académico ${new Date().getFullYear()}`}
+        title={manages ? t('panelDireccion') : t('panelPrincipal')}
+        subtitle={t('anoAcademico', {
+          nombre: `${session.firstName} ${session.lastName}`,
+          // Como texto y no como numero: next-intl formatea los numeros segun el
+          // idioma y el ano saldria "2,026".
+          ano: String(new Date().getFullYear()),
+        })}
         actions={
           <a href="/docentes/salones/nuevo" className="btn btn-sm btn-primary">
-            Crear salón
+            {t('crearSalon')}
           </a>
         }
       />
@@ -39,7 +45,13 @@ export default async function DocentesHome() {
           a las preguntas con las que el docente entra: cuantos alumnos tengo,
           cuantos sitios quedan y cuanto tengo pendiente de corregir. Antes habia
           que abrir salon por salon para saberlo. */}
-      <Suspense fallback={<CifrasSkeleton />}>
+      <Suspense
+        fallback={
+          <CifrasSkeleton
+            labels={[t('salonesActivos'), t('alumnosSobreCupos'), t('entregasPorCalificar')]}
+          />
+        }
+      >
         <Cifras />
       </Suspense>
 
@@ -54,23 +66,24 @@ async function Cifras() {
   const { items, failed } = await fetchMyClassrooms();
   if (failed || items.length === 0) return null;
 
+  const t = await getTranslations('docente');
   const alumnos = items.reduce((total, c) => total + c.enrolledCount, 0);
   const cupos = items.reduce((total, c) => total + c.capacity, 0);
 
   return (
     <section aria-labelledby="cifras" className="grid gap-[var(--portal-gap)] sm:grid-cols-3">
       <h2 id="cifras" className="sr-only">
-        Resumen de tus salones
+        {t('resumenSalones')}
       </h2>
-      <Stat value={String(items.length)} label="Salones activos" />
+      <Stat value={String(items.length)} label={t('salonesActivos')} />
       {/* El par y no el porcentaje: "68 de 80" dice cuantos sitios quedan, que
           es lo que el docente va a querer saber antes de admitir a nadie mas. */}
-      <Stat value={`${alumnos} de ${cupos}`} label="Alumnos sobre cupos" />
+      <Stat value={t('sobreCupos', { alumnos, cupos })} label={t('alumnosSobreCupos')} />
 
       {/* La correccion pendiente va en su propio Suspense porque cuesta una
           llamada por salon: bloquear con ella las otras dos cifras -que salen de
           una sola- retrasaria toda la fila por el dato mas caro. */}
-      <Suspense fallback={<StatSkeleton label="Entregas por calificar" />}>
+      <Suspense fallback={<StatSkeleton label={t('entregasPorCalificar')} />}>
         <PorCalificar classroomIds={items.map((c) => c.classroomId)} />
       </Suspense>
     </section>
@@ -87,8 +100,9 @@ async function PorCalificar({ classroomIds }: { classroomIds: readonly string[] 
   if (results.some((r) => r.failed)) return null;
 
   const total = results.reduce((sum, r) => sum + r.items.length, 0);
+  const t = await getTranslations('docente');
 
-  return <Stat value={String(total)} label="Entregas por calificar" />;
+  return <Stat value={String(total)} label={t('entregasPorCalificar')} />;
 }
 
 function StatSkeleton({ label }: { label: string }) {
@@ -103,25 +117,33 @@ function StatSkeleton({ label }: { label: string }) {
   );
 }
 
-function CifrasSkeleton() {
+/**
+ * Las etiquetas llegan por prop y no de `getTranslations`.
+ *
+ * Es el esqueleto de un `Suspense`, y un componente asincrono no puede ser su
+ * `fallback`: el fallback tiene que pintarse ya, y esperar dentro de el es
+ * justamente lo que React no admite ahi.
+ */
+function CifrasSkeleton({ labels }: { labels: readonly [string, string, string] }) {
   return (
     <div className="grid gap-[var(--portal-gap)] sm:grid-cols-3" aria-hidden="true">
-      <StatSkeleton label="Salones activos" />
-      <StatSkeleton label="Alumnos sobre cupos" />
-      <StatSkeleton label="Entregas por calificar" />
+      <StatSkeleton label={labels[0]} />
+      <StatSkeleton label={labels[1]} />
+      <StatSkeleton label={labels[2]} />
     </div>
   );
 }
 
 async function Classrooms({ manages }: { manages: boolean }) {
   const vocab = await getTranslations();
+  const t = await getTranslations('docente');
   const { items, failed } = await fetchMyClassrooms();
 
   if (failed) {
     return (
       <EmptyState
-        title="No pudimos cargar tus salones"
-        description="Vuelve a intentarlo en un momento. Si continúa, escribe a soporte."
+        title={t('noPudimosCargarSalones')}
+        description={t('noPudimosCargarSalonesAyuda')}
       />
     );
   }
@@ -130,16 +152,18 @@ async function Classrooms({ manages }: { manages: boolean }) {
     return (
       <EmptyState
         icon={<ClassroomIcon size={32} />}
-        title={manages ? 'El colegio aún no tiene salones' : 'Todavía no tienes salones'}
-        description="Crea el primer salón para que los alumnos puedan registrarse en él."
-        action={{ href: '/docentes/salones/nuevo', label: 'Crear un salón' }}
+        title={manages ? t('colegioSinSalones') : t('sinSalonesTodavia')}
+        description={t('creaPrimerSalon')}
+        action={{ href: '/docentes/salones/nuevo', label: t('crearUnSalon') }}
       />
     );
   }
 
   return (
     <section aria-labelledby="salones">
-      <SectionTitle id="salones">{manages ? 'Salones del colegio' : 'Mis salones'}</SectionTitle>
+      <SectionTitle id="salones">
+        {manages ? t('salonesDelColegio') : t('misSalones')}
+      </SectionTitle>
 
       <div className="grid gap-[var(--portal-gap)] sm:grid-cols-2">
         {items.map((classroom) => (
@@ -164,7 +188,7 @@ async function Classrooms({ manages }: { manages: boolean }) {
             </div>
 
             <a href={`/docentes/salones/${classroom.classroomId}`} className="btn btn-primary mt-5">
-              Ver cómo va
+              {t('verComoVa')}
             </a>
           </Card>
         ))}

@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { getTranslations } from 'next-intl/server';
 import { requireSession } from '../../../../lib/session';
 import {
-  KIND_LABEL,
-  STATUS_LABEL,
+  assessmentKindLabel,
+  assessmentStatusLabel,
   fetchAssessmentBank,
 } from '../../../../lib/teacher-assessments';
 import { cloneAssessment } from '../../../../lib/teacher-assessments.actions';
@@ -14,23 +15,22 @@ export const metadata: Metadata = { title: 'Evaluaciones' };
 
 export default async function TeacherAssessmentsPage() {
   await requireSession();
+  const t = await getTranslations('docente');
 
   return (
     <>
       <section className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="font-semibold">
-            Evaluaciones
+            {t('evaluacionesTitulo')}
           </h1>
-          <p className="mt-1 text-sm text-ink-500">
-            Las que vienen con el kit y las tuyas.
-          </p>
+          <p className="mt-1 text-sm text-ink-500">{t('evaluacionesSubtitulo')}</p>
         </div>
         <a
           href="/docentes/evaluaciones/nueva"
           className="btn btn-primary"
         >
-          Crear una evaluación
+          {t('crearEvaluacion')}
         </a>
       </section>
 
@@ -52,12 +52,15 @@ export default async function TeacherAssessmentsPage() {
  */
 async function Bank() {
   const { glexco, own, failed } = await fetchAssessmentBank();
+  const t = await getTranslations('docente');
+  const comun = await getTranslations('comun');
+  const vocab = await getTranslations();
 
   if (failed) {
     return (
       <EmptyState
-        title="No pudimos cargar las evaluaciones"
-        description="Vuelve a intentarlo en un momento."
+        title={t('noPudimosCargarEvaluaciones')}
+        description={comun('reintentar')}
       />
     );
   }
@@ -65,20 +68,25 @@ async function Bank() {
   return (
     <>
       <section aria-labelledby="mias" className="grid gap-[var(--portal-gap)]">
-        <SectionTitle id="mias">Tuyas ({own.length})</SectionTitle>
+        <SectionTitle id="mias">{t('tuyasConCuenta', { cuantas: own.length })}</SectionTitle>
 
         {own.length === 0 ? (
           <EmptyState
             level={3}
-            title="Todavía no has creado ninguna"
-            description="Puedes crear una desde cero, o duplicar una de GLEXCO y adaptarla a tu salón."
-            action={{ href: '/docentes/evaluaciones/nueva', label: 'Crear una evaluación' }}
+            title={t('ningunaPropia')}
+            description={t('ningunaPropiaAyuda')}
+            action={{ href: '/docentes/evaluaciones/nueva', label: t('crearEvaluacion') }}
           />
         ) : (
           <ul className="grid list-none gap-3">
             {own.map((item) => (
               <li key={item.assessmentId}>
-                <Row item={item} href={`/docentes/evaluaciones/${item.assessmentId}`} />
+                <Row
+                  item={item}
+                  href={`/docentes/evaluaciones/${item.assessmentId}`}
+                  t={t}
+                  vocab={vocab}
+                />
               </li>
             ))}
           </ul>
@@ -86,27 +94,28 @@ async function Bank() {
       </section>
 
       <section aria-labelledby="glexco" className="grid gap-[var(--portal-gap)]">
-        <SectionTitle id="glexco">Incluidas en los kits ({glexco.length})</SectionTitle>
+        <SectionTitle id="glexco">
+          {t('incluidasEnKits', { cuantas: glexco.length })}
+        </SectionTitle>
         <p className="-mt-2 text-sm text-ink-500">
           {/*
             Se explica POR QUÉ no se pueden editar, no solo que no se puede. Un
             botón deshabilitado sin motivo se lee como un error de la aplicación.
           */}
-          Son las mismas para todos los colegios, así que no se editan: editarlas
-          cambiaría el examen de todo el país. Duplica la que quieras adaptar.
+          {t('porQueNoSeEditan')}
         </p>
 
         {glexco.length === 0 ? (
           <EmptyState
             level={3}
-            title="Este kit todavía no trae evaluaciones"
-            description="Cuando el equipo de GLEXCO publique las del kit aparecerán aquí."
+            title={t('kitSinEvaluaciones')}
+            description={t('kitSinEvaluacionesAyuda')}
           />
         ) : (
           <ul className="grid list-none gap-3">
             {glexco.map((item) => (
               <li key={item.assessmentId}>
-                <Row item={item} clone />
+                <Row item={item} clone t={t} vocab={vocab} />
               </li>
             ))}
           </ul>
@@ -120,18 +129,23 @@ function Row({
   item,
   href,
   clone = false,
+  t,
+  vocab,
 }: {
   item: AssessmentSummary;
   href?: string;
   clone?: boolean;
+  t: (key: string, values?: Record<string, string | number>) => string;
+  vocab: (key: string) => string;
 }) {
   const body = (
     <>
       <div>
         <p className="font-display font-semibold">{item.title}</p>
         <p className="mt-0.5 text-sm text-ink-500">
-          {KIND_LABEL[item.kind] ?? item.kind} · {item.questionCount}{' '}
-          {item.questionCount === 1 ? 'pregunta' : 'preguntas'} · {item.totalPoints} puntos
+          {assessmentKindLabel(vocab, item.kind)} ·{' '}
+          {t('resumenPreguntas', { cuantas: item.questionCount })} ·{' '}
+          {t('resumenPuntos', { cuantos: item.totalPoints })}
         </p>
       </div>
 
@@ -141,7 +155,7 @@ function Row({
         style={{ color: item.status === 'published' ? '#0A7D57' : '#B26A00' }}
       >
         <span aria-hidden="true">● </span>
-        {STATUS_LABEL[item.status] ?? item.status}
+        {assessmentStatusLabel(vocab, item.status)}
       </p>
     </>
   );
@@ -159,7 +173,7 @@ function Row({
             type="submit"
             className="btn btn-secondary"
           >
-            Duplicar
+            {t('duplicar')}
           </button>
         </form>
       </div>

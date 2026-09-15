@@ -102,6 +102,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
  * Se declara la lista en vez de deducirla: no hay forma de saber en compilacion
  * que claves pide un componente de cliente, y una heuristica que se equivocara
  * en silencio es peor que una lista que hay que mantener a mano.
+ *
+ * `ingreso` esta aqui porque el formulario de acceso es de cliente, y era el
+ * unico sitio de la pantalla publica que seguia en espanol: el titular y el
+ * panel de marca se traducian y los campos no.
+ *
+ * **Las explicaciones van en este bloque y no entre las entradas.**
+ * `web-check.mjs` lee la lista con una expresion regular; un comentario suelto
+ * ahi dentro se pega a la clave que le sigue y esa clave deja de contarse.
  */
 const CLIENT_NAMESPACES = [
   'comun',
@@ -111,6 +119,9 @@ const CLIENT_NAMESPACES = [
   'evaluacion',
   'cuenta',
   'muro',
+  'ingreso',
+  'registro',
+  'recuperar',
 ] as const;
 
 function forClient(messages: AbstractIntlMessages): AbstractIntlMessages {

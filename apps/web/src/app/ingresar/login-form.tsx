@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { useTranslations } from 'next-intl';
 import { login, type LoginState } from '../../lib/auth.actions';
 
 /**
@@ -17,6 +18,7 @@ import { login, type LoginState } from '../../lib/auth.actions';
  */
 export function LoginForm() {
   const [state, formAction] = useActionState<LoginState, FormData>(login, {});
+  const t = useTranslations('ingreso');
 
   return (
     <form action={formAction} className="mt-8 space-y-5" noValidate>
@@ -33,7 +35,7 @@ export function LoginForm() {
       ) : null}
 
       <Field
-        label="Correo"
+        label={t('correo')}
         name="email"
         type="email"
         autoComplete="username"
@@ -41,7 +43,7 @@ export function LoginForm() {
       />
 
       <Field
-        label="Contraseña"
+        label={t('contrasena')}
         name="password"
         type="password"
         autoComplete="current-password"
@@ -54,14 +56,14 @@ export function LoginForm() {
           name="rememberMe"
           className="size-4 rounded border-line-300 text-brand-600"
         />
-        Recordarme en este equipo
+        {t('recordarme')}
       </label>
 
       <SubmitButton />
 
       <p className="text-center text-sm text-ink-500">
         <a href="/recuperar" className="font-medium text-brand-600 hover:underline">
-          Olvidé mi contraseña
+          {t('olvideContrasena')}
         </a>
       </p>
 
@@ -69,9 +71,9 @@ export function LoginForm() {
           nuevo no tenia forma de entrar sin que alguien de GLEXCO le creara la
           cuenta por API, y esta es la puerta. */}
       <p className="border-t border-line-200 pt-5 text-center text-sm text-ink-500">
-        ¿Primera vez?{' '}
+        {t('primeraVez')}{' '}
         <a href="/registro" className="font-medium text-brand-600 hover:underline">
-          Activa el código de tu libro
+          {t('activaTuCodigo')}
         </a>
       </p>
     </form>
@@ -121,6 +123,7 @@ function Field({
 
 function SubmitButton() {
   const { pending } = useFormStatus();
+  const t = useTranslations('ingreso');
 
   return (
     <button
@@ -130,7 +133,7 @@ function SubmitButton() {
     >
       {/* El texto cambia en vez de mostrar solo un spinner: un cambio de texto
           si lo anuncia el lector de pantalla, y un icono girando no. */}
-      {pending ? 'Ingresando…' : 'Ingresar'}
+      {pending ? t('entrando') : t('entrar')}
     </button>
   );
 }

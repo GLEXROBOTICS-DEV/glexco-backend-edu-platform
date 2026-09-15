@@ -1,5 +1,6 @@
 import 'server-only';
 import { api } from './api';
+import { safeLabel } from './catalog';
 import type { AssessmentSummary } from './assessments';
 
 /**
@@ -113,16 +114,19 @@ export async function fetchAssessmentDetail(
   return { data: result.data, failed: false };
 }
 
-export const KIND_LABEL: Record<string, string> = {
-  quiz: 'Cuestionario',
-  practical: 'Práctica',
-  project: 'Proyecto',
-  stem_activity: 'Actividad STEM',
-};
+/**
+ * Tipo y estado de una evaluacion, en el idioma del usuario.
+ *
+ * Salen del catalogo de traducciones y no de un mapa en espanol aqui dentro, por
+ * la misma razon que los grados y los tipos de contenido: es vocabulario
+ * VISIBLE, y cambia con el idioma de quien mira, no con el del dominio. La clave
+ * es la que guarda el backend, asi que anadir un tipo nuevo alla es anadir una
+ * linea en `es.json` y otra en `en.json`, sin tocar ninguna pantalla.
+ */
+export function assessmentKindLabel(t: (key: string) => string, kind: string): string {
+  return safeLabel(t, 'tiposEvaluacion', kind);
+}
 
-export const STATUS_LABEL: Record<string, string> = {
-  draft: 'Borrador',
-  in_review: 'En revisión',
-  published: 'Publicada',
-  archived: 'Archivada',
-};
+export function assessmentStatusLabel(t: (key: string) => string, status: string): string {
+  return safeLabel(t, 'estadosEvaluacion', status);
+}

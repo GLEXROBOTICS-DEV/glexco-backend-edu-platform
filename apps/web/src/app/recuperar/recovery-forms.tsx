@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { useTranslations } from 'next-intl';
 import {
   confirmPasswordReset,
   requestPasswordReset,
@@ -19,6 +20,7 @@ import {
 
 export function RequestForm() {
   const [state, formAction] = useActionState<RecoveryState, FormData>(requestPasswordReset, {});
+  const t = useTranslations('recuperar');
 
   // El acuse de recibo NO dice si la cuenta existe. Es deliberado: decirlo
   // convertiria este formulario en un comprobador de quien esta registrado en la
@@ -28,15 +30,11 @@ export function RequestForm() {
     return (
       <div role="status" data-recovery="sent" className="mt-8">
         <p className="rounded-lg border border-success/25 bg-success/5 px-4 py-3 text-sm text-ink-700">
-          Si ese correo tiene una cuenta, le acabamos de enviar un enlace para cambiar la
-          contraseña. Revisa también la carpeta de correo no deseado.
+          {t('enviado')}
         </p>
-        <p className="mt-4 text-sm text-ink-500">
-          El enlace vale una hora. Si no llega en unos minutos, comprueba que escribiste bien el
-          correo y vuelve a intentarlo.
-        </p>
+        <p className="mt-4 text-sm text-ink-500">{t('enviadoAyuda')}</p>
         <a href="/ingresar" className="mt-6 inline-block text-sm font-medium text-brand-600 hover:underline">
-          ← Volver a ingresar
+          {t('volverAIngresarConFlecha')}
         </a>
       </div>
     );
@@ -55,7 +53,7 @@ export function RequestForm() {
 
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-ink-700">
-          Tu correo
+          {t('tuCorreo')}
         </label>
         <input
           id="email"
@@ -67,11 +65,11 @@ export function RequestForm() {
         />
       </div>
 
-      <Submit idle="Enviarme el enlace" busy="Enviando…" />
+      <Submit idle={t('enviarEnlace')} busy={t('enviando')} />
 
       <p className="text-center text-sm text-ink-500">
         <a href="/ingresar" className="font-medium text-brand-600 hover:underline">
-          Volver a ingresar
+          {t('volverAIngresar')}
         </a>
       </p>
     </form>
@@ -80,6 +78,7 @@ export function RequestForm() {
 
 export function NewPasswordForm({ token }: { token: string }) {
   const [state, formAction] = useActionState<NewPasswordState, FormData>(confirmPasswordReset, {});
+  const t = useTranslations('recuperar');
 
   return (
     <form action={formAction} className="mt-8 space-y-5" noValidate>
@@ -99,10 +98,10 @@ export function NewPasswordForm({ token }: { token: string }) {
 
       <div>
         <label htmlFor="password" className="block text-sm font-medium text-ink-700">
-          Contraseña nueva
+          {t('contrasenaNueva')}
         </label>
         <p id="password-hint" className="mt-1 text-sm text-ink-500">
-          Al menos 8 caracteres. Elige algo que recuerdes y que nadie más sepa.
+          {t('contrasenaAyuda')}
         </p>
         <input
           id="password"
@@ -117,7 +116,7 @@ export function NewPasswordForm({ token }: { token: string }) {
 
       <div>
         <label htmlFor="passwordConfirm" className="block text-sm font-medium text-ink-700">
-          Repite la contraseña
+          {t('repiteContrasena')}
         </label>
         <input
           id="passwordConfirm"
@@ -132,11 +131,9 @@ export function NewPasswordForm({ token }: { token: string }) {
       {/* Se avisa ANTES de enviar, no despues: cambiar la contrasena cierra la
           sesion en todos los equipos, y descubrirlo al volver al aula con la
           tableta desconectada se lee como un fallo de la plataforma. */}
-      <p className="text-sm text-ink-500">
-        Al cambiarla se cerrará tu sesión en todos los equipos.
-      </p>
+      <p className="text-sm text-ink-500">{t('cerraraSesiones')}</p>
 
-      <Submit idle="Guardar mi contraseña nueva" busy="Guardando…" />
+      <Submit idle={t('guardar')} busy={t('guardando')} />
     </form>
   );
 }

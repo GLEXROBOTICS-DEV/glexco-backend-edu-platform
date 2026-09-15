@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { RegistrationShell } from '../../registro/shell';
 import { NewPasswordForm } from '../recovery-forms';
 
@@ -21,21 +22,19 @@ export default async function NuevaContrasenaPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const raw = params['token'];
   const token = typeof raw === 'string' ? raw : '';
+  const t = await getTranslations('recuperar');
 
   if (!token) {
     return (
       <RegistrationShell step={0}>
         <div data-recovery="invalid">
-          <h1 className="font-display text-2xl font-semibold">Este enlace no es válido</h1>
-          <p className="mt-3 text-sm text-ink-700">
-            Puede que se haya cortado al copiarlo. Pide uno nuevo y ábrelo directamente desde el
-            correo.
-          </p>
+          <h1 className="font-display text-2xl font-semibold">{t('enlaceInvalido')}</h1>
+          <p className="mt-3 text-sm text-ink-700">{t('enlaceInvalidoAyuda')}</p>
           <a
             href="/recuperar"
             className="btn btn-primary mt-6"
           >
-            Pedir un enlace nuevo
+            {t('pedirOtroEnlace')}
           </a>
         </div>
       </RegistrationShell>
@@ -44,10 +43,8 @@ export default async function NuevaContrasenaPage({ searchParams }: PageProps) {
 
   return (
     <RegistrationShell step={0}>
-      <h1 className="font-display text-2xl font-semibold">Elige una contraseña nueva</h1>
-      <p className="mt-2 text-sm text-ink-500">
-        Este enlace sirve una sola vez.
-      </p>
+      <h1 className="font-display text-2xl font-semibold">{t('eligeNueva')}</h1>
+      <p className="mt-2 text-sm text-ink-500">{t('unaSolaVez')}</p>
 
       <NewPasswordForm token={token} />
     </RegistrationShell>

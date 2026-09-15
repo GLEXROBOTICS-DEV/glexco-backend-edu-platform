@@ -16,16 +16,17 @@ export default async function ClassroomDashboardPage({
 }) {
   await requireSession();
   const { classroomId } = await params;
+  const t = await getTranslations('docente');
 
   return (
     <>
       <section>
         <a href="/docentes" className="text-sm font-medium text-brand-600 hover:underline">
-          ← Mis salones
+          {t('volverAMisSalones')}
         </a>
         <div className="mt-1 flex flex-wrap items-baseline justify-between gap-3">
           <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="font-semibold">
-            Cómo va el salón
+            {t('comoVaElSalon')}
           </h1>
           {/*
             La bandeja se enlaza desde aquí y no desde el menú: se entra a
@@ -36,7 +37,7 @@ export default async function ClassroomDashboardPage({
             href={`/docentes/salones/${classroomId}/correccion`}
             className="btn btn-primary"
           >
-            Por corregir
+            {t('porCorregir')}
           </a>
         </div>
       </section>
@@ -46,7 +47,7 @@ export default async function ClassroomDashboardPage({
           la responde una fila con un nombre. Las cifras explican al grupo, y eso
           se mira despues. */}
       <section aria-labelledby="clase">
-        <SectionTitle id="clase">Tu clase</SectionTitle>
+        <SectionTitle id="clase">{t('tuClase')}</SectionTitle>
         <Suspense fallback={<CardSkeleton />}>
           <ClassroomRoster classroomId={classroomId} />
         </Suspense>
@@ -76,6 +77,7 @@ export default async function ClassroomDashboardPage({
  */
 async function Dashboard({ classroomId }: { classroomId: string }) {
   const vocab = await getTranslations();
+  const t = await getTranslations('docente');
   const format = await getFormatter();
   const { data, failed } = await fetchClassroomDashboard(classroomId);
 
@@ -88,8 +90,8 @@ async function Dashboard({ classroomId }: { classroomId: string }) {
       // respondido. Ahora habla solo de lo que si sabemos, y la lista de arriba
       // -que se pinta igual- ya le deja trabajar.
       <EmptyState
-        title="Las cifras del salón no están disponibles ahora mismo"
-        description="Vuelve a intentarlo en un momento. La lista de tu clase sí es correcta y puedes seguir trabajando con ella."
+        title={t('cifrasNoDisponibles')}
+        description={t('cifrasNoDisponiblesAyuda')}
       />
     );
   }
@@ -97,8 +99,8 @@ async function Dashboard({ classroomId }: { classroomId: string }) {
   if (data.studentsMeasured === 0) {
     return (
       <EmptyState
-        title="Aún no hay resultados en este salón"
-        description="Cuando tus alumnos entreguen su primera evaluación verás aquí cómo va la clase y qué preguntas les cuestan más."
+        title={t('sinResultadosSalon')}
+        description={t('sinResultadosSalonAyuda')}
       />
     );
   }
@@ -108,16 +110,16 @@ async function Dashboard({ classroomId }: { classroomId: string }) {
 
   return (
     <section aria-labelledby="salon" className="grid gap-[var(--portal-gap)]">
-      <SectionTitle id="salon">Resumen</SectionTitle>
+      <SectionTitle id="salon">{t('resumen')}</SectionTitle>
 
       <div className="grid gap-[var(--portal-gap)] sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
-          label="Nota media"
+          label={t('notaMedia')}
           value={data.averagePercentage}
           unit="%"
           tone={level.tone}
           toneLabel={level.label}
-          hint="Solo evaluaciones GLEXCO, que son comparables"
+          hint={t('notaMediaAyuda')}
         />
 
         {/*
@@ -127,54 +129,50 @@ async function Dashboard({ classroomId }: { classroomId: string }) {
           va junta o partida en dos.
         */}
         <StatTile
-          label="Qué tan parejo va el salón"
+          label={t('queTanParejo')}
           value={spread}
-          unit=" pts"
+          unit={t('unidadPuntos')}
           tone={spread === null ? 'neutral' : spread > 20 ? 'warning' : 'good'}
           toneLabel={
-            spread === null
-              ? undefined
-              : spread > 20
-                ? 'Muy desigual: hay dos grupos'
-                : 'Bastante parejo'
+            spread === null ? undefined : spread > 20 ? t('muyDesigual') : t('bastanteParejo')
           }
-          hint="Cuánto se separan entre sí"
+          hint={t('queTanParejoAyuda')}
         />
 
         <StatTile
-          label="Cuánto ha mejorado la clase"
+          label={t('cuantoHaMejorado')}
           value={data.averageGain === null ? null : data.averageGain > 0 ? `+${data.averageGain}` : data.averageGain}
-          unit=" pts"
-          hint="Desde el primer intento de cada alumno"
+          unit={t('unidadPuntos')}
+          hint={t('cuantoHaMejoradoAyuda')}
         />
 
         <StatTile
-          label="Alumnos con resultados"
+          label={t('alumnosConResultados')}
           value={data.studentsMeasured}
           hint={
             data.lastActivityAt
-              ? `Última actividad el ${shortDate(format, data.lastActivityAt)}`
-              : 'Sin actividad reciente'
+              ? t('ultimaActividadEl', { fecha: shortDate(format, data.lastActivityAt) })
+              : t('sinActividadReciente')
           }
         />
       </div>
 
       <BarList
-        title="Lo que más falla tu salón"
+        title={t('loQueMasFalla')}
         unit="%"
-        emptyMessage="Todavía no hay suficientes respuestas. Hacen falta al menos tres por pregunta para que el dato signifique algo."
+        emptyMessage={t('loQueMasFallaVacio')}
         data={data.hardestQuestions.map((question, index) => ({
           // Sin el enunciado -que vive en el servicio de evaluación y no en la
           // analítica- se numeran. Es honesto: inventar un título sería peor.
-          label: `Pregunta ${index + 1}`,
+          label: t('preguntaNumero', { numero: index + 1 }),
           value: Math.round(question.missRate),
-          meta: `${question.missed} de ${question.answered}`,
+          meta: t('falladasDe', { fallos: question.missed, respuestas: question.answered }),
           tone: question.missRate >= 60 ? 'critical' : question.missRate >= 40 ? 'warning' : 'neutral',
           toneLabel:
             question.missRate >= 60
-              ? 'Conviene volver a explicarla'
+              ? t('convieneRexplicar')
               : question.missRate >= 40
-                ? 'La mitad de la clase falla'
+                ? t('mitadDeLaClaseFalla')
                 : undefined,
         }))}
       />

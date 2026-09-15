@@ -3220,11 +3220,18 @@ async function comprobarEspaciosDeCliente() {
   }
 
   const layout = readFileSync(join(raiz, 'app', 'layout.tsx'), 'utf8');
+
+  // Se leen las entradas ENTRECOMILLADAS y no lo que hay entre comas.
+  //
+  // Partir por comas daba por no declarada cualquier clave precedida de un
+  // comentario: el comentario y la clave caen en el mismo trozo, y el trozo ya
+  // no es el nombre del espacio. La comprobacion entonces falla pidiendo anadir
+  // algo que YA estaba en la lista, que es la peor forma de fallar -manda a
+  // buscar el error donde no esta-. Paso al declarar `ingreso`.
   const declarados = new Set(
-    (/const CLIENT_NAMESPACES = \[([\s\S]*?)\]/.exec(layout)?.[1] ?? '')
-      .split(',')
-      .map((parte) => parte.trim().replace(/^'|'$/g, ''))
-      .filter(Boolean),
+    [...(/const CLIENT_NAMESPACES = \[([\s\S]*?)\]/.exec(layout)?.[1] ?? '').matchAll(
+      /'([a-zA-Z]+)'/g,
+    )].map((coincidencia) => coincidencia[1]),
   );
 
   const faltantes = new Map();

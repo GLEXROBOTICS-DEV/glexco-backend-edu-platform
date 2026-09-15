@@ -28,6 +28,7 @@ export default async function RegistroListoPage() {
   const { kits } = await fetchMyKits();
   const destino = portalPath(session.portal);
   const vocab = await getTranslations();
+  const t = await getTranslations('registro');
 
   return (
     <RegistrationShell step={0}>
@@ -36,9 +37,9 @@ export default async function RegistroListoPage() {
           <RobotIcon size={30} />
         </span>
         <h1 className="mt-4 font-display text-2xl font-semibold">
-          Listo, {session.firstName}
+          {t('listoTitulo', { nombre: session.firstName })}
         </h1>
-        <p className="mt-2 text-sm text-ink-500">Tu cuenta ya está creada.</p>
+        <p className="mt-2 text-sm text-ink-500">{t('cuentaCreada')}</p>
       </div>
 
       {kits.length > 0 ? (
@@ -46,7 +47,7 @@ export default async function RegistroListoPage() {
           data-activation="done"
           className="mt-6 rounded-lg border border-line-200 bg-white px-4 py-4"
         >
-          <p className="text-sm font-medium text-ink-500">Tu código activó</p>
+          <p className="text-sm font-medium text-ink-500">{t('tuCodigoActivo')}</p>
           <div className="mt-2 flex items-start gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-600/10 text-brand-600">
               <KitIcon size={22} />
@@ -64,15 +65,13 @@ export default async function RegistroListoPage() {
           data-activation="pending"
           className="mt-6 rounded-lg border border-line-200 bg-white px-4 py-4 text-sm"
         >
-          <p className="font-medium text-ink-900">Estamos activando tu libro</p>
-          <p className="mt-1 text-ink-500">
-            Tarda unos segundos. Puedes entrar ya: tu kit aparecerá en cuanto termine.
-          </p>
+          <p className="font-medium text-ink-900">{t('activando')}</p>
+          <p className="mt-1 text-ink-500">{t('activandoAyuda')}</p>
           {/* Un enlace a esta misma pagina y no un temporizador: sin JavaScript
               un temporizador no existe, y con el, una pantalla que se recarga
               sola le quita al alumno el control de cuando mirar. */}
           <a href="/registro/listo" className="mt-2 inline-block font-medium text-brand-600 hover:underline">
-            Volver a comprobar
+            {t('volverAComprobar')}
           </a>
         </div>
       )}
@@ -81,7 +80,7 @@ export default async function RegistroListoPage() {
         href={destino}
         className="btn btn-primary btn-block mt-6"
       >
-        Entrar a mi portal
+        {t('entrarAMiPortal')}
       </a>
 
       {/* NO se anuncia ningun correo de confirmacion: identidad emite el token
@@ -90,7 +89,10 @@ export default async function RegistroListoPage() {
           un mensaje que no existe y llamando a soporte. Cuando engagement lo
           envie de verdad, este es el sitio donde anunciarlo. */}
       <p className="mt-4 text-center text-sm text-ink-500">
-        Entrarás como <strong className="font-medium text-ink-700">{session.email}</strong>.
+        {t.rich('entrarasComo', {
+          correo: session.email,
+          destacado: (texto) => <strong className="font-medium text-ink-700">{texto}</strong>,
+        })}
       </p>
     </RegistrationShell>
   );

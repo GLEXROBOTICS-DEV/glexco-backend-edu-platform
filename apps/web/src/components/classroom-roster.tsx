@@ -1,6 +1,8 @@
+import { getFormatter, getTranslations } from 'next-intl/server';
 import { StudentsIcon } from '@glexco/icons';
 import { fetchClassroomRoster } from '../lib/grading';
 import { fetchClassroomLearning } from '../lib/learning';
+import { shortDate } from '../lib/analytics';
 import { EmptyState, StatePill } from './ui';
 
 /**
@@ -17,6 +19,8 @@ import { EmptyState, StatePill } from './ui';
  * puede hacer algo.
  */
 export async function ClassroomRoster({ classroomId }: { classroomId: string }) {
+  const t = await getTranslations('docente');
+  const format = await getFormatter();
   const [roster, learning] = await Promise.all([
     fetchClassroomRoster(classroomId),
     fetchClassroomLearning(classroomId),
@@ -25,8 +29,8 @@ export async function ClassroomRoster({ classroomId }: { classroomId: string }) 
   if (roster.failed) {
     return (
       <EmptyState
-        title="No pudimos cargar la lista de tu salón"
-        description="Vuelve a intentarlo en un momento. Si sigue pasando, escribe a soporte."
+        title={t('noPudimosCargarLista')}
+        description={t('noPudimosCargarListaAyuda')}
       />
     );
   }
@@ -37,8 +41,8 @@ export async function ClassroomRoster({ classroomId }: { classroomId: string }) 
     return (
       <EmptyState
         icon={<StudentsIcon size={32} />}
-        title="Todavía no hay alumnos en este salón"
-        description="Tus alumnos aparecen aquí cuando se registran con el código del colegio y eligen este salón."
+        title={t('sinAlumnosEnSalon')}
+        description={t('sinAlumnosEnSalonAyuda')}
       />
     );
   }
@@ -48,17 +52,15 @@ export async function ClassroomRoster({ classroomId }: { classroomId: string }) 
   return (
     <div className="overflow-x-auto rounded-[var(--portal-radius)] border border-line-200 bg-white">
       <table className="w-full min-w-[42rem] text-sm">
-        <caption className="sr-only">
-          Alumnos del salón, con su kit y su actividad reciente
-        </caption>
+        <caption className="sr-only">{t('tablaAlumnos')}</caption>
         <thead>
           <tr className="border-b border-line-200 text-left text-ink-500">
-            <th scope="col" className="px-4 py-3 font-medium">Alumno</th>
-            <th scope="col" className="px-4 py-3 font-medium">Kit</th>
-            <th scope="col" className="px-4 py-3 font-medium">Lecciones</th>
-            <th scope="col" className="px-4 py-3 font-medium">Última actividad</th>
+            <th scope="col" className="px-4 py-3 font-medium">{t('columnaAlumno')}</th>
+            <th scope="col" className="px-4 py-3 font-medium">{t('columnaKit')}</th>
+            <th scope="col" className="px-4 py-3 font-medium">{t('columnaLecciones')}</th>
+            <th scope="col" className="px-4 py-3 font-medium">{t('columnaUltimaActividad')}</th>
             <th scope="col" className="px-4 py-3 font-medium">
-              <span className="sr-only">Ver detalle</span>
+              <span className="sr-only">{t('columnaVerDetalle')}</span>
             </th>
           </tr>
         </thead>
@@ -72,17 +74,17 @@ export async function ClassroomRoster({ classroomId }: { classroomId: string }) 
                   {/* El nombre llega por evento y la proyeccion puede ir unos
                       segundos por detras. Se dice, en vez de pintar un hueco
                       que parece un fallo. */}
-                  {entry.fullName ?? <span className="text-ink-400">Sin nombre todavía</span>}
+                  {entry.fullName ?? <span className="text-ink-400">{t('sinNombreTodavia')}</span>}
                 </th>
 
                 <td className="px-4 py-3">
                   {entry.kitId ? (
-                    <StatePill state="done">Activado</StatePill>
+                    <StatePill state="done">{t('kitActivado')}</StatePill>
                   ) : (
                     // Sin kit no hay contenido, ni evaluaciones, ni progreso. Es
                     // la senal mas temprana que existe y por eso va en ambar y no
                     // en gris: hay algo que hacer.
-                    <StatePill state="warn">Sin activar</StatePill>
+                    <StatePill state="warn">{t('kitSinActivar')}</StatePill>
                   )}
                 </td>
 
@@ -93,15 +95,15 @@ export async function ClassroomRoster({ classroomId }: { classroomId: string }) 
                 <td className="px-4 py-3 text-ink-700">
                   {row?.lastActivityAt ? (
                     <>
-                      {shortDate(row.lastActivityAt)}
+                      {shortDate(format, row.lastActivityAt)}
                       {row.stale ? (
                         <span className="ml-2 text-xs font-medium text-state-warn-fg">
-                          se ha descolgado
+                          {t('seHaDescolgado')}
                         </span>
                       ) : null}
                     </>
                   ) : (
-                    <span className="text-ink-400">sin actividad</span>
+                    <span className="text-ink-400">{t('sinActividad')}</span>
                   )}
                 </td>
 
@@ -110,8 +112,10 @@ export async function ClassroomRoster({ classroomId }: { classroomId: string }) 
                     href={`/docentes/salones/${classroomId}/alumnos/${entry.studentId}`}
                     className="text-sm font-medium text-brand-600 hover:underline"
                   >
-                    Ver
-                    <span className="sr-only"> el detalle de {entry.fullName ?? 'este alumno'}</span>
+                    {t('ver')}
+                    <span className="sr-only">
+                      {t('verDetalleDe', { nombre: entry.fullName ?? t('esteAlumno') })}
+                    </span>
                   </a>
                 </td>
               </tr>
@@ -122,23 +126,13 @@ export async function ClassroomRoster({ classroomId }: { classroomId: string }) 
 
       {learning.failed ? (
         <p className="border-t border-line-200 px-4 py-3 text-xs text-ink-500">
-          No pudimos leer el avance por contenido ahora mismo. La lista de alumnos sí es correcta.
+          {t('sinAvancePorContenido')}
         </p>
       ) : (
         <p className="border-t border-line-200 px-4 py-3 text-xs text-ink-500">
-          «Se ha descolgado» significa {learning.staleAfterDays} días sin terminar ninguna lección.
+          {t('queEsDescolgarse', { dias: learning.staleAfterDays })}
         </p>
       )}
     </div>
   );
-}
-
-function shortDate(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('es-PE', {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'America/Lima',
-  }).format(date);
 }

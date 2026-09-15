@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { useTranslations } from 'next-intl';
 import { registerStudent, type RegistrationState } from '../../lib/registration.actions';
 import type { SelectableClassroom } from '../../lib/registration';
 
@@ -30,6 +31,7 @@ export function RegistrationForm({
 }) {
   const [state, formAction] = useActionState<RegistrationState, FormData>(registerStudent, {});
   const values = state.values ?? {};
+  const t = useTranslations('registro');
 
   const withCapacity = classrooms.filter((classroom) => classroom.hasCapacity);
   const noClassrooms = accountType === 'institutional' && classrooms.length === 0;
@@ -43,12 +45,10 @@ export function RegistrationForm({
         className="rounded-lg border border-achievement/40 bg-achievement/5 px-4 py-4 text-sm"
       >
         <p className="font-semibold text-ink-900">
-          {noClassrooms ? 'Todavía no hay salones para tu grado' : 'Los salones de tu grado están llenos'}
+          {noClassrooms ? t('sinSalones') : t('salonesLlenos')}
         </p>
         <p className="mt-1 text-ink-700">
-          {noClassrooms
-            ? 'Tu colegio aún no ha creado los salones de este grado. Avisa a tu docente para que los abra.'
-            : 'Tu docente puede ampliar el cupo o abrir otro salón. Avísale y vuelve a intentarlo.'}
+          {noClassrooms ? t('sinSalonesAyuda') : t('salonesLlenosAyuda')}
         </p>
         {/* Sin salida, esta pantalla es un callejon: la cuenta independiente es
             un camino real y no un premio de consolacion, asi que se ofrece. */}
@@ -56,7 +56,7 @@ export function RegistrationForm({
           href="/registro?tipo=independiente"
           className="mt-3 inline-block font-medium text-brand-600 hover:underline"
         >
-          Crear una cuenta independiente con mi código
+          {t('crearIndependiente')}
         </a>
       </div>
     );
@@ -84,29 +84,30 @@ export function RegistrationForm({
           classrooms={withCapacity}
           selected={values['classroomId'] ?? ''}
           errors={state.fieldErrors?.['classroomId']}
+          legend={t('enQueSalon')}
         />
       ) : null}
 
       <Field
-        label="Código de tu libro"
+        label={t('codigoLibro')}
         name="activationCode"
         autoComplete="off"
         defaultValue={values['activationCode'] ?? ''}
         errors={state.fieldErrors?.['activationCode']}
-        hint="Está impreso dentro de tu libro y empieza por GLX. Puedes escribirlo con o sin guiones."
+        hint={t('codigoLibroAyuda')}
         className="uppercase tracking-wider"
       />
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field
-          label="Nombres"
+          label={t('nombres')}
           name="firstName"
           autoComplete="given-name"
           defaultValue={values['firstName'] ?? ''}
           errors={state.fieldErrors?.['firstName']}
         />
         <Field
-          label="Apellidos"
+          label={t('apellidos')}
           name="lastName"
           autoComplete="family-name"
           defaultValue={values['lastName'] ?? ''}
@@ -115,7 +116,7 @@ export function RegistrationForm({
       </div>
 
       <Field
-        label="Fecha de nacimiento"
+        label={t('fechaNacimiento')}
         name="birthDate"
         type="date"
         autoComplete="bday"
@@ -124,7 +125,7 @@ export function RegistrationForm({
       />
 
       <Field
-        label="Tu correo"
+        label={t('tuCorreo')}
         name="email"
         type="email"
         autoComplete="username"
@@ -137,27 +138,28 @@ export function RegistrationForm({
           legal, y sin JavaScript el campo obligatorio no aparecería: el alumno
           enviaria el formulario y recibiria un error por un campo que no ve. */}
       <Field
-        label="Correo de tu papá, mamá o apoderado"
+        label={t('correoApoderado')}
         name="guardianEmail"
         type="email"
         autoComplete="off"
         defaultValue={values['guardianEmail'] ?? ''}
         errors={state.fieldErrors?.['guardianEmail']}
-        hint="Obligatorio si tienes menos de 14 años. Le avisaremos de que creaste tu cuenta."
+        hint={t('correoApoderadoAyuda')}
         optional
+        optionalLabel={t('segunTuEdad')}
       />
 
       <Field
-        label="Contraseña"
+        label={t('contrasena')}
         name="password"
         type="password"
         autoComplete="new-password"
         errors={state.fieldErrors?.['password']}
-        hint="Al menos 8 caracteres. Elige algo que recuerdes y que nadie más sepa."
+        hint={t('contrasenaAyuda')}
       />
 
       <Field
-        label="Repite la contraseña"
+        label={t('repiteContrasena')}
         name="passwordConfirm"
         type="password"
         autoComplete="new-password"
@@ -172,13 +174,23 @@ export function RegistrationForm({
             className="mt-0.5 size-4 shrink-0 rounded border-line-300 text-brand-600"
             aria-describedby={state.fieldErrors?.['acceptedTerms'] ? 'terms-error' : undefined}
           />
+          {/* La frase entera es UNA clave con sus enlaces dentro, y no tres
+              trozos concatenados: en ingles el orden de "los terminos" y "la
+              politica" no tiene por que ser el mismo, y partirla obliga al
+              traductor a encajar las piezas en un orden que no eligio. */}
           <span>
-            Acepto los <a href="/terminos" className="font-medium text-brand-600 hover:underline">términos</a>{' '}
-            y la{' '}
-            <a href="/privacidad" className="font-medium text-brand-600 hover:underline">
-              política de privacidad
-            </a>
-            .
+            {t.rich('aceptoTerminos', {
+              terminos: (texto) => (
+                <a href="/terminos" className="font-medium text-brand-600 hover:underline">
+                  {texto}
+                </a>
+              ),
+              privacidad: (texto) => (
+                <a href="/privacidad" className="font-medium text-brand-600 hover:underline">
+                  {texto}
+                </a>
+              ),
+            })}
           </span>
         </label>
         {state.fieldErrors?.['acceptedTerms']?.length ? (
@@ -191,9 +203,9 @@ export function RegistrationForm({
       <SubmitButton />
 
       <p className="text-center text-sm text-ink-500">
-        ¿Ya tienes cuenta?{' '}
+        {t('yaTienesCuenta')}{' '}
         <a href="/ingresar" className="font-medium text-brand-600 hover:underline">
-          Ingresa aquí
+          {t('ingresaAqui')}
         </a>
       </p>
     </form>
@@ -215,14 +227,16 @@ function Salones({
   classrooms,
   selected,
   errors,
+  legend,
 }: {
   classrooms: SelectableClassroom[];
   selected: string;
   errors?: string[];
+  legend: string;
 }) {
   return (
     <fieldset data-classrooms={classrooms.length}>
-      <legend className="text-sm font-medium text-ink-700">¿En qué salón estás?</legend>
+      <legend className="text-sm font-medium text-ink-700">{legend}</legend>
       <div className="mt-2 space-y-2">
         {classrooms.map((classroom, index) => (
           <label
@@ -267,6 +281,7 @@ function Field({
   errors,
   hint,
   optional,
+  optionalLabel,
   className,
 }: {
   label: string;
@@ -277,6 +292,7 @@ function Field({
   errors?: string[];
   hint?: string;
   optional?: boolean;
+  optionalLabel?: string;
   className?: string;
 }) {
   const errorId = `${name}-error`;
@@ -289,7 +305,9 @@ function Field({
     <div>
       <label htmlFor={name} className="block text-sm font-medium text-ink-700">
         {label}
-        {optional ? <span className="ml-1 font-normal text-ink-400">(según tu edad)</span> : null}
+        {optional && optionalLabel ? (
+          <span className="ml-1 font-normal text-ink-400">{optionalLabel}</span>
+        ) : null}
       </label>
       {hint ? (
         <p id={hintId} className="mt-1 text-sm text-ink-500">
@@ -318,6 +336,7 @@ function Field({
 
 function SubmitButton() {
   const { pending } = useFormStatus();
+  const t = useTranslations('registro');
 
   return (
     <button
@@ -327,7 +346,7 @@ function SubmitButton() {
     >
       {/* Cambia el texto y no solo un icono: un lector de pantalla anuncia el
           cambio de texto, y un spinner girando no dice nada. */}
-      {pending ? 'Creando tu cuenta…' : 'Crear mi cuenta y activar el código'}
+      {pending ? t('creandoCuenta') : t('crearCuenta')}
     </button>
   );
 }
