@@ -714,7 +714,6 @@
     "alPublicarla": "Once published, your students will see it in their portal.",
     "puntosPregunta": "{cuantos, plural, one {# point} other {# points}}",
     "laCorrigesTu": "you grade this one",
-    "opcionCorrecta": "correct",
     "seMuestraTrasCorregir": "Shown after grading: {texto}",
     "volverAComoVa": "← How the classroom is doing",
     "porCorregir": "To grade",
@@ -736,7 +735,6 @@
     "tuClase": "Your class",
     "resumen": "Summary",
     "cifrasNoDisponibles": "The classroom figures are not available right now",
-    "cifrasNoDisponiblesAyuda": "Try again in a moment. Your class list is correct and you can keep working with it.",
     "sinResultadosSalon": "There are no results in this classroom yet",
     "sinResultadosSalonAyuda": "Once your students hand in their first assessment you will see here how the class is doing and which questions are hardest for them.",
     "notaMedia": "Average score",
@@ -775,8 +773,25 @@
     "ver": "See",
     "verDetalleDe": " the detail for {nombre}",
     "esteAlumno": "this student",
-    "sinAvancePorContenido": "We could not read the content progress right now. The student list is correct.",
-    "queEsDescolgarse": "\"Has fallen behind\" means {dias} days without finishing a lesson."
+    "queEsDescolgarse": "\"Has fallen behind\" means {dias} days without finishing a lesson.",
+    "corregida": "Graded",
+    "puntosDe": "{nombre} · {obtenidos} of {total} points",
+    "aprobado": "Passed",
+    "noAprobado": "Not passed",
+    "volverALaBandeja": "Back to the inbox",
+    "nadaQuePuntuar": "There is nothing open to mark: the machine graded everything. You can close the grade and add a comment if you want.",
+    "comentarioParaElAlumno": "Comment for the student",
+    "comentarioOpcional": "Optional. They will see it next to their grade.",
+    "comentario": "Comment",
+    "opcional": "Optional",
+    "entregoUnArchivo": "They handed in a file.",
+    "sinRespuesta": "No answer.",
+    "acerto": "Correct",
+    "fallo": "Wrong",
+    "deTantos": "{obtenidos} of {total}",
+    "guardando": "Saving…",
+    "cerrarLaNota": "Close the grade",
+    "veraSuNota": "The student will see their grade as soon as you close it."
   },
   "tiposEvaluacion": {
     "quiz": "Quiz",
@@ -858,5 +873,10 @@
     "teacher": "Teacher",
     "student": "Student",
     "guardian": "Guardian"
+  },
+  "docenteServidor": {
+    "opcionCorrecta": "correct",
+    "cifrasNoDisponiblesAyuda": "Try again in a moment. Your class list is correct and you can keep working with it.",
+    "sinAvancePorContenido": "We could not read the content progress right now. The student list is correct."
   }
 }

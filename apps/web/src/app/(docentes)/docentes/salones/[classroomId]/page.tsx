@@ -78,6 +78,10 @@ export default async function ClassroomDashboardPage({
 async function Dashboard({ classroomId }: { classroomId: string }) {
   const vocab = await getTranslations();
   const t = await getTranslations('docente');
+  // Espacio de SERVIDOR: sus textos contienen la palabra "correcta" y no deben
+  // viajar en el catalogo serializado, donde harian chocar la comprobacion que
+  // exige que la clave de correccion no aparezca en ningun sitio del HTML.
+  const servidor = await getTranslations('docenteServidor');
   const format = await getFormatter();
   const { data, failed } = await fetchClassroomDashboard(classroomId);
 
@@ -91,7 +95,7 @@ async function Dashboard({ classroomId }: { classroomId: string }) {
       // -que se pinta igual- ya le deja trabajar.
       <EmptyState
         title={t('cifrasNoDisponibles')}
-        description={t('cifrasNoDisponiblesAyuda')}
+        description={servidor('cifrasNoDisponiblesAyuda')}
       />
     );
   }

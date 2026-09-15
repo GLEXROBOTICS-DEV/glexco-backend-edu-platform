@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { useTranslations } from 'next-intl';
 import { gradeSubmission, type GradeState } from '../lib/grading.actions';
 import type { GradableQuestion, SubmissionForGrading } from '../lib/grading';
 
@@ -34,6 +35,7 @@ export function GradingForm({
   evidence?: Record<string, React.ReactNode>;
 }) {
   const [state, formAction] = useActionState<GradeState, FormData>(gradeSubmission, {});
+  const t = useTranslations('docente');
 
   const manual = submission.questions.filter((question) => question.needsManualGrading);
   const automatic = submission.questions.filter((question) => !question.needsManualGrading);
@@ -50,20 +52,24 @@ export function GradingForm({
         style={{ borderRadius: 'var(--portal-radius)', padding: '2.5rem 1.5rem' }}
         role="status"
       >
-        <h2 className="font-display text-xl font-semibold">Corregida</h2>
+        <h2 className="font-display text-xl font-semibold">{t('corregida')}</h2>
         <p className="mt-2 text-sm text-ink-500">
-          {studentName} · {state.score} de {submission.maxScore} puntos
+          {t('puntosDe', {
+            nombre: studentName,
+            obtenidos: state.score ?? 0,
+            total: submission.maxScore,
+          })}
           {percentage !== null ? ` (${percentage}%)` : ''}
         </p>
         <p className="mt-1 text-sm font-medium" style={{ color: state.passed ? '#0A7D57' : '#A61B1B' }}>
           <span aria-hidden="true">● </span>
-          {state.passed ? 'Aprobado' : 'No aprobado'}
+          {state.passed ? t('aprobado') : t('noAprobado')}
         </p>
         <a
           href="../correccion"
           className="btn btn-primary mt-6"
         >
-          Volver a la bandeja
+          {t('volverALaBandeja')}
         </a>
       </div>
     );
@@ -99,17 +105,16 @@ export function GradingForm({
         </section>
       ) : (
         <p className="rounded-lg border border-line-200 bg-white px-4 py-3 text-sm text-ink-700">
-          No hay nada abierto que puntuar: la máquina ya corrigió todo. Puedes
-          cerrar la nota y añadir un comentario si quieres.
+          {t('nadaQuePuntuar')}
         </p>
       )}
 
       <label className="grid gap-1.5">
-        <span className="text-sm font-medium text-ink-700">Comentario para el alumno</span>
+        <span className="text-sm font-medium text-ink-700">{t('comentarioParaElAlumno')}</span>
         <textarea
           name="feedback"
           rows={3}
-          placeholder="Opcional. Lo verá junto a su nota."
+          placeholder={t('comentarioOpcional')}
           className="field"
         />
       </label>
@@ -143,6 +148,8 @@ function ManualQuestion({
   index: number;
   evidence?: React.ReactNode;
 }) {
+  const t = useTranslations('docente');
+
   return (
     <div
       className="border border-line-200 bg-white"
@@ -163,7 +170,7 @@ function ManualQuestion({
           <p className="whitespace-pre-wrap">{question.answer.text}</p>
         ) : question.answer?.mediaAssetId ? (
           // La evidencia se pinta, no se anuncia.
-          (evidence ?? <p className="text-ink-400">Entregó un archivo.</p>)
+          (evidence ?? <p className="text-ink-400">{t('entregoUnArchivo')}</p>)
         ) : question.type === 'file_upload' ? (
           // "Sin respuesta" sería mentir aquí. La evidencia es OPCIONAL y lo
           // habitual es que el docente revise el montaje en clase: leer que el
@@ -173,7 +180,7 @@ function ManualQuestion({
             Sin evidencia en la plataforma. Si lo revisaste en clase, pon la nota aquí.
           </p>
         ) : (
-          <p className="text-ink-400">Sin respuesta.</p>
+          <p className="text-ink-400">{t('sinRespuesta')}</p>
         )}
       </div>
 
@@ -212,12 +219,12 @@ function ManualQuestion({
         )}
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Comentario</span>
+          <span className="text-sm font-medium text-ink-700">{t('comentario')}</span>
           <input
             type="text"
             name={`feedback:${question.id}`}
             defaultValue={question.answer?.feedback ?? ''}
-            placeholder="Opcional"
+            placeholder={t('opcional')}
             className="field"
           />
         </label>
@@ -325,6 +332,7 @@ function RubricGrader({
  * distinto, protegido por el permiso de corrección.
  */
 function AutomaticQuestion({ question, index }: { question: GradableQuestion; index: number }) {
+  const t = useTranslations('docente');
   const selected = new Set(question.answer?.selectedOptionIds ?? []);
   const correct = new Set(question.correctOptionIds);
   const right = question.answer !== null && (question.answer.awardedPoints ?? 0) === question.points;
@@ -339,7 +347,8 @@ function AutomaticQuestion({ question, index }: { question: GradableQuestion; in
         {/* El punto de color va con texto siempre: quien no distingue el verde
             del rojo lee igual el resultado. */}
         <span aria-hidden="true">● </span>
-        {right ? 'Acertó' : 'Falló'} · {question.answer?.awardedPoints ?? 0} de {question.points}
+        {right ? t('acerto') : t('fallo')} ·{' '}
+        {t('deTantos', { obtenidos: question.answer?.awardedPoints ?? 0, total: question.points })}
       </p>
 
       <ul className="mt-2 grid list-none gap-1 text-sm">
@@ -365,6 +374,7 @@ function AutomaticQuestion({ question, index }: { question: GradableQuestion; in
 
 function SubmitButton() {
   const { pending } = useFormStatus();
+  const t = useTranslations('docente');
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -373,9 +383,9 @@ function SubmitButton() {
         disabled={pending}
         className="btn btn-primary"
       >
-        {pending ? 'Guardando…' : 'Cerrar la nota'}
+        {pending ? t('guardando') : t('cerrarLaNota')}
       </button>
-      <p className="text-sm text-ink-500">El alumno verá su nota en cuanto la cierres.</p>
+      <p className="text-sm text-ink-500">{t('veraSuNota')}</p>
     </div>
   );
 }

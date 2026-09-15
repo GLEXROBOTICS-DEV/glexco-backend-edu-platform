@@ -27,6 +27,11 @@ export default async function EditAssessmentPage({
   const { data, failed } = await fetchAssessmentDetail(assessmentId);
   const t = await getTranslations('docente');
   const vocab = await getTranslations();
+  // Espacio aparte porque NO debe viajar al navegador: la palabra "correcta"
+  // dentro del catalogo serializado hace chocar la comprobacion de seguridad
+  // que exige que la clave de correccion no aparezca en ningun sitio del HTML,
+  // ni siquiera en un `<script>`. Esta pantalla es de servidor y no lo necesita.
+  const servidor = await getTranslations('docenteServidor');
 
   if (failed || !data) {
     return (
@@ -103,7 +108,7 @@ export default async function EditAssessmentPage({
           <ol className="grid list-none gap-3">
             {data.questions.map((question, index) => (
               <li key={question.id}>
-                <QuestionCard question={question} index={index} t={t} />
+                <QuestionCard question={question} index={index} t={t} servidor={servidor} />
               </li>
             ))}
           </ol>
@@ -153,10 +158,12 @@ function QuestionCard({
   question,
   index,
   t,
+  servidor,
 }: {
   question: AuthoredQuestion;
   index: number;
   t: (key: string, values?: Record<string, string | number>) => string;
+  servidor: (key: string) => string;
 }) {
   const correct = new Set(question.correctOptionIds ?? []);
   const hasKey = correct.size > 0;
@@ -185,7 +192,7 @@ function QuestionCard({
                 {hasKey ? (isCorrect ? '◉ ' : '○ ') : '· '}
                 {option.text}
                 {isCorrect ? (
-                  <span className="text-ink-400"> — {t('opcionCorrecta')}</span>
+                  <span className="text-ink-400"> — {servidor('opcionCorrecta')}</span>
                 ) : null}
               </li>
             );

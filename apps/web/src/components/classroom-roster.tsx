@@ -20,6 +20,9 @@ import { EmptyState, StatePill } from './ui';
  */
 export async function ClassroomRoster({ classroomId }: { classroomId: string }) {
   const t = await getTranslations('docente');
+  // Ver la nota del mismo espacio en la pantalla del salon: su texto lleva la
+  // palabra "correcta" y no debe viajar al navegador.
+  const servidor = await getTranslations('docenteServidor');
   const format = await getFormatter();
   const [roster, learning] = await Promise.all([
     fetchClassroomRoster(classroomId),
@@ -126,7 +129,7 @@ export async function ClassroomRoster({ classroomId }: { classroomId: string }) 
 
       {learning.failed ? (
         <p className="border-t border-line-200 px-4 py-3 text-xs text-ink-500">
-          {t('sinAvancePorContenido')}
+          {servidor('sinAvancePorContenido')}
         </p>
       ) : (
         <p className="border-t border-line-200 px-4 py-3 text-xs text-ink-500">

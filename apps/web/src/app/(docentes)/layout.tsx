@@ -15,6 +15,7 @@ import { getSession } from '../../lib/session';
 import { logout } from '../../lib/auth.actions';
 import { tourFor } from '../../lib/tour-steps';
 import { AppShell, type NavItem } from '../../components/app-shell';
+import { SectionMessages } from '../../components/section-messages';
 
 /**
  * Marco del Teacher Center y del portal de administración.
@@ -107,7 +108,15 @@ export default async function DocentesLayout({ children }: { children: React.Rea
       onLogout={logout}
       tour={tourFor(portal, await getTranslations('tour'))}
     >
-      {children}
+      {/*
+        Los espacios del docente y del Admin llegan al navegador SOLO aqui.
+
+        El catalogo de traducciones se serializa dentro del HTML de cada pagina,
+        asi que declararlos en la lista global haria que un alumno de primaria se
+        descargue las cadenas del panel de administracion en cada carga. Son mas
+        de doscientas claves que no va a usar nunca.
+      */}
+      <SectionMessages spaces={['docente', 'admin', 'roles']}>{children}</SectionMessages>
     </AppShell>
   );
 }

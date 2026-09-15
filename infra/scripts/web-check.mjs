@@ -393,7 +393,7 @@ async function main() {
   const salonDash = await waitForHtml(
     `${WEB}/docentes/salones/${classroom.body?.classroomId}`,
     teacherJar,
-    (html) => html.includes('Nota media') && !html.includes('Aún no hay resultados'),
+    (html) => html.includes('Nota media') && !visible(html).includes('Aún no hay resultados'),
   );
 
   report(
@@ -1534,7 +1534,7 @@ async function main() {
 
   report(
     'Un alumno que teclea la URL de correccion no llega a la pantalla',
-    !alumnoIntenta.html.includes('Cerrar la nota'),
+    !visible(alumnoIntenta.html).includes('Cerrar la nota'),
   );
 
   // ------------------------------------------------------------------
@@ -1642,6 +1642,10 @@ async function main() {
   // LA comprobacion de esta seccion: la clave del banco comun no viaja ni al
   // docente que lo esta mirando, porque son las mismas preguntas que van a
   // responder sus alumnos.
+  // Mira el HTML ENTERO, scripts incluidos, y no `visible()`: la clave de
+  // correccion no debe aparecer en ningun sitio, ni serializada en un catalogo
+  // de traducciones. Si esta comprobacion choca con una clave nueva, lo que hay
+  // que mover es la clave -que solo la usa el servidor- y no relajar esto.
   report(
     'La clave del banco de GLEXCO no llega ni al docente que lo mira',
     !ajenaDeGlexco.html.includes('correcta'),
@@ -3233,6 +3237,19 @@ async function comprobarEspaciosDeCliente() {
       /'([a-zA-Z]+)'/g,
     )].map((coincidencia) => coincidencia[1]),
   );
+
+  // Y los que declara cada seccion con `<SectionMessages spaces={[...]}>`.
+  //
+  // Existen porque el catalogo se serializa en el HTML de CADA pagina: los mas
+  // de doscientas claves del Teacher Center y del Admin no tienen por que
+  // viajar al portal de un alumno de primaria. Sin leer tambien esta fuente, la
+  // comprobacion daria por no declarado todo el bloque del docente.
+  for (const ruta of archivos) {
+    const contenido = readFileSync(ruta, 'utf8');
+    for (const bloque of contenido.matchAll(/<SectionMessages\s+spaces=\{\[([^\]]*)\]\}/g)) {
+      for (const espacio of bloque[1].matchAll(/'([a-zA-Z]+)'/g)) declarados.add(espacio[1]);
+    }
+  }
 
   const faltantes = new Map();
 

@@ -714,7 +714,6 @@
     "alPublicarla": "Al publicarla, tus alumnos la verán en su portal.",
     "puntosPregunta": "{cuantos, plural, one {# punto} other {# puntos}}",
     "laCorrigesTu": "la corriges tú",
-    "opcionCorrecta": "correcta",
     "seMuestraTrasCorregir": "Se muestra tras corregir: {texto}",
     "volverAComoVa": "← Cómo va el salón",
     "porCorregir": "Por corregir",
@@ -736,7 +735,6 @@
     "tuClase": "Tu clase",
     "resumen": "Resumen",
     "cifrasNoDisponibles": "Las cifras del salón no están disponibles ahora mismo",
-    "cifrasNoDisponiblesAyuda": "Vuelve a intentarlo en un momento. La lista de tu clase sí es correcta y puedes seguir trabajando con ella.",
     "sinResultadosSalon": "Aún no hay resultados en este salón",
     "sinResultadosSalonAyuda": "Cuando tus alumnos entreguen su primera evaluación verás aquí cómo va la clase y qué preguntas les cuestan más.",
     "notaMedia": "Nota media",
@@ -775,8 +773,25 @@
     "ver": "Ver",
     "verDetalleDe": " el detalle de {nombre}",
     "esteAlumno": "este alumno",
-    "sinAvancePorContenido": "No pudimos leer el avance por contenido ahora mismo. La lista de alumnos sí es correcta.",
-    "queEsDescolgarse": "«Se ha descolgado» significa {dias} días sin terminar ninguna lección."
+    "queEsDescolgarse": "«Se ha descolgado» significa {dias} días sin terminar ninguna lección.",
+    "corregida": "Corregida",
+    "puntosDe": "{nombre} · {obtenidos} de {total} puntos",
+    "aprobado": "Aprobado",
+    "noAprobado": "No aprobado",
+    "volverALaBandeja": "Volver a la bandeja",
+    "nadaQuePuntuar": "No hay nada abierto que puntuar: la máquina ya corrigió todo. Puedes cerrar la nota y añadir un comentario si quieres.",
+    "comentarioParaElAlumno": "Comentario para el alumno",
+    "comentarioOpcional": "Opcional. Lo verá junto a su nota.",
+    "comentario": "Comentario",
+    "opcional": "Opcional",
+    "entregoUnArchivo": "Entregó un archivo.",
+    "sinRespuesta": "Sin respuesta.",
+    "acerto": "Acertó",
+    "fallo": "Falló",
+    "deTantos": "{obtenidos} de {total}",
+    "guardando": "Guardando…",
+    "cerrarLaNota": "Cerrar la nota",
+    "veraSuNota": "El alumno verá su nota en cuanto la cierres."
   },
   "tiposEvaluacion": {
     "quiz": "Cuestionario",
@@ -858,5 +873,10 @@
     "teacher": "Docente",
     "student": "Alumno",
     "guardian": "Apoderado"
+  },
+  "docenteServidor": {
+    "opcionCorrecta": "correcta",
+    "cifrasNoDisponiblesAyuda": "Vuelve a intentarlo en un momento. La lista de tu clase sí es correcta y puedes seguir trabajando con ella.",
+    "sinAvancePorContenido": "No pudimos leer el avance por contenido ahora mismo. La lista de alumnos sí es correcta."
   }
 }
