@@ -68,7 +68,11 @@ services:
       retries: 20
 
   minio:
-    image: minio/minio:latest
+    # Desde quay.io y no desde Docker Hub: MinIO dejo de publicar ahi de forma
+    # anonima, y un `docker pull minio/minio` responde "pull access denied ...
+    # may require docker login", que se lee como un fallo de credenciales y no
+    # como lo que es. quay.io es su registro oficial y no pide cuenta.
+    image: quay.io/minio/minio:latest
     container_name: glexco-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -87,7 +91,7 @@ services:
       retries: 20
 
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     container_name: glexco-minio-init
     depends_on:
       minio:
