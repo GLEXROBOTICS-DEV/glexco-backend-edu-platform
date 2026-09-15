@@ -13,6 +13,7 @@ agente) que retome el proyecto. Léelo entero antes de tocar código.
 | [docs/ESCALABILIDAD.md](docs/ESCALABILIDAD.md) | Modelo de capacidad y estrategia de escalado. |
 | [docs/DOMINIO.md](docs/DOMINIO.md) | Reglas de negocio: roles, kits, códigos, salones. |
 | [docs/PUESTA-EN-MARCHA.md](docs/PUESTA-EN-MARCHA.md) | **Cómo levantarlo con Docker y qué verificar.** Léelo si tienes Docker funcionando. |
+| [docs/PRUEBAS-Y-LIMITES.md](docs/PRUEBAS-Y-LIMITES.md) | **Por qué una prueba falla con 429 y no es un fallo.** Los límites de fuerza bruta y cómo medir sin pelearse con ellos. |
 | [docs/TRASPASO.md](docs/TRASPASO.md) | **Si llegas desde un zip en otra máquina, empieza por aquí.** |
 | [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md) | **Cómo llevarlo a Railway**, y qué cambia al mudarse a AWS o Huawei. |
 | [docs/ENTORNO-DEMO.md](docs/ENTORNO-DEMO.md) | **Direcciones y cuentas del despliegue.** Empieza aquí si quieres verlo funcionando. |
