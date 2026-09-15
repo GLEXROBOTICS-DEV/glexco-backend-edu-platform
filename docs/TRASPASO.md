@@ -355,13 +355,16 @@ tráfico real son cientos de megas por vídeo desde nuestro ancho de banda.
 
 ### Deudas anotadas que siguen abiertas
 
-- **El límite de altas es por IP**, y una clase de treinta alumnos detrás del NAT
-  de su colegio lo agota en el minuto tres. **El cliente pidió cambiarlo el 15 de
-  septiembre de 2026**, con un matiz que condiciona el diseño: *también habrá
-  alumnos independientes que estudien desde casa*, así que no vale sustituir el
-  límite por IP por uno por salón y ya. Hacen falta las dos vías: el alta contra
-  un salón de una institución con licencia vigente se cuenta por salón, y el alta
-  independiente sigue contándose por IP. **Pendiente, no empezado.**
+- ~~El límite de altas es por IP.~~ **Resuelto el 15 de septiembre de 2026.** El
+  alta institucional se cuenta **por salón** y la independiente sigue por IP, que
+  son las dos vías que pidió el cliente. Y el límite de códigos de libro cuenta
+  ahora **fallos** en vez de intentos: era el que de verdad cortaba —cinco por
+  hora, más estricto que el de altas—, así que una clase se bloqueaba en el
+  quinto alumno por acertar su propio código.
+
+  Comprobado contra la plataforma: **doce altas seguidas del mismo salón desde la
+  misma IP, ninguna bloqueada**, y la fuerza bruta sigue cayendo en el quinto
+  fallo.
 - **MinIO y Mailpit son provisionales.** Hay que sustituirlos por Cloudflare R2 y
   un SMTP con SPF, DKIM y DMARC antes de que entre nadie real.
 - ~~La contraseña de PostgreSQL conviene rotarla.~~ **Rotada; el cliente lo

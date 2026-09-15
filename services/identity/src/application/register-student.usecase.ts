@@ -87,8 +87,8 @@ export class RegisterStudentUseCase
   ): Promise<RegisterStudentOutput> {
     const now = this.clock.now();
 
-    // 1. Limite de altas por IP.
-    await this.assertRegistrationAllowed(context);
+    // 1. Limite de altas: por salon si es institucional, por IP si no.
+    await this.assertRegistrationAllowed(input, context);
 
     const email = Email.create(input.email);
     const name = PersonName.create(input.firstName, input.lastName);
@@ -210,19 +210,53 @@ export class RegisterStudentUseCase
     };
   }
 
-  private async assertRegistrationAllowed(context: ExecutionContext): Promise<void> {
-    if (!context.ipAddress) return;
+  /**
+   * El limite de altas, por SALON o por IP segun de donde venga.
+   *
+   * **Un colegio sale a internet por una sola IP.** Contar por IP hacia que una
+   * clase de treinta detras del NAT de su colegio se bloqueara en el minuto
+   * tres por hacer exactamente lo que se espera de ella: registrarse a la vez,
+   * el primer dia, desde el mismo laboratorio. El limite no protegia de un
+   * ataque, protegia de un aula.
+   *
+   * Asi que el alta INSTITUCIONAL se cuenta por salon, que es el grupo real, y
+   * el alta INDEPENDIENTE -la familia que compra el libro por su cuenta- sigue
+   * contandose por IP, porque ahi no hay otra cosa por la que agrupar. Las dos
+   * vias existen y ninguna sustituye a la otra.
+   *
+   * Lo que impide que el limite por salon sea una puerta abierta no es su
+   * numero: es que **el salon tiene tope de plazas**. Por muchas altas que se
+   * intenten contra el, no caben mas alumnos de los que el docente declaro, y
+   * la matricula numero 36 de un salon de 35 se rechaza sola.
+   */
+  private async assertRegistrationAllowed(
+    input: StudentRegistrationInput,
+    context: ExecutionContext,
+  ): Promise<void> {
+    const porSalon = input.accountType === 'institutional' && Boolean(input.classroomId);
 
-    const result = await this.rateLimiter.consume(
-      `register:ip:${context.ipAddress}`,
-      RATE_LIMITS.REGISTRATION_BY_IP.limit,
-      RATE_LIMITS.REGISTRATION_BY_IP.windowMs,
-    );
+    const clave = porSalon
+      ? `register:classroom:${input.classroomId}`
+      : context.ipAddress
+        ? `register:ip:${context.ipAddress}`
+        : null;
+
+    // Sin IP y sin salon no hay nada que contar. Pasa en las llamadas internas
+    // entre servicios, que no vienen de un navegador.
+    if (!clave) return;
+
+    const limite = porSalon
+      ? RATE_LIMITS.REGISTRATION_BY_CLASSROOM
+      : RATE_LIMITS.REGISTRATION_BY_IP;
+
+    const result = await this.rateLimiter.consume(clave, limite.limit, limite.windowMs);
 
     if (!result.allowed) {
       throw new RateLimitError(
         'TOO_MANY_REGISTRATIONS',
-        'Se hicieron demasiados registros desde esta conexion. Intentalo mas tarde.',
+        porSalon
+          ? 'Se hicieron demasiadas altas en este salon. Intentalo mas tarde o avisa a tu docente.'
+          : 'Se hicieron demasiados registros desde esta conexion. Intentalo mas tarde.',
         { retryAfterSeconds: result.retryAfterSeconds },
       );
     }
@@ -241,17 +275,22 @@ export class RegisterStudentUseCase
     code: string,
     context: ExecutionContext,
   ): Promise<void> {
+    // **Se comprueba el limite ANTES de mirar el codigo**, pero el contador solo
+    // lo consume un fallo. Asi, quien ya agoto sus cinco fallos no puede seguir
+    // sondeando aunque acierte de casualidad, y quien llega con un codigo bueno
+    // no gasta nada.
     if (context.ipAddress) {
-      const result = await this.rateLimiter.consume(
-        `activation:ip:${context.ipAddress}`,
-        RATE_LIMITS.ACTIVATION_REDEEM_BY_IP.limit,
-        RATE_LIMITS.ACTIVATION_REDEEM_BY_IP.windowMs,
+      const restante = await this.rateLimiter.peek(
+        `activation:failed:ip:${context.ipAddress}`,
+        RATE_LIMITS.ACTIVATION_FAILED_BY_IP.limit,
+        RATE_LIMITS.ACTIVATION_FAILED_BY_IP.windowMs,
       );
-      if (!result.allowed) {
+
+      if (!restante.allowed) {
         throw new RateLimitError(
           'TOO_MANY_ACTIVATION_ATTEMPTS',
-          'Se intentaron demasiados codigos desde esta conexion. Intentalo mas tarde.',
-          { retryAfterSeconds: result.retryAfterSeconds },
+          'Se intentaron demasiados codigos incorrectos desde esta conexion. Intentalo mas tarde.',
+          { retryAfterSeconds: restante.retryAfterSeconds },
         );
       }
     }
@@ -259,6 +298,18 @@ export class RegisterStudentUseCase
     const precheck = await this.activationCodes.precheck(code);
 
     if (!precheck.valid) {
+      // El fallo SI cuenta. Es lo que distingue a quien recorre el espacio de
+      // claves -que falla casi siempre- de una clase entera con sus codigos
+      // impresos, que no falla nunca. Contar los intentos dejaba el aula
+      // bloqueada en el quinto alumno por hacer justo lo que se espera de ella.
+      if (context.ipAddress) {
+        await this.rateLimiter.consume(
+          `activation:failed:ip:${context.ipAddress}`,
+          RATE_LIMITS.ACTIVATION_FAILED_BY_IP.limit,
+          RATE_LIMITS.ACTIVATION_FAILED_BY_IP.windowMs,
+        );
+      }
+
       await this.audit
         .record({
           actorId: null,

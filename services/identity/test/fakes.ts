@@ -222,6 +222,8 @@ export class FakeTokenIssuer implements TokenIssuer {
 export class FakeRateLimiter {
   blockKeys = new Set<string>();
   readonly consumed: string[] = [];
+  /** Las consultas que NO gastan cupo, aparte de las que si. */
+  readonly peeked: string[] = [];
 
   async consume(
     key: string,
@@ -230,6 +232,22 @@ export class FakeRateLimiter {
     this.consumed.push(key);
     const blocked = [...this.blockKeys].some((prefix) => key.startsWith(prefix));
     return { allowed: !blocked, used: blocked ? limit : 1, limit, retryAfterSeconds: blocked ? 60 : 0 };
+  }
+
+  /**
+   * Consulta sin gastar, y se anota APARTE.
+   *
+   * Tener dos listas es lo que permite afirmar la regla que importa: que un
+   * codigo correcto se comprueba pero no consume cupo. Con una sola lista las
+   * pruebas no podrian distinguir "miro" de "cobro".
+   */
+  async peek(
+    key: string,
+    limit: number,
+  ): Promise<{ allowed: boolean; used: number; limit: number; retryAfterSeconds: number }> {
+    this.peeked.push(key);
+    const blocked = [...this.blockKeys].some((prefix) => key.startsWith(prefix));
+    return { allowed: !blocked, used: blocked ? limit : 0, limit, retryAfterSeconds: blocked ? 60 : 0 };
   }
 }
 

@@ -26,9 +26,10 @@ Esta tabla es una copia para leer; **la fuente es el código**.
 
 | Límite | Cuánto | Ventana | Con qué choca al probar |
 |---|---|---|---|
-| `ACTIVATION_REDEEM_BY_IP` | 5 | 1 hora | Activar códigos de libro. **El primero que se agota.** |
+| `ACTIVATION_FAILED_BY_IP` | 5 | 1 hora | Códigos de libro **fallidos**. Un código correcto no gasta cupo |
 | `ACTIVATION_REDEEM_BY_ACCOUNT` | 10 | 24 horas | Un mismo alumno probando códigos |
-| `REGISTRATION_BY_IP` | 10 | 1 hora | Altas de alumno. El segundo que se agota |
+| `REGISTRATION_BY_IP` | 10 | 1 hora | Altas **independientes** (sin colegio) |
+| `REGISTRATION_BY_CLASSROOM` | 60 | 1 hora | Altas **institucionales**, contadas por salón |
 | `PASSWORD_RESET` | 3 | 1 hora | Recuperación de contraseña |
 | `LOGIN_BY_IP` | 20 | 1 minuto | Tandas de inicios de sesión seguidos |
 | `LOGIN_BY_ACCOUNT` | 5 | 15 minutos | Rociado de contraseñas contra una cuenta |
@@ -40,6 +41,20 @@ Esta tabla es una copia para leer; **la fuente es el código**.
 único vector de fuerza bruta económicamente interesante que tiene la plataforma,
 y por eso son cinco por hora y el error no distingue «no existe» de «ya
 canjeado»: decirlo confirmaría aciertos parciales al que recorre el espacio.
+
+**Y por qué cuenta FALLOS y no intentos.** Contando intentos, una clase de
+treinta con sus códigos impresos se bloqueaba en el quinto alumno por hacer
+exactamente lo que se espera de ella. Quien recorre el espacio de claves falla
+casi siempre; un aula no falla nunca. El contador se consulta antes de mirar el
+código —para que quien ya agotó sus cinco fallos no siga sondeando aunque
+acierte— y solo lo consume el fallo.
+
+**Y por qué el alta institucional se cuenta por salón.** Un colegio sale a
+internet por una sola IP, así que el límite por IP no protegía de un ataque:
+protegía de un aula. El alta **independiente** sigue contándose por IP, porque
+ahí no hay otra cosa por la que agrupar. Lo que impide que el límite por salón
+sea una puerta abierta no es su número, es que **el salón tiene tope de plazas**:
+la matrícula número 36 de un salón de 35 se rechaza sola.
 
 ### El bloqueo de cuenta es otra cosa, y no vive en Redis
 
@@ -126,7 +141,7 @@ carga compila bajo demanda y tarda unos segundos: eso tampoco es un fallo.
 
 ## 5. Cómo leer los números de referencia
 
-Los números que aparecen en la documentación —build 15/15, typecheck 21/21, 284
+Los números que aparecen en la documentación —build 15/15, typecheck 21/21, 291
 pruebas, smoke 96, concurrencia 18, smoke:web 243— **son de la ejecución que los
 escribió**, no un contrato que se cumpla solo. Dos avisos:
 
@@ -139,7 +154,7 @@ escribió**, no un contrato que se cumpla solo. Dos avisos:
   una base sucia no sirve para comparar**; si el número importa, siembra de cero
   antes.
 
-Lo que sí es estable y se puede exigir sin preparativos: `pnpm test` (284, en
+Lo que sí es estable y se puede exigir sin preparativos: `pnpm test` (291, en
 memoria y sin Docker), `pnpm typecheck` (21/21) y `pnpm build --force` (15/15).
 
 **`pnpm concurrency` también necesita los contadores limpios.** Sus cinco
