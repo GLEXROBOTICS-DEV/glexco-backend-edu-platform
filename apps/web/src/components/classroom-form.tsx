@@ -1,24 +1,10 @@
 'use client';
 
 import { useActionState } from 'react';
+import { useTranslations } from 'next-intl';
 import { GRADES } from '@glexco/contracts';
+import { gradeLabel } from '../lib/vocabulary';
 import { createClassroom, type NewClassroomState } from '../lib/classrooms.actions';
-
-const GRADE_LABELS: Record<string, string> = {
-  [GRADES.PRIMARY_1]: '1.º de primaria',
-  [GRADES.PRIMARY_2]: '2.º de primaria',
-  [GRADES.PRIMARY_3]: '3.º de primaria',
-  [GRADES.PRIMARY_4]: '4.º de primaria',
-  [GRADES.PRIMARY_5]: '5.º de primaria',
-  [GRADES.PRIMARY_6]: '6.º de primaria',
-  [GRADES.SECONDARY_1]: '1.º de secundaria',
-  [GRADES.SECONDARY_2]: '2.º de secundaria',
-  [GRADES.SECONDARY_3]: '3.º de secundaria',
-  [GRADES.SECONDARY_4]: '4.º de secundaria',
-  [GRADES.SECONDARY_5]: '5.º de secundaria',
-  [GRADES.TECHNICAL_PROGRAM]: 'Programa técnico',
-  [GRADES.HIGHER_PROGRAM]: 'Programa superior',
-};
 
 /**
  * Alta de salon.
@@ -27,12 +13,20 @@ const GRADE_LABELS: Record<string, string> = {
  * quien mira es direccion. Un docente crea el salon a su propio nombre y no
  * necesita decidir nada: ensenarle un desplegable con un solo valor -el suyo- es
  * pedirle que confirme lo unico posible.
+ *
+ * Los grados salen de `GRADES` y su etiqueta del espacio `grados`, el mismo que
+ * usa la biblioteca del alumno. Antes habia aqui una tabla propia con los trece
+ * nombres escritos a mano: un grado nuevo en el contrato no aparecia en este
+ * desplegable, y el colegio no podia abrir el salon aunque el backend lo
+ * aceptara.
  */
 export function ClassroomForm({
   teachers,
 }: {
   teachers: ReadonlyArray<{ userId: string; fullName: string }>;
 }) {
+  const t = useTranslations('docente');
+  const vocab = useTranslations();
   const [state, formAction, pending] = useActionState<NewClassroomState, FormData>(
     createClassroom,
     {},
@@ -50,23 +44,21 @@ export function ClassroomForm({
       ) : null}
 
       <label className="block">
-        <span className="text-sm font-medium text-ink-700">Nombre del salón</span>
+        <span className="text-sm font-medium text-ink-700">{t('nombreDelSalon')}</span>
         <input
           type="text"
           name="name"
           required
           maxLength={60}
-          placeholder="4.º A"
+          placeholder={t('ejemploNombreSalon')}
           aria-invalid={state.field === 'name' ? true : undefined}
           className="field mt-1.5"
         />
-        <span className="mt-1.5 block text-xs text-ink-500">
-          Como lo llamáis en el colegio. Es lo que verán tus alumnos al registrarse.
-        </span>
+        <span className="mt-1.5 block text-xs text-ink-500">{t('nombreDelSalonAyuda')}</span>
       </label>
 
       <label className="block">
-        <span className="text-sm font-medium text-ink-700">Grado</span>
+        <span className="text-sm font-medium text-ink-700">{t('grado')}</span>
         <select
           name="grade"
           required
@@ -75,24 +67,22 @@ export function ClassroomForm({
           className="field mt-1.5"
         >
           <option value="" disabled>
-            Elige un grado
+            {t('eligeUnGrado')}
           </option>
-          {Object.entries(GRADE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
+          {Object.values(GRADES).map((grade) => (
+            <option key={grade} value={grade}>
+              {gradeLabel(vocab, grade)}
             </option>
           ))}
         </select>
         {/* El grado NO es decorativo: decide qué kit puede activar un alumno de
             este salón, y el registro rechaza a quien declare otro. Se dice aquí
             para que no se elija a la ligera. */}
-        <span className="mt-1.5 block text-xs text-ink-500">
-          Decide qué kit pueden activar sus alumnos. No se puede cambiar después.
-        </span>
+        <span className="mt-1.5 block text-xs text-ink-500">{t('gradoAyuda')}</span>
       </label>
 
       <label className="block">
-        <span className="text-sm font-medium text-ink-700">Plazas</span>
+        <span className="text-sm font-medium text-ink-700">{t('plazas')}</span>
         <input
           type="number"
           name="capacity"
@@ -101,16 +91,14 @@ export function ClassroomForm({
           defaultValue={30}
           className="field mt-1.5"
         />
-        <span className="mt-1.5 block text-xs text-ink-500">
-          Cuando se llenan, nadie más puede matricularse en este salón.
-        </span>
+        <span className="mt-1.5 block text-xs text-ink-500">{t('plazasAyuda')}</span>
       </label>
 
       {teachers.length > 0 ? (
         <label className="block">
-          <span className="text-sm font-medium text-ink-700">Docente</span>
+          <span className="text-sm font-medium text-ink-700">{t('docenteACargo')}</span>
           <select name="teacherId" defaultValue="" className="field mt-1.5">
-            <option value="">Yo</option>
+            <option value="">{t('yoMismo')}</option>
             {teachers.map((teacher) => (
               <option key={teacher.userId} value={teacher.userId}>
                 {teacher.fullName}
@@ -121,7 +109,7 @@ export function ClassroomForm({
       ) : null}
 
       <button type="submit" disabled={pending} className="btn btn-primary justify-self-start">
-        {pending ? 'Creando…' : 'Crear salón'}
+        {pending ? t('creandoSalon') : t('crearSalon')}
       </button>
     </form>
   );

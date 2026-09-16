@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { useTranslations } from 'next-intl';
 import { publishAnnouncement, type AnnouncementState } from '../lib/announcements.actions';
 import type { ClassroomSummary } from '../lib/classrooms';
 
@@ -13,6 +14,7 @@ import type { ClassroomSummary } from '../lib/classrooms';
  * medio bundle sigue pudiendo avisar a su clase.
  */
 export function AnnouncementForm({ classrooms }: { classrooms: ClassroomSummary[] }) {
+  const t = useTranslations('docente');
   const [state, formAction] = useActionState<AnnouncementState, FormData>(
     publishAnnouncement,
     {},
@@ -21,7 +23,7 @@ export function AnnouncementForm({ classrooms }: { classrooms: ClassroomSummary[
   if (classrooms.length === 0) {
     return (
       <p className="rounded-lg border border-line-200 bg-white px-4 py-3 text-sm text-ink-700">
-        Todavía no tienes salones asignados. Cuando los tengas podrás escribir anuncios.
+        {t('sinSalonesParaAnuncios')}
       </p>
     );
   }
@@ -43,13 +45,13 @@ export function AnnouncementForm({ classrooms }: { classrooms: ClassroomSummary[
           data-published="1"
           className="rounded-lg border border-success/25 bg-success/5 px-4 py-3 text-sm text-ink-700"
         >
-          Publicado. Tus alumnos lo verán la próxima vez que entren.
+          {t('anuncioPublicado')}
         </p>
       ) : null}
 
       <div>
         <label htmlFor="classroomId" className="block text-sm font-medium text-ink-700">
-          Salón
+          {t('salon')}
         </label>
         <select
           id="classroomId"
@@ -60,7 +62,7 @@ export function AnnouncementForm({ classrooms }: { classrooms: ClassroomSummary[
           defaultValue={classrooms.length === 1 ? classrooms[0]!.classroomId : ''}
           className="field mt-1.5"
         >
-          {classrooms.length > 1 ? <option value="">Elige el salón…</option> : null}
+          {classrooms.length > 1 ? <option value="">{t('eligeElSalon')}</option> : null}
           {classrooms.map((classroom) => (
             <option key={classroom.classroomId} value={classroom.classroomId}>
               {classroom.name}
@@ -71,21 +73,21 @@ export function AnnouncementForm({ classrooms }: { classrooms: ClassroomSummary[
 
       <div>
         <label htmlFor="title" className="block text-sm font-medium text-ink-700">
-          Título
+          {t('tituloAnuncio')}
         </label>
         <input
           id="title"
           name="title"
           required
           maxLength={120}
-          placeholder="Traigan el kit el viernes"
+          placeholder={t('ejemploTituloAnuncio')}
           className="field mt-1.5"
         />
       </div>
 
       <div>
         <label htmlFor="body" className="block text-sm font-medium text-ink-700">
-          Mensaje
+          {t('mensajeAnuncio')}
         </label>
         <textarea
           id="body"
@@ -103,7 +105,7 @@ export function AnnouncementForm({ classrooms }: { classrooms: ClassroomSummary[
           name="pinned"
           className="size-4 rounded border-line-300 text-brand-600"
         />
-        Fijar arriba del todo
+        {t('fijarArriba')}
       </label>
 
       <SubmitButton />
@@ -112,6 +114,7 @@ export function AnnouncementForm({ classrooms }: { classrooms: ClassroomSummary[
 }
 
 function SubmitButton() {
+  const t = useTranslations('docente');
   const { pending } = useFormStatus();
 
   return (
@@ -121,7 +124,7 @@ function SubmitButton() {
       data-submit="anuncio"
       className="btn btn-primary"
     >
-      {pending ? 'Publicando…' : 'Publicar el anuncio'}
+      {pending ? t('publicandoAnuncio') : t('publicarAnuncio')}
     </button>
   );
 }

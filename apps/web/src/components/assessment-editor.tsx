@@ -2,19 +2,59 @@
 
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { useTranslations } from 'next-intl';
+import { QUESTION_TYPES } from '@glexco/contracts';
+import { safeLabel } from '../lib/vocabulary';
 import { addQuestion, type QuestionState } from '../lib/teacher-assessments.actions';
 import { RubricEditor } from './rubric-editor';
 
+/**
+ * Los tipos que ESTE editor sabe construir.
+ *
+ * Es una lista propia y no `Object.values(QUESTION_TYPES)` a proposito:
+ * `true_false` esta en el contrato y el backend lo acepta, pero aqui no hay
+ * formulario para sus dos opciones, asi que caeria en la rama de "esta la
+ * corriges tu" —que seria mentira— y el docente acabaria con una pregunta que
+ * nunca se autocorrige. Lo que si sale del catalogo es el NOMBRE de cada tipo:
+ * antes estaba escrito en espanol dentro de este fichero y el desplegable seguia
+ * en espanol dentro de una pantalla en ingles.
+ */
 const TYPES = [
-  { value: 'single_choice', label: 'Una sola respuesta' },
-  { value: 'multiple_choice', label: 'Varias respuestas' },
-  { value: 'ordering', label: 'Ordenar una secuencia' },
-  { value: 'matching', label: 'Emparejar dos columnas' },
-  { value: 'short_answer', label: 'Respuesta escrita' },
-  { value: 'file_upload', label: 'Entrega de archivo o enlace' },
+  QUESTION_TYPES.SINGLE_CHOICE,
+  QUESTION_TYPES.MULTIPLE_CHOICE,
+  QUESTION_TYPES.ORDERING,
+  QUESTION_TYPES.MATCHING,
+  QUESTION_TYPES.SHORT_ANSWER,
+  QUESTION_TYPES.FILE_UPLOAD,
 ] as const;
 
-const BLANK_OPTIONS = 4;
+/** Cuantas filas en blanco se ofrecen. Se exporta porque la pantalla que monta
+ *  este editor prepara una etiqueta por fila (ver `ClaveEnPantalla`). */
+export const BLANK_OPTIONS = 4;
+
+/**
+ * Los textos que NOMBRAN la clave de correccion.
+ *
+ * Llegan como propiedad en vez de salir de `useTranslations`, y la razon es
+ * concreta: el catalogo de traducciones se serializa dentro de un `<script>` en
+ * **todas** las paginas de la seccion, incluida la de una evaluacion del banco
+ * de GLEXCO, y de esa pagina se exige que la palabra "correcta" no aparezca en
+ * ningun sitio —son las mismas preguntas que van a responder los alumnos, y el
+ * docente que las mira tampoco debe ver la clave—.
+ *
+ * Como propiedad solo viajan cuando este editor se pinta, y este editor no se
+ * pinta en una evaluacion ajena. Si mas adelante hace falta un texto nuevo que
+ * nombre la clave, va aqui y al espacio `docenteServidor`; todo lo demas va al
+ * espacio `docente`, como el resto del portal.
+ */
+export interface ClaveEnPantalla {
+  pasosEnOrden: string;
+  opcionesMarcaUna: string;
+  opcionesMarcaVarias: string;
+  /** Una etiqueta por casilla, ya numerada: este componente no puede leer el
+   *  espacio que las contiene, asi que llegan hechas. */
+  marcarOpcion: readonly string[];
+}
 
 /**
  * Añadir una pregunta.
@@ -28,7 +68,15 @@ const BLANK_OPTIONS = 4;
  * el alumno para responder —radio o casilla según el tipo—, así que el docente
  * ve el cuestionario tal y como lo va a ver su clase.
  */
-export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
+export function AssessmentEditor({
+  assessmentId,
+  clave,
+}: {
+  assessmentId: string;
+  clave: ClaveEnPantalla;
+}) {
+  const t = useTranslations('docente');
+  const vocab = useTranslations();
   const [state, formAction] = useActionState<QuestionState, FormData>(addQuestion, {});
   const [type, setType] = useState<string>('single_choice');
 
@@ -50,7 +98,7 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
     >
       <input type="hidden" name="assessmentId" value={assessmentId} />
 
-      <h2 className="font-display text-base font-semibold">Añadir una pregunta</h2>
+      <h2 className="font-display text-base font-semibold">{t('anadirPregunta')}</h2>
 
       {state.error ? (
         <p
@@ -66,29 +114,29 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
           role="status"
           className="rounded-lg border border-line-200 bg-surface-100 px-4 py-3 text-sm text-ink-700"
         >
-          Pregunta añadida. Puedes seguir añadiendo más.
+          {t('preguntaAnadida')}
         </p>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-[1fr_9rem]">
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Tipo de pregunta</span>
+          <span className="text-sm font-medium text-ink-700">{t('tipoDePregunta')}</span>
           <select
             name="type"
             value={type}
             onChange={(event) => setType(event.target.value)}
             className="field"
           >
-            {TYPES.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
+            {TYPES.map((value) => (
+              <option key={value} value={value}>
+                {safeLabel(vocab, 'tiposPregunta', value)}
               </option>
             ))}
           </select>
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Puntos</span>
+          <span className="text-sm font-medium text-ink-700">{t('puntos')}</span>
           <input
             type="number"
             name="points"
@@ -103,38 +151,32 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
       </div>
 
       <label className="grid gap-1.5">
-        <span className="text-sm font-medium text-ink-700">Enunciado</span>
+        <span className="text-sm font-medium text-ink-700">{t('enunciado')}</span>
         <textarea
           name="prompt"
           rows={2}
           required
           minLength={3}
-          placeholder="¿Cuál de estas piezas es un servomotor?"
+          placeholder={t('ejemploEnunciado')}
           className="field"
         />
       </label>
 
       {matching ? (
         <fieldset className="grid gap-2">
-          <legend className="mb-1 text-sm font-medium text-ink-700">
-            Parejas
-          </legend>
+          <legend className="mb-1 text-sm font-medium text-ink-700">{t('parejas')}</legend>
           {/* La regla se dice ANTES de escribir y no en un error después: cada
               fila ES una pareja, y eso no se adivina mirando ocho campos
               vacíos. */}
-          <p className="mb-1 text-xs text-ink-400">
-            Cada fila es una pareja. El alumno verá la columna derecha
-            desordenada. Deja en blanco las filas que no uses; hacen falta al
-            menos dos.
-          </p>
+          <p className="mb-1 text-xs text-ink-400">{t('parejasAyuda')}</p>
 
           {Array.from({ length: BLANK_OPTIONS }, (_, index) => (
             <div key={index} className="grid items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
               <input
                 type="text"
                 name="matchLeft"
-                aria-label={`Elemento izquierdo de la pareja ${index + 1}`}
-                placeholder={`Izquierda ${index + 1}`}
+                aria-label={t('elementoIzquierdo', { numero: index + 1 })}
+                placeholder={t('ejemploIzquierda', { numero: index + 1 })}
                 className="field"
               />
               <span className="hidden text-ink-400 sm:block" aria-hidden="true">
@@ -143,8 +185,8 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
               <input
                 type="text"
                 name="matchRight"
-                aria-label={`Su pareja ${index + 1}`}
-                placeholder={`Su pareja ${index + 1}`}
+                aria-label={t('suPareja', { numero: index + 1 })}
+                placeholder={t('suPareja', { numero: index + 1 })}
                 className="field"
               />
             </div>
@@ -154,22 +196,24 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
         <fieldset className="grid gap-2">
           <legend className="mb-1 text-sm font-medium text-ink-700">
             {ordering
-              ? 'Pasos, en el orden correcto'
-              : `Opciones ${multiple ? '(marca todas las correctas)' : '(marca la correcta)'}`}
+              ? clave.pasosEnOrden
+              : multiple
+                ? clave.opcionesMarcaVarias
+                : clave.opcionesMarcaUna}
           </legend>
           <p className="mb-1 text-xs text-ink-400">
             {ordering
               ? // Se dice la regla ANTES de escribir, no después en un error: el
                 // orden en que el docente los teclea ES la respuesta, y eso no
                 // se adivina mirando cuatro campos de texto vacíos.
-                'Escríbelos como deben quedar. El alumno los verá desordenados. Deja en blanco los que no uses; hacen falta al menos dos.'
-              : 'Deja en blanco las que no uses. Hacen falta al menos dos.'}
+                t('pasosAyuda')
+              : t('opcionesAyuda')}
           </p>
 
           {Array.from({ length: BLANK_OPTIONS }, (_, index) => (
             <div key={index} className="flex items-center gap-3">
               {ordering ? (
-                // El número del paso, no un control de "cuál es la correcta":
+                // El número del paso, no un control de "cuál es la respuesta":
                 // en una secuencia no hay una opción buena, la respuesta es el
                 // orden entero.
                 <span
@@ -183,7 +227,7 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
                   type={multiple ? 'checkbox' : 'radio'}
                   name="correctOption"
                   value={index}
-                  aria-label={`La opción ${index + 1} es correcta`}
+                  aria-label={clave.marcarOpcion[index]}
                   className="size-4 shrink-0 border-line-300 text-brand-600"
                 />
               )}
@@ -191,9 +235,15 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
                 type="text"
                 name="optionText"
                 aria-label={
-                  ordering ? `Paso ${index + 1}` : `Texto de la opción ${index + 1}`
+                  ordering
+                    ? t('pasoNumero', { numero: index + 1 })
+                    : t('textoDeLaOpcion', { numero: index + 1 })
                 }
-                placeholder={ordering ? `Paso ${index + 1}` : `Opción ${index + 1}`}
+                placeholder={
+                  ordering
+                    ? t('pasoNumero', { numero: index + 1 })
+                    : t('opcionNumero', { numero: index + 1 })
+                }
                 className="field"
               />
             </div>
@@ -203,8 +253,7 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
         <>
           <p className="rounded-lg border border-line-200 bg-surface-100 px-4 py-3 text-sm text-ink-700">
             {/* Decirlo aquí evita la pregunta obvia: "¿y dónde pongo la respuesta?" */}
-            Esta pregunta la corriges tú: aparecerá en tu bandeja cuando el alumno
-            la entregue.
+            {t('laCorrigesTuAyuda')}
           </p>
 
           {/* La rúbrica solo tiene sentido donde corrige una persona: en las de
@@ -216,12 +265,12 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
 
       <label className="grid gap-1.5">
         <span className="text-sm font-medium text-ink-700">
-          Explicación <span className="text-ink-400">(opcional)</span>
+          {t('explicacion')} <span className="text-ink-400">({t('opcional').toLowerCase()})</span>
         </span>
         <input
           type="text"
           name="explanation"
-          placeholder="Se muestra al alumno DESPUÉS de corregir, nunca antes."
+          placeholder={t('explicacionAyuda')}
           className="field"
         />
       </label>
@@ -232,6 +281,7 @@ export function AssessmentEditor({ assessmentId }: { assessmentId: string }) {
 }
 
 function SubmitButton() {
+  const t = useTranslations('docente');
   const { pending } = useFormStatus();
 
   return (
@@ -241,7 +291,7 @@ function SubmitButton() {
         disabled={pending}
         className="btn btn-primary"
       >
-        {pending ? 'Añadiendo…' : 'Añadir pregunta'}
+        {pending ? t('anadiendoPregunta') : t('anadirPregunta')}
       </button>
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 /**
  * Editor de rúbrica del docente.
@@ -24,6 +25,7 @@ import { useState } from 'react';
 const MAX_CRITERIOS = 5;
 
 export function RubricEditor({ questionPoints }: { questionPoints: number }) {
+  const t = useTranslations('docente');
   const [activa, setActiva] = useState(false);
   const [criterios, setCriterios] = useState([
     { label: '', points: 0 },
@@ -43,15 +45,13 @@ export function RubricEditor({ questionPoints }: { questionPoints: number }) {
   if (!activa) {
     return (
       <div className="rounded-lg border border-line-200 bg-surface-100 px-4 py-3">
-        <p className="text-sm text-ink-700">
-          Sin rúbrica, esta pregunta se corrige poniendo un número libre.
-        </p>
+        <p className="text-sm text-ink-700">{t('sinRubrica')}</p>
         <button
           type="button"
           onClick={() => setActiva(true)}
           className="btn btn-sm btn-secondary mt-3"
         >
-          Añadir una rúbrica
+          {t('anadirRubrica')}
         </button>
       </div>
     );
@@ -59,32 +59,30 @@ export function RubricEditor({ questionPoints }: { questionPoints: number }) {
 
   return (
     <fieldset className="grid gap-3 rounded-lg border border-line-200 p-4">
-      <legend className="px-1 text-sm font-medium text-ink-700">Rúbrica</legend>
+      <legend className="px-1 text-sm font-medium text-ink-700">{t('rubrica')}</legend>
 
       {/* Se dice para qué sirve, no qué es. Un docente que no sabe por qué
           debería molestarse no la rellena. */}
-      <p className="text-xs text-ink-500">
-        Con rúbrica, el alumno ve por qué perdió los puntos —montaje, cableado,
-        explicación— en vez de un número suelto. Y dos docentes puntúan igual lo
-        mismo.
-      </p>
+      <p className="text-xs text-ink-500">{t('rubricaParaQue')}</p>
 
       {criterios.map((criterio, index) => (
         <div key={index} className="grid gap-2 sm:grid-cols-[1fr_7rem]">
           <label className="grid gap-1">
-            <span className="sr-only">Criterio {index + 1}</span>
+            <span className="sr-only">{t('criterioNumero', { numero: index + 1 })}</span>
             <input
               type="text"
               name="rubricCriterion"
               value={criterio.label}
               onChange={(event) => actualizar(index, { label: event.target.value })}
-              placeholder={`Criterio ${index + 1} (montaje, cableado…)`}
+              placeholder={t('ejemploCriterio', { numero: index + 1 })}
               className="field"
             />
           </label>
 
           <label className="grid gap-1">
-            <span className="sr-only">Puntos del criterio {index + 1}</span>
+            <span className="sr-only">
+              {t('puntosDelCriterio', { numero: index + 1 })}
+            </span>
             <input
               type="number"
               name="rubricPoints"
@@ -94,7 +92,7 @@ export function RubricEditor({ questionPoints }: { questionPoints: number }) {
               onChange={(event) =>
                 actualizar(index, { points: Number(event.target.value) || 0 })
               }
-              placeholder="Puntos"
+              placeholder={t('puntos')}
               className="field"
             />
           </label>
@@ -107,7 +105,7 @@ export function RubricEditor({ questionPoints }: { questionPoints: number }) {
           onClick={() => setCriterios((previos) => [...previos, { label: '', points: 0 }])}
           className="justify-self-start text-sm font-medium text-brand-600 hover:underline"
         >
-          Añadir otro criterio
+          {t('anadirOtroCriterio')}
         </button>
       ) : null}
 
@@ -118,10 +116,10 @@ export function RubricEditor({ questionPoints }: { questionPoints: number }) {
         className={`text-sm font-medium ${cuadra ? 'text-state-done-fg' : 'text-state-warn-fg'}`}
       >
         {usados.length === 0
-          ? `Reparte los ${questionPoints} puntos de la pregunta entre tus criterios.`
+          ? t('repartePuntos', { puntos: questionPoints })
           : cuadra
-            ? `Cuadra: ${suma} de ${questionPoints} puntos.`
-            : `Suman ${suma} y la pregunta vale ${questionPoints}. Tienen que coincidir.`}
+            ? t('rubricaCuadra', { suma, puntos: questionPoints })
+            : t('rubricaNoCuadra', { suma, puntos: questionPoints })}
       </p>
 
       <button
@@ -135,7 +133,7 @@ export function RubricEditor({ questionPoints }: { questionPoints: number }) {
         }}
         className="justify-self-start text-sm text-ink-500 hover:text-ink-900"
       >
-        Quitar la rúbrica
+        {t('quitarRubrica')}
       </button>
     </fieldset>
   );

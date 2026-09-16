@@ -2,7 +2,9 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { useTranslations } from 'next-intl';
 import { EDUCATION_LEVELS } from '@glexco/contracts';
+import { safeLabel } from '../lib/vocabulary';
 import {
   changeContentStatus,
   createInstitution,
@@ -65,6 +67,8 @@ function Enviar({ label, pendingLabel }: { label: string; pendingLabel: string }
 
 /** Alta de colegio. */
 export function InstitutionForm() {
+  const t = useTranslations('admin');
+  const vocab = useTranslations();
   const [state, formAction] = useActionState<AdminState, FormData>(createInstitution, {});
 
   return (
@@ -73,12 +77,12 @@ export function InstitutionForm() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Nombre del colegio</span>
+          <span className="text-sm font-medium text-ink-700">{t('nombreDelColegio')}</span>
           <input type="text" name="name" required minLength={3} className="field" />
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Código de registro</span>
+          <span className="text-sm font-medium text-ink-700">{t('codigoDeRegistro')}</span>
           <input
             type="text"
             name="code"
@@ -90,50 +94,46 @@ export function InstitutionForm() {
               lo que los alumnos teclean al registrarse y va impreso en los
               libros que el colegio ya compró. Se guarda sin guiones, y quien
               escriba "SJB-2026" y luego lo busque tal cual no lo encontrará. */}
-          <span className="text-xs text-ink-400">
-            Sin guiones ni espacios. Es lo que teclean los alumnos al registrarse.
-          </span>
+          <span className="text-xs text-ink-400">{t('codigoDeRegistroAyuda')}</span>
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Nombre corto</span>
+          <span className="text-sm font-medium text-ink-700">{t('nombreCorto')}</span>
           <input type="text" name="shortName" className="field" />
-          <span className="text-xs text-ink-400">Opcional. Es el que cabe en la barra.</span>
+          <span className="text-xs text-ink-400">{t('nombreCortoAyuda')}</span>
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Ciudad</span>
+          <span className="text-sm font-medium text-ink-700">{t('ciudad')}</span>
           <input type="text" name="city" required minLength={2} className="field" />
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Persona responsable</span>
+          <span className="text-sm font-medium text-ink-700">{t('personaResponsable')}</span>
           <input type="text" name="responsibleName" required className="field" />
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Correo de contacto</span>
+          <span className="text-sm font-medium text-ink-700">{t('correoDeContacto')}</span>
           <input type="email" name="contactEmail" required className="field" />
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Teléfono</span>
+          <span className="text-sm font-medium text-ink-700">{t('telefono')}</span>
           <input type="tel" name="phone" className="field" />
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Dirección</span>
+          <span className="text-sm font-medium text-ink-700">{t('direccion')}</span>
           <input type="text" name="address" className="field" />
         </label>
       </div>
 
       <fieldset className="grid gap-2">
-        <legend className="text-sm font-medium text-ink-700">Niveles que atiende</legend>
+        <legend className="text-sm font-medium text-ink-700">{t('nivelesQueAtiende')}</legend>
         {/* El nivel decide qué grados se pueden crear: sin ninguno, el colegio
             queda dado de alta y sin poder abrir un solo salón. */}
-        <p className="text-xs text-ink-400">
-          Decide qué grados podrá crear. Sin ninguno no puede abrir salones.
-        </p>
+        <p className="text-xs text-ink-400">{t('nivelesAyuda')}</p>
         <div className="flex flex-wrap gap-4">
           {Object.values(EDUCATION_LEVELS).map((level) => (
             <label key={level} className="flex items-center gap-2 text-sm">
@@ -143,24 +143,16 @@ export function InstitutionForm() {
                 value={level}
                 className="size-4 border-line-300 text-brand-600"
               />
-              {LEVEL_LABELS[level] ?? level}
+              {safeLabel(vocab, 'nivelesEducativos', level)}
             </label>
           ))}
         </div>
       </fieldset>
 
-      <Enviar label="Dar de alta el colegio" pendingLabel="Creando…" />
+      <Enviar label={t('darDeAltaElColegio')} pendingLabel={t('creando')} />
     </form>
   );
 }
-
-const LEVEL_LABELS: Record<string, string> = {
-  primary: 'Primaria',
-  secondary: 'Secundaria',
-  technical: 'Técnico',
-  higher: 'Superior',
-  university: 'Universidad',
-};
 
 /** Licencia de un colegio: plazas y periodo. */
 export function LicenseForm({
@@ -170,6 +162,7 @@ export function LicenseForm({
   institutionId: string;
   institutionName: string;
 }) {
+  const t = useTranslations('admin');
   const [state, formAction] = useActionState<AdminState, FormData>(grantLicense, {});
   const hoy = new Date().toISOString().slice(0, 10);
 
@@ -180,31 +173,31 @@ export function LicenseForm({
 
       <div className="grid gap-3 sm:grid-cols-4">
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Plazas</span>
+          <span className="text-sm font-medium text-ink-700">{t('plazas')}</span>
           {/* No es una sugerencia: el canje de un código las comprueba, así que
               este número es el tope real de alumnos que podrán activar. */}
           <input type="number" name="seats" min={1} required defaultValue={30} className="field" />
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Desde</span>
+          <span className="text-sm font-medium text-ink-700">{t('desde')}</span>
           <input type="date" name="startsAt" required defaultValue={hoy} className="field" />
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Hasta</span>
+          <span className="text-sm font-medium text-ink-700">{t('hasta')}</span>
           <input type="date" name="expiresAt" required className="field" />
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Referencia</span>
-          <input type="text" name="reference" placeholder="OC-2026-014" className="field" />
+          <span className="text-sm font-medium text-ink-700">{t('referencia')}</span>
+          <input type="text" name="reference" placeholder={t('ejemploReferencia')} className="field" />
         </label>
       </div>
 
       <Enviar
-        label={`Conceder licencia a ${institutionName}`}
-        pendingLabel="Concediendo…"
+        label={t('concederLicenciaA', { colegio: institutionName })}
+        pendingLabel={t('concediendo')}
       />
     </form>
   );
@@ -218,6 +211,7 @@ export function StaffForm({
   roles: { value: string; label: string }[];
   institutions: { id: string; name: string }[];
 }) {
+  const t = useTranslations('admin');
   const [state, formAction] = useActionState<AdminState, FormData>(createStaff, {});
 
   return (
@@ -226,22 +220,22 @@ export function StaffForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Nombre</span>
+          <span className="text-sm font-medium text-ink-700">{t('nombre')}</span>
           <input type="text" name="firstName" required className="field" />
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Apellidos</span>
+          <span className="text-sm font-medium text-ink-700">{t('apellidos')}</span>
           <input type="text" name="lastName" required className="field" />
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Correo</span>
+          <span className="text-sm font-medium text-ink-700">{t('correo')}</span>
           <input type="email" name="email" required className="field" />
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Rol</span>
+          <span className="text-sm font-medium text-ink-700">{t('rol')}</span>
           <select name="role" required className="field">
             {roles.map((role) => (
               <option key={role.value} value={role.value}>
@@ -253,9 +247,9 @@ export function StaffForm({
 
         {institutions.length > 0 ? (
           <label className="grid gap-1.5 sm:col-span-2">
-            <span className="text-sm font-medium text-ink-700">Colegio</span>
+            <span className="text-sm font-medium text-ink-700">{t('colegio')}</span>
             <select name="institutionId" className="field">
-              <option value="">Sin colegio (equipo de GLEXCO)</option>
+              <option value="">{t('sinColegioEquipoGlexco')}</option>
               {institutions.map((institution) => (
                 <option key={institution.id} value={institution.id}>
                   {institution.name}
@@ -271,24 +265,19 @@ export function StaffForm({
           dejaría a la persona esperando algo que no existe y al operador sin
           saber que la contraseña la tiene él. */}
       <p className="rounded-lg border border-line-200 bg-surface-100 px-4 py-3 text-sm text-ink-700">
-        No se elige la contraseña: al crear la cuenta se genera una temporal y se
-        muestra aquí una sola vez, para que se la entregues en persona.
+        {t('comoSeEntregaLaClave')}
       </p>
 
-      <Enviar label="Crear la cuenta" pendingLabel="Creando…" />
+      <Enviar label={t('crearCuenta')} pendingLabel={t('creando')} />
 
       {state.temporaryPassword ? (
         <div
           className="rounded-[var(--portal-radius)] border border-state-warn-fg/30 bg-state-warn-bg p-4"
           data-temporary-password="1"
         >
-          <p className="text-sm font-medium text-state-warn-fg">
-            Contraseña temporal. No volverá a mostrarse.
-          </p>
+          <p className="text-sm font-medium text-state-warn-fg">{t('claveTemporal')}</p>
           <p className="mt-2 font-mono text-lg tracking-wide">{state.temporaryPassword}</p>
-          <p className="mt-2 text-xs text-state-warn-fg">
-            Entrégala en persona. La cuenta pedirá cambiarla al primer ingreso.
-          </p>
+          <p className="mt-2 text-xs text-state-warn-fg">{t('entregalaEnPersona')}</p>
         </div>
       ) : null}
     </form>
@@ -303,6 +292,7 @@ export function CodeBatchForm({
   kits: { kitId: string; name: string; grade: string }[];
   institutions: { id: string; name: string }[];
 }) {
+  const t = useTranslations('admin');
   const [state, formAction] = useActionState<AdminState, FormData>(generateCodeBatch, {});
 
   return (
@@ -312,7 +302,7 @@ export function CodeBatchForm({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="grid gap-1.5">
-            <span className="text-sm font-medium text-ink-700">Kit</span>
+            <span className="text-sm font-medium text-ink-700">{t('kit')}</span>
             <select name="kitId" required className="field">
               {kits.map((kit) => (
                 <option key={kit.kitId} value={kit.kitId}>
@@ -323,14 +313,14 @@ export function CodeBatchForm({
           </label>
 
           <label className="grid gap-1.5">
-            <span className="text-sm font-medium text-ink-700">Cuántos códigos</span>
+            <span className="text-sm font-medium text-ink-700">{t('cuantosCodigos')}</span>
             <input type="number" name="size" min={1} required defaultValue={30} className="field" />
           </label>
 
           <label className="grid gap-1.5">
-            <span className="text-sm font-medium text-ink-700">Para qué colegio</span>
+            <span className="text-sm font-medium text-ink-700">{t('paraQueColegio')}</span>
             <select name="distributedTo" className="field">
-              <option value="">Stock general de imprenta</option>
+              <option value="">{t('stockGeneralDeImprenta')}</option>
               {institutions.map((institution) => (
                 <option key={institution.id} value={institution.id}>
                   {institution.name}
@@ -340,27 +330,22 @@ export function CodeBatchForm({
             {/* Sin colegio, el evento del lote sale sin institución y el panel no
                 puede atribuir esos códigos a nadie: es el fallo que dejó el
                 recuento en «10 de 0 emitidos» durante semanas. */}
-            <span className="text-xs text-ink-400">
-              Si es un pedido de un colegio, elígelo: es lo que permite medir después
-              cuántos libros suyos se activaron.
-            </span>
+            <span className="text-xs text-ink-400">{t('paraQueColegioAyuda')}</span>
           </label>
 
           <label className="grid gap-1.5">
-            <span className="text-sm font-medium text-ink-700">Referencia</span>
-            <input type="text" name="reference" placeholder="OC-2026-014" className="field" />
+            <span className="text-sm font-medium text-ink-700">{t('referencia')}</span>
+            <input type="text" name="reference" placeholder={t('ejemploReferencia')} className="field" />
           </label>
 
           <label className="grid gap-1.5 sm:col-span-2">
-            <span className="text-sm font-medium text-ink-700">Caducan el</span>
+            <span className="text-sm font-medium text-ink-700">{t('caducanEl')}</span>
             <input type="date" name="expiresAt" className="field" />
-            <span className="text-xs text-ink-400">
-              Opcional. Sin fecha no caducan.
-            </span>
+            <span className="text-xs text-ink-400">{t('caducanElAyuda')}</span>
           </label>
         </div>
 
-        <Enviar label="Generar el lote" pendingLabel="Generando…" />
+        <Enviar label={t('generarElLote')} pendingLabel={t('generando')} />
       </form>
 
       {state.codes && state.codes.length > 0 ? (
@@ -384,10 +369,12 @@ export function CodeBatchForm({
  * ahí para copiarlos, que es lo que importa.
  */
 function GeneratedCodes({ codes, batchId }: { codes: string[]; batchId: string }) {
+  const t = useTranslations('admin');
+
   function descargar(): void {
     // BOM al principio: sin él, Excel abre el CSV en Latin-1 y los acentos de la
     // cabecera salen roto. Es una línea y ahorra la pregunta de siempre.
-    const csv = `﻿ codigo\n${codes.join('\n')}\n`;
+    const csv = `﻿${t('cabeceraCsvCodigo')}\n${codes.join('\n')}\n`;
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
 
     const enlace = document.createElement('a');
@@ -405,14 +392,12 @@ function GeneratedCodes({ codes, batchId }: { codes: string[]; batchId: string }
       data-generated-codes={codes.length}
     >
       <h3 id="codigos-generados" className="font-display text-base font-semibold">
-        {codes.length} códigos generados
+        {t('codigosGenerados', { cuantos: codes.length })}
       </h3>
-      <p className="mt-1 text-sm text-state-warn-fg">
-        Guárdalos ahora. No volverán a mostrarse: en la base solo queda su hash.
-      </p>
+      <p className="mt-1 text-sm text-state-warn-fg">{t('guardalosAhora')}</p>
 
       <button type="button" onClick={descargar} className="btn btn-primary btn-sm mt-4">
-        Descargar en CSV
+        {t('descargarEnCsv')}
       </button>
 
       <ul className="mt-4 grid gap-1 font-mono text-xs sm:grid-cols-3 lg:grid-cols-4">
@@ -436,6 +421,7 @@ export function ContentStatusForm({
   target: 'kit' | 'course' | 'asset';
   status: string;
 }) {
+  const vocab = useTranslations();
   const [state, formAction] = useActionState<AdminState, FormData>(changeContentStatus, {});
 
   // Las transiciones permitidas las decide el backend; aquí solo se ofrecen las
@@ -458,7 +444,7 @@ export function ContentStatusForm({
           value={next}
           className="btn btn-sm btn-secondary"
         >
-          {STATUS_ACTIONS[next]}
+          {safeLabel(vocab, 'estadoAccion', next)}
         </button>
       ))}
 
@@ -484,11 +470,4 @@ const TRANSITIONS: Record<string, string[]> = {
   in_review: ['published', 'draft', 'archived'],
   published: ['archived', 'in_review'],
   archived: ['draft'],
-};
-
-const STATUS_ACTIONS: Record<string, string> = {
-  in_review: 'Mandar a revisión',
-  published: 'Publicar',
-  draft: 'Volver a borrador',
-  archived: 'Archivar',
 };

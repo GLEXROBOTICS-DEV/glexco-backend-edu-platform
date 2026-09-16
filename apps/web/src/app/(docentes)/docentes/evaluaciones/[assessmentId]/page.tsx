@@ -11,7 +11,11 @@ import {
   cloneAssessment,
   publishAssessment,
 } from '../../../../../lib/teacher-assessments.actions';
-import { AssessmentEditor } from '../../../../../components/assessment-editor';
+import {
+  AssessmentEditor,
+  BLANK_OPTIONS,
+  type ClaveEnPantalla,
+} from '../../../../../components/assessment-editor';
 import { EmptyState, SectionTitle } from '../../../../../components/ui';
 
 export const metadata: Metadata = { title: 'Editar evaluación' };
@@ -126,7 +130,18 @@ export default async function EditAssessmentPage({
         </p>
       ) : null}
 
-      {data.editable && !frozen ? <AssessmentEditor assessmentId={data.assessmentId} /> : null}
+      {/*
+        Los textos que nombran la clave se arman AQUI y se le pasan al editor.
+
+        No pueden salir de su `useTranslations` porque el catalogo del navegador
+        se serializa en el HTML de todas las paginas de la seccion, y de la de
+        una evaluacion de GLEXCO se exige que la palabra "correcta" no aparezca
+        en ningun sitio. Como propiedad solo viajan cuando el editor se pinta, y
+        en una evaluacion ajena no se pinta.
+      */}
+      {data.editable && !frozen ? (
+        <AssessmentEditor assessmentId={data.assessmentId} clave={claveEnPantalla(servidor)} />
+      ) : null}
 
       {data.editable && data.status !== 'published' && data.questions.length > 0 ? (
         <form action={publishAssessment}>
@@ -207,4 +222,24 @@ function QuestionCard({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Las etiquetas de la clave de correccion, ya resueltas.
+ *
+ * `marcarOpcion` viene numerada una por casilla porque el editor es de cliente y
+ * no puede llamar a `t` para el espacio que las contiene: lo que cruza la
+ * frontera son cadenas, no funciones.
+ */
+function claveEnPantalla(
+  servidor: (key: string, values?: Record<string, string | number>) => string,
+): ClaveEnPantalla {
+  return {
+    pasosEnOrden: servidor('pasosEnOrden'),
+    opcionesMarcaUna: servidor('opcionesMarcaUna'),
+    opcionesMarcaVarias: servidor('opcionesMarcaVarias'),
+    marcarOpcion: Array.from({ length: BLANK_OPTIONS }, (_, index) =>
+      servidor('marcarOpcion', { numero: index + 1 }),
+    ),
+  };
 }

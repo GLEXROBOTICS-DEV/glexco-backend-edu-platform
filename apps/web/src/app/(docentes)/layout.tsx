@@ -115,8 +115,25 @@ export default async function DocentesLayout({ children }: { children: React.Rea
         asi que declararlos en la lista global haria que un alumno de primaria se
         descargue las cadenas del panel de administracion en cada carga. Son mas
         de doscientas claves que no va a usar nunca.
+
+        `grados` viaja porque el alta de salon es de CLIENTE y traduce ahi los
+        trece grados. Son trece claves y son las mismas que ya ve el alumno en
+        su biblioteca: mucho mas barato que la tabla a mano que habia antes
+        dentro del formulario, que se quedaba atras en cuanto el contrato
+        anadia un grado. `tiposPregunta` viaja por lo mismo: el editor de
+        preguntas es de cliente y son seis claves.
       */}
-      <SectionMessages spaces={['docente', 'admin', 'roles']}>{children}</SectionMessages>
+      <SectionMessages spaces={[
+          'docente',
+          'admin',
+          'roles',
+          'grados',
+          'tiposPregunta',
+          'nivelesEducativos',
+          'estadoAccion',
+        ]}>
+        {children}
+      </SectionMessages>
     </AppShell>
   );
 }

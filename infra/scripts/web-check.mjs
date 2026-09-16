@@ -1630,12 +1630,17 @@ async function main() {
     teacherJar,
   );
 
+  // Mira lo que SE VE y no el documento entero: "Anadir una pregunta" es ahora
+  // una clave del catalogo del docente, que se serializa en un `<script>` de
+  // esta misma pagina aunque el editor no se pinte. Lo que se afirma es que el
+  // editor no aparece, no que esa cadena no exista en ningun byte del documento.
+  const ajenaVisible = visible(ajenaDeGlexco.html);
   report(
     'Abrir una de GLEXCO ofrece duplicar, no editar',
     ajenaDeGlexco.status === 200 &&
-      ajenaDeGlexco.html.includes('Duplicar para mi') &&
-      !ajenaDeGlexco.html.includes('Anadir una pregunta') &&
-      !ajenaDeGlexco.html.includes('A\u00f1adir una pregunta'),
+      ajenaVisible.includes('Duplicar para mi') &&
+      !ajenaVisible.includes('Anadir una pregunta') &&
+      !ajenaVisible.includes('A\u00f1adir una pregunta'),
     `status=${ajenaDeGlexco.status}`,
   );
 
@@ -3305,7 +3310,14 @@ async function comprobarEspaciosDeCliente() {
   for (const linea of propio.split('\n')) {
     if (linea.includes('visible(')) continue;
     for (const coincidencia of linea.matchAll(/!\s*[A-Za-z]+(?:\.html)?\??\.includes\('([^']+)'\)/g)) {
-      const literal = coincidencia[1];
+      // Se decodifican los escapes `\uXXXX`: un literal con acentos se escribe
+      // asi, y comparado en crudo "A\u00f1adir una pregunta" nunca coincide con
+      // "Anadir una pregunta" del catalogo. La comprobacion daba luz verde y la
+      // afirmacion se rompia igual, que es la peor combinacion posible: manda a
+      // buscar el fallo a cualquier sitio menos al que lo causo.
+      const literal = coincidencia[1].replace(/\u([0-9a-fA-F]{4})/g, (_, hex) =>
+        String.fromCharCode(parseInt(hex, 16)),
+      );
       if (catalogo.some((valor) => valor.includes(literal))) enRiesgo.push(literal);
     }
   }
