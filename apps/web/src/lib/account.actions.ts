@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { redirect } from 'next/navigation';
 import { gatewayUrl } from './api';
 
@@ -30,10 +32,11 @@ export async function requestPasswordReset(
   _previous: RecoveryState,
   formData: FormData,
 ): Promise<RecoveryState> {
+  const t = await getTranslations('errores');
   const email = String(formData.get('email') ?? '').trim();
 
   if (!email.includes('@')) {
-    return { error: 'Escribe un correo válido.' };
+    return { error: t('correoInvalido') };
   }
 
   const response = await fetch(`${gatewayUrl}/api/v1/auth/password-reset/request`, {
@@ -47,11 +50,11 @@ export async function requestPasswordReset(
   // se cuenta por correo solicitado, exista o no. Ocultarlo dejaria al usuario
   // pulsando un boton que no hace nada.
   if (response.status === 429) {
-    return { error: 'Ya pediste varios correos. Espera un momento antes de volver a intentarlo.' };
+    return { error: t('demasiadosCorreos') };
   }
 
   if (!response.ok && response.status !== 202) {
-    return { error: 'No pudimos procesar tu solicitud. Vuelve a intentarlo en un momento.' };
+    return { error: t('noPudimosProcesar') };
   }
 
   return { submitted: true };
@@ -65,6 +68,7 @@ export async function confirmPasswordReset(
   _previous: NewPasswordState,
   formData: FormData,
 ): Promise<NewPasswordState> {
+  const t = await getTranslations('errores');
   const token = String(formData.get('token') ?? '');
   // Sin recortar: recortar una contrasena la altera en silencio y despues no
   // coincide al ingresar, donde no se recorta nada.
@@ -72,13 +76,13 @@ export async function confirmPasswordReset(
   const confirmation = String(formData.get('passwordConfirm') ?? '');
 
   if (!token) {
-    return { error: 'El enlace no es válido. Pide uno nuevo desde la pantalla de ingreso.' };
+    return { error: t('enlaceInvalido') };
   }
   if (password !== confirmation) {
-    return { error: 'Las dos contraseñas no coinciden.' };
+    return { error: t('clavesNoCoinciden') };
   }
   if (password.length < 8) {
-    return { error: 'La contraseña necesita al menos 8 caracteres.' };
+    return { error: t('claveCorta') };
   }
 
   const response = await fetch(`${gatewayUrl}/api/v1/auth/password-reset/confirm`, {
@@ -93,7 +97,7 @@ export async function confirmPasswordReset(
     return {
       error:
         body?.message ??
-        'Este enlace ya no sirve. Pide uno nuevo desde la pantalla de ingreso.',
+        t('enlaceGastado'),
     };
   }
 

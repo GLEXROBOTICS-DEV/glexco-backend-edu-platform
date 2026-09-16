@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { revalidatePath } from 'next/cache';
 import { api } from './api';
 
@@ -19,13 +21,14 @@ export async function askQuestion(
   _previous: WallState,
   formData: FormData,
 ): Promise<WallState> {
+  const t = await getTranslations('errores');
   const classroomId = String(formData.get('classroomId') ?? '').trim();
   const title = String(formData.get('title') ?? '').trim();
   const body = String(formData.get('body') ?? '').trim();
 
-  if (title.length < 3) return { error: 'Ponle un título a tu pregunta.' };
-  if (body.length < 1) return { error: 'Escribe tu pregunta.' };
-  if (!classroomId) return { error: 'No encontramos tu salón. Vuelve a cargar la página.' };
+  if (title.length < 3) return { error: t('ponleTituloALaPregunta') };
+  if (body.length < 1) return { error: t('escribeTuPregunta') };
+  if (!classroomId) return { error: t('noEncontramosTuSalon') };
 
   const result = await api('/announcements/questions', {
     method: 'POST',
@@ -33,7 +36,7 @@ export async function askQuestion(
   });
 
   if (!result.ok) {
-    return { error: 'No pudimos publicar tu pregunta. Vuelve a intentarlo en un momento.' };
+    return { error: t('noPudimosPublicarPregunta') };
   }
 
   revalidatePath('/', 'layout');
@@ -45,10 +48,11 @@ export async function replyToPost(
   _previous: WallState,
   formData: FormData,
 ): Promise<WallState> {
+  const t = await getTranslations('errores');
   const announcementId = String(formData.get('announcementId') ?? '').trim();
   const body = String(formData.get('body') ?? '').trim();
 
-  if (body.length < 1) return { error: 'Escribe tu respuesta.' };
+  if (body.length < 1) return { error: t('escribeTuRespuesta') };
 
   const result = await api(`/announcements/${encodeURIComponent(announcementId)}/replies`, {
     method: 'POST',
@@ -56,7 +60,7 @@ export async function replyToPost(
   });
 
   if (!result.ok) {
-    return { error: 'No pudimos publicar tu respuesta. Vuelve a intentarlo en un momento.' };
+    return { error: t('noPudimosPublicarRespuesta') };
   }
 
   revalidatePath('/', 'layout');

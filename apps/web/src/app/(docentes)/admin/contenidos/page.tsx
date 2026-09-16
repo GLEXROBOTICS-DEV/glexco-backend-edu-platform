@@ -3,7 +3,8 @@ import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { PERMISSIONS } from '@glexco/contracts';
 import { requireSession } from '../../../../lib/session';
-import { fetchAllKits, gradeLabel } from '../../../../lib/catalog';
+import { fetchAllKits } from '../../../../lib/catalog';
+import { gradeLabel, safeLabel } from '../../../../lib/vocabulary';
 import { getTranslations } from 'next-intl/server';
 import { Card, CardSkeleton, EmptyState, SectionTitle, StatePill } from '../../../../components/ui';
 import { PageHeader } from '../../../../components/page-header';
@@ -48,11 +49,13 @@ export default async function AdminContenidos() {
   );
 }
 
-const ESTADOS: Record<string, { label: string; state: 'done' | 'doing' | 'idle' | 'late' }> = {
-  published: { label: 'Publicado', state: 'done' },
-  in_review: { label: 'En revisión', state: 'doing' },
-  draft: { label: 'Borrador', state: 'idle' },
-  archived: { label: 'Archivado', state: 'late' },
+/** El COLOR de cada estado. El nombre vive en el espacio
+ *  `estadosContenido`, con la misma clave que guarda el backend. */
+const ESTADOS: Record<string, 'done' | 'doing' | 'idle' | 'late'> = {
+  published: 'done',
+  in_review: 'doing',
+  draft: 'idle',
+  archived: 'late',
 };
 
 async function Kits() {
@@ -82,7 +85,8 @@ async function Kits() {
 
       <ul className="grid list-none gap-3">
         {items.map((kit) => {
-          const estado = ESTADOS[kit.status ?? 'draft'] ?? ESTADOS.draft!;
+          const status = kit.status ?? 'draft';
+          const tono = ESTADOS[status] ?? ESTADOS.draft!;
 
           return (
             <li key={kit.kitId}>
@@ -98,7 +102,7 @@ async function Kits() {
                   {/* El estado con su palabra: cuatro estados en cuatro colores
                       no los distingue nadie, y el par borrador/archivado en dos
                       grises menos. */}
-                  <StatePill state={estado.state}>{estado.label}</StatePill>
+                  <StatePill state={tono}>{safeLabel(vocab, 'estadosContenido', status)}</StatePill>
                 </div>
 
                 <div className="mt-4">

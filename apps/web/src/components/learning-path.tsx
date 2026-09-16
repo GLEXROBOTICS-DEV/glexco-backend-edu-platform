@@ -1,5 +1,7 @@
+import { getTranslations } from 'next-intl/server';
 import { GRADE_LEVEL, type EducationLevel } from '@glexco/contracts';
 import { fetchMyKits } from '../lib/catalog';
+import { safeLabel } from '../lib/vocabulary';
 
 /**
  * Ruta tecnologica GLEXCO.
@@ -18,20 +20,22 @@ import { fetchMyKits } from '../lib/catalog';
 
 interface Stage {
   key: string;
-  name: string;
   /** Niveles educativos que caen en esta etapa. Vacio: aun no se alcanza. */
   levels: readonly EducationLevel[];
 }
 
+/** El nombre de cada etapa vive en el espacio `etapas`, con esta misma
+ *  clave: aqui queda solo lo que no cambia con el idioma. */
 const STAGES: readonly Stage[] = [
-  { key: 'vocational', name: 'Escuela Vocacional', levels: ['primary', 'secondary'] },
-  { key: 'technical', name: 'Escuela Técnica', levels: ['technical'] },
-  { key: 'higher', name: 'Educación Superior', levels: ['higher', 'university'] },
-  { key: 'specialization', name: 'Especialización', levels: [] },
-  { key: 'certification', name: 'Certificación', levels: [] },
+  { key: 'vocational', levels: ['primary', 'secondary'] },
+  { key: 'technical', levels: ['technical'] },
+  { key: 'higher', levels: ['higher', 'university'] },
+  { key: 'specialization', levels: [] },
+  { key: 'certification', levels: [] },
 ];
 
 export async function LearningPath() {
+  const vocab = await getTranslations();
   const { kits, failed } = await fetchMyKits();
   if (failed || kits.length === 0) return null;
 
@@ -106,7 +110,7 @@ export async function LearningPath() {
               </span>
 
               <span className="mt-2.5 text-xs font-medium leading-tight text-ink-900">
-                {stage.name}
+                {safeLabel(vocab, 'etapas', stage.key)}
               </span>
               {/* El estado va en texto, no solo en el color del circulo: verde y
                   ambar quedan indistinguibles con protanopia, y un lector de

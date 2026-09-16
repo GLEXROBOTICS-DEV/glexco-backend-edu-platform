@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { revalidatePath } from 'next/cache';
 import { api } from './api';
 import { shareEvidenceLink, uploadEvidence } from './evidence';
@@ -60,11 +62,12 @@ export async function startGroupAttempt(
   _previous: AttemptState,
   formData: FormData,
 ): Promise<AttemptState> {
+  const t = await getTranslations('errores');
   const assessmentId = formData.get('assessmentId');
   const classroomId = formData.get('classroomId');
 
   if (typeof assessmentId !== 'string' || assessmentId.length === 0) {
-    return { error: 'No sabemos qué actividad estás abriendo.' };
+    return { error: t('noSabemosQueActividad') };
   }
 
   const groupmateIds = formData
@@ -104,11 +107,12 @@ export async function submitAttempt(
   _previous: SubmitState,
   formData: FormData,
 ): Promise<SubmitState> {
+  const t = await getTranslations('errores');
   const submissionId = formData.get('submissionId');
   const questionIds = formData.getAll('questionId');
 
   if (typeof submissionId !== 'string' || questionIds.length === 0) {
-    return { error: 'Faltan datos del intento. Vuelve a abrirlo.' };
+    return { error: t('faltanDatosDelIntento') };
   }
 
   for (const rawId of questionIds) {

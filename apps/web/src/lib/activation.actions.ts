@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { revalidatePath } from 'next/cache';
 import { activationCodeSchema } from '@glexco/contracts';
 import { api } from './api';
@@ -41,12 +43,13 @@ export async function redeemActivationCode(
   _previous: ActivationState,
   formData: FormData,
 ): Promise<ActivationState> {
+  const t = await getTranslations('errores');
   const raw = formData.get('activationCode');
   const parsed = activationCodeSchema.safeParse(typeof raw === 'string' ? raw : '');
 
   if (!parsed.success) {
     return {
-      error: 'El código no tiene el formato correcto. Empieza por GLX y viene dentro de tu libro.',
+      error: t('codigoMalFormado'),
     };
   }
 

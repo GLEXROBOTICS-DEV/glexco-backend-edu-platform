@@ -146,6 +146,7 @@ async function Overview({ institutionId }: { institutionId: string }) {
  * que ver qué mide y qué no antes de leer la primera fila.
  */
 async function Teaching({ institutionId }: { institutionId: string }) {
+  const t = await getTranslations('docente');
   const vocab = await getTranslations();
   const { data, failed } = await fetchTeachingReport(institutionId);
 
@@ -176,7 +177,7 @@ async function Teaching({ institutionId }: { institutionId: string }) {
         unit=" pts"
         max={40}
         data={data.rows.map((row) => ({
-          label: `${row.grade ? gradeLabel(vocab, row.grade) : 'Salón'} · ${row.classroomId.slice(0, 8)}`,
+          label: `${row.grade ? gradeLabel(vocab, row.grade) : t('salonSinNombre')} · ${row.classroomId.slice(0, 8)}`,
           value: Math.round(row.averageGain ?? 0),
           meta: `${row.sampleSize} alumnos`,
           // El aviso de muestra insuficiente va POR FILA, no una vez arriba:
@@ -184,7 +185,7 @@ async function Teaching({ institutionId }: { institutionId: string }) {
           tone: row.statisticallyMeaningful ? 'neutral' : 'warning',
           toneLabel: row.statisticallyMeaningful
             ? undefined
-            : 'Muestra pequeña: no permite concluir nada',
+            : t('muestraPequena'),
         }))}
       />
     </section>

@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { redirect } from 'next/navigation';
 import { studentRegistrationSchema } from '@glexco/contracts';
 import { gatewayUrl } from './api';
@@ -35,6 +37,7 @@ export async function registerStudent(
   _previous: RegistrationState,
   formData: FormData,
 ): Promise<RegistrationState> {
+  const t = await getTranslations('errores');
   const accountType = formData.get('accountType') === 'independent' ? 'independent' : 'institutional';
 
   const raw = {
@@ -80,7 +83,7 @@ export async function registerStudent(
 
   if (raw.password !== verbatim(formData, 'passwordConfirm')) {
     return {
-      fieldErrors: { passwordConfirm: ['Las dos contraseñas no coinciden.'] },
+      fieldErrors: { passwordConfirm: [t('clavesNoCoinciden')] },
       values,
     };
   }
@@ -88,7 +91,7 @@ export async function registerStudent(
   const parsed = studentRegistrationSchema.safeParse(raw);
   if (!parsed.success) {
     return {
-      fieldErrors: translateFieldErrors(parsed.error.flatten().fieldErrors),
+      fieldErrors: translateFieldErrors(parsed.error.flatten().fieldErrors, t),
       values,
     };
   }
@@ -101,7 +104,7 @@ export async function registerStudent(
   });
 
   if (!response.ok) {
-    return { ...toRegistrationState(await readError(response)), values };
+    return { ...toRegistrationState(await readError(response), t), values };
   }
 
   // La cuenta ya existe. A partir de aqui, cualquier fallo se resuelve
@@ -150,6 +153,10 @@ async function readError(response: Response): Promise<BackendError> {
   return body ?? {};
 }
 
+/** La `t` del espacio `errores`, tal y como la devuelve `getTranslations`.
+ *  Los dos ayudantes de abajo no son async y no pueden pedirla ellos. */
+type Traductor = (key: string) => string;
+
 /**
  * Traduce el error del backend a la forma que entiende el formulario.
  *
@@ -160,52 +167,60 @@ async function readError(response: Response): Promise<BackendError> {
  * arriba del formulario en vez de junto al campo que hay que corregir, que es
  * justo donde el alumno esta mirando.
  */
-function toRegistrationState(error: BackendError): RegistrationState {
+function toRegistrationState(error: BackendError, t: Traductor): RegistrationState {
   if (error.fieldErrors && Object.keys(error.fieldErrors).length > 0) {
-    return { fieldErrors: translateFieldErrors(error.fieldErrors) };
+    return { fieldErrors: translateFieldErrors(error.fieldErrors, t) };
   }
 
   const field = typeof error.details?.['field'] === 'string' ? (error.details['field'] as string) : null;
-  const message = error.message ?? 'No se pudo crear la cuenta.';
+  const message = error.message ?? t('noSePudoCrearCuenta');
 
   if (field) return { fieldErrors: { [field]: [message] } };
   return { error: message };
 }
 
 /**
- * Claves de traduccion a texto en pantalla.
+ * De la clave del contrato a la clave del catalogo.
  *
  * Los esquemas de `@glexco/contracts` devuelven claves (`errors.validation.*`)
  * y no frases, porque los comparte el backend, que no sabe en que idioma esta
- * el usuario. Aqui se resuelven; lo que no esta en la tabla se muestra tal
- * cual, que es feo pero informativo, y nunca desaparece en silencio.
+ * el usuario. Esta tabla las lleva a la clave del catalogo y la frase la pone
+ * `t` en el idioma del perfil; lo que no esta en la tabla se muestra tal cual,
+ * que es feo pero informativo, y nunca desaparece en silencio.
+ *
+ * Guarda CLAVES y no frases ya traducidas a proposito: es un mapa de modulo,
+ * y se construye una sola vez al cargarlo. Si guardara frases, se quedaria con
+ * el idioma del primer usuario que entrara despues de arrancar el proceso y se
+ * lo serviria a todos los demas.
  */
 const MESSAGES: Record<string, string> = {
-  'errors.validation.email_invalid': 'Escribe un correo válido.',
-  'errors.validation.email_too_long': 'Ese correo es demasiado largo.',
-  'errors.validation.password_too_short': 'La contraseña necesita al menos 8 caracteres.',
-  'errors.validation.password_too_long': 'La contraseña es demasiado larga.',
-  'errors.validation.password_blank': 'Escribe tu contraseña.',
-  'errors.validation.name_too_short': 'Escribe el nombre completo.',
-  'errors.validation.name_too_long': 'Ese nombre es demasiado largo.',
-  'errors.validation.name_invalid': 'Escribe el nombre solo con letras, sin números.',
-  'errors.validation.date_invalid': 'Revisa la fecha: tiene que ser día, mes y año.',
-  'errors.validation.birth_date_out_of_range': 'Revisa tu fecha de nacimiento.',
-  'errors.validation.activation_code_invalid':
-    'El código no tiene el formato correcto. Empieza por GLX y viene dentro de tu libro.',
-  'errors.validation.terms_required': 'Tienes que aceptar los términos para crear la cuenta.',
-  'errors.validation.guardian_email_required':
-    'Como eres menor de 14 años, necesitamos el correo de tu papá, mamá o apoderado.',
-  'errors.validation.invalid_id': 'Vuelve a elegir tu salón.',
+  'errors.validation.email_invalid': 'correoInvalido',
+  'errors.validation.email_too_long': 'correoLargo',
+  'errors.validation.password_too_short': 'claveCorta',
+  'errors.validation.password_too_long': 'claveLarga',
+  'errors.validation.password_blank': 'escribeTuClave',
+  'errors.validation.name_too_short': 'escribeNombreCompleto',
+  'errors.validation.name_too_long': 'nombreLargo',
+  'errors.validation.name_invalid': 'nombreSoloLetras',
+  'errors.validation.date_invalid': 'fechaIncompleta',
+  'errors.validation.birth_date_out_of_range': 'fechaDeNacimientoInvalida',
+  'errors.validation.activation_code_invalid': 'codigoMalFormado',
+  'errors.validation.terms_required': 'aceptaLosTerminos',
+  'errors.validation.guardian_email_required': 'menorNecesitaApoderado',
+  'errors.validation.invalid_id': 'vuelveAElegirSalon',
 };
 
 function translateFieldErrors(
   fieldErrors: Record<string, string[] | undefined>,
+  t: Traductor,
 ): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   for (const [field, messages] of Object.entries(fieldErrors)) {
     if (!messages?.length) continue;
-    out[field] = messages.map((message) => MESSAGES[message] ?? message);
+    out[field] = messages.map((message) => {
+      const clave = MESSAGES[message];
+      return clave ? t(clave) : message;
+    });
   }
   return out;
 }

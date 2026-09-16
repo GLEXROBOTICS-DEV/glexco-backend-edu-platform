@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { revalidatePath } from 'next/cache';
 import { api } from './api';
 
@@ -42,11 +44,12 @@ export async function completeLesson(
   _previous: LessonState,
   formData: FormData,
 ): Promise<LessonState> {
+  const t = await getTranslations('errores');
   const lessonId = String(formData.get('lessonId') ?? '');
   const portal = String(formData.get('portal') ?? 'discover');
   const seconds = Number.parseInt(String(formData.get('secondsSpent') ?? '0'), 10);
 
-  if (!lessonId) return { error: 'No sabemos qué lección marcar.' };
+  if (!lessonId) return { error: t('noSabemosQueLeccion') };
 
   const result = await api<CompleteResponse>(
     `/learning/lessons/${encodeURIComponent(lessonId)}/complete`,

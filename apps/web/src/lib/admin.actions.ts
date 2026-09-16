@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { revalidatePath } from 'next/cache';
 import { api } from './api';
 
@@ -52,6 +54,7 @@ export async function createInstitution(
   _previous: AdminState,
   formData: FormData,
 ): Promise<AdminState> {
+  const t = await getTranslations('errores');
   const code = String(formData.get('code') ?? '').trim();
   const name = String(formData.get('name') ?? '').trim();
   const city = String(formData.get('city') ?? '').trim();
@@ -60,13 +63,13 @@ export async function createInstitution(
   const levels = formData.getAll('educationLevels').map(String).filter(Boolean);
 
   if (!code || !name || !city || !responsibleName || !contactEmail) {
-    return { error: 'Faltan datos obligatorios del colegio.' };
+    return { error: t('faltanDatosColegio') };
   }
 
   if (levels.length === 0) {
     // El nivel decide qué grados se pueden crear, así que sin él el colegio
     // queda dado de alta y sin poder abrir un solo salón.
-    return { error: 'Marca al menos un nivel educativo.' };
+    return { error: t('marcaUnNivel') };
   }
 
   const shortName = String(formData.get('shortName') ?? '').trim();
@@ -90,7 +93,7 @@ export async function createInstitution(
 
   if (!result.ok) {
     if (result.error.code === 'INSTITUTION_CODE_TAKEN' || result.status === 409) {
-      return { error: 'Ese código ya lo usa otro colegio. Elige uno distinto.' };
+      return { error: t('codigoDeColegioEnUso') };
     }
     return { error: result.error.message };
   }
@@ -110,6 +113,7 @@ export async function grantLicense(
   _previous: AdminState,
   formData: FormData,
 ): Promise<AdminState> {
+  const t = await getTranslations('errores');
   const institutionId = String(formData.get('institutionId') ?? '').trim();
   const seats = String(formData.get('seats') ?? '').trim();
   const startsAt = String(formData.get('startsAt') ?? '').trim();
@@ -117,11 +121,11 @@ export async function grantLicense(
   const reference = String(formData.get('reference') ?? '').trim();
 
   if (!institutionId || !seats || !startsAt || !expiresAt) {
-    return { error: 'Faltan las plazas o el periodo de la licencia.' };
+    return { error: t('faltanPlazasOPeriodo') };
   }
 
   if (new Date(expiresAt) <= new Date(startsAt)) {
-    return { error: 'La fecha de fin tiene que ser posterior a la de inicio.' };
+    return { error: t('finAntesDeInicio') };
   }
 
   const result = await api('/institutions/' + encodeURIComponent(institutionId) + '/licenses', {
@@ -166,6 +170,7 @@ export async function createStaff(
   _previous: AdminState,
   formData: FormData,
 ): Promise<AdminState> {
+  const t = await getTranslations('errores');
   const email = String(formData.get('email') ?? '').trim();
   const firstName = String(formData.get('firstName') ?? '').trim();
   const lastName = String(formData.get('lastName') ?? '').trim();
@@ -173,7 +178,7 @@ export async function createStaff(
   const institutionId = String(formData.get('institutionId') ?? '').trim();
 
   if (!email || !firstName || !lastName || !role) {
-    return { error: 'Faltan el nombre, el correo o el rol.' };
+    return { error: t('faltanDatosCuenta') };
   }
 
   // `users/staff` y no `account/staff`. El controlador de alta de personal vive
@@ -195,10 +200,10 @@ export async function createStaff(
 
   if (!result.ok) {
     if (result.error.code === 'EMAIL_ALREADY_REGISTERED' || result.status === 409) {
-      return { error: 'Ya existe una cuenta con ese correo.' };
+      return { error: t('correoYaExiste') };
     }
     if (result.error.code === 'ROLE_NOT_ALLOWED' || result.status === 403) {
-      return { error: 'No puedes crear cuentas con ese rol.' };
+      return { error: t('rolNoPermitido') };
     }
     return { error: result.error.message };
   }
@@ -229,6 +234,7 @@ export async function generateCodeBatch(
   _previous: AdminState,
   formData: FormData,
 ): Promise<AdminState> {
+  const t = await getTranslations('errores');
   const kitId = String(formData.get('kitId') ?? '').trim();
   // El campo del backend se llama `size`. Lo dice el contrato y no el nombre del
   // input: mandar `quantity` pasaba la validacion de Zod como campo ausente y
@@ -239,7 +245,7 @@ export async function generateCodeBatch(
   const expiresAt = String(formData.get('expiresAt') ?? '').trim();
 
   if (!kitId || !size) {
-    return { error: 'Elige el kit y cuántos códigos hacen falta.' };
+    return { error: t('eligeKitYCuantos') };
   }
 
   const result = await api<{ batchId: string; total: number; codes: string[] }>(
@@ -279,11 +285,12 @@ export async function changeContentStatus(
   _previous: AdminState,
   formData: FormData,
 ): Promise<AdminState> {
+  const t = await getTranslations('errores');
   const id = String(formData.get('id') ?? '').trim();
   const target = String(formData.get('target') ?? '').trim();
   const status = String(formData.get('status') ?? '').trim();
 
-  if (!id || !target || !status) return { error: 'Faltan datos del contenido.' };
+  if (!id || !target || !status) return { error: t('faltanDatosContenido') };
 
   const result = await api(`/catalog/content/${encodeURIComponent(id)}/status`, {
     method: 'POST',
@@ -294,12 +301,12 @@ export async function changeContentStatus(
     if (result.error.code === 'INVALID_PUBLICATION_TRANSITION') {
       return {
         error:
-          'Ese cambio no está permitido. Un borrador tiene que pasar por revisión antes de publicarse.',
+          t('transicionNoPermitida'),
       };
     }
     return { error: result.error.message };
   }
 
   revalidatePath('/admin/contenidos');
-  return { ok: 'Estado actualizado.' };
+  return { ok: t('estadoActualizado') };
 }

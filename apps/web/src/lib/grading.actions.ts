@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { revalidatePath } from 'next/cache';
 import { api } from './api';
 
@@ -27,11 +29,12 @@ export async function gradeSubmission(
   _previous: GradeState,
   formData: FormData,
 ): Promise<GradeState> {
+  const t = await getTranslations('errores');
   const submissionId = formData.get('submissionId');
   const classroomId = formData.get('classroomId');
 
   if (typeof submissionId !== 'string') {
-    return { error: 'Falta la entrega. Vuelve a abrirla.' };
+    return { error: t('faltaLaEntrega') };
   }
 
   const grades: {
@@ -47,12 +50,12 @@ export async function gradeSubmission(
     const rawFeedback = formData.get(`feedback:${questionId}`);
 
     if (typeof rawPoints !== 'string' || rawPoints.trim().length === 0) {
-      return { error: 'Pon una puntuación en todas las preguntas abiertas.' };
+      return { error: t('puntuaTodasLasAbiertas') };
     }
 
     const points = Number(rawPoints);
     if (!Number.isFinite(points) || points < 0) {
-      return { error: 'Las puntuaciones tienen que ser números positivos.' };
+      return { error: t('puntuacionesPositivas') };
     }
 
     // Con rúbrica, lo que se envía son los NIVELES y no el total: los puntos
@@ -74,12 +77,12 @@ export async function gradeSubmission(
       // rúbrica a medias daría un cero silencioso en ese criterio. Se para aquí
       // antes de publicar una nota que el docente no quiso poner.
       if (typeof rawLevel !== 'string' || rawLevel.length === 0) {
-        return { error: 'Elige un nivel en cada criterio de la rúbrica.' };
+        return { error: t('eligeNivelEnCadaCriterio') };
       }
 
       const levelIndex = Number(rawLevel);
       if (!Number.isInteger(levelIndex) || levelIndex < 0) {
-        return { error: 'Hay un nivel de rúbrica que no reconocemos. Vuelve a abrir la entrega.' };
+        return { error: t('nivelDeRubricaDesconocido') };
       }
 
       selecciones.push({ criterionId, levelIndex });

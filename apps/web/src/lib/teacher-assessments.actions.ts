@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { api } from './api';
@@ -21,15 +23,16 @@ export async function createAssessment(
   _previous: CreateState,
   formData: FormData,
 ): Promise<CreateState> {
+  const t = await getTranslations('errores');
   const kitId = formData.get('kitId');
   const title = formData.get('title');
   const kind = formData.get('kind');
 
   if (typeof kitId !== 'string' || kitId.length === 0) {
-    return { error: 'Elige el kit al que pertenece.' };
+    return { error: t('eligeElKit') };
   }
   if (typeof title !== 'string' || title.trim().length < 3) {
-    return { error: 'Ponle un título de al menos tres letras.' };
+    return { error: t('tituloDeTresLetras') };
   }
 
   const classroomId = formData.get('classroomId');
@@ -47,16 +50,16 @@ export async function createAssessment(
 
   if (esGrupal) {
     if (!Number.isInteger(minSize) || !Number.isInteger(maxSize)) {
-      return { error: 'El tamaño del grupo se cuenta en alumnos enteros.' };
+      return { error: t('grupoEnAlumnosEnteros') };
     }
     if (minSize < 2) {
       return {
         error:
-          'Un grupo necesita al menos dos alumnos. Si la actividad es individual, desmarca “Se hace en grupo”.',
+          t('grupoDeDosMinimo'),
       };
     }
     if (maxSize < minSize) {
-      return { error: 'El máximo de integrantes no puede ser menor que el mínimo.' };
+      return { error: t('maximoMenorQueMinimo') };
     }
   }
 
@@ -113,16 +116,17 @@ export async function addQuestion(
   _previous: QuestionState,
   formData: FormData,
 ): Promise<QuestionState> {
+  const t = await getTranslations('errores');
   const assessmentId = formData.get('assessmentId');
   const type = formData.get('type');
   const prompt = formData.get('prompt');
   const points = formData.get('points');
 
   if (typeof assessmentId !== 'string' || typeof type !== 'string') {
-    return { error: 'Falta la evaluación. Vuelve a abrirla.' };
+    return { error: t('faltaLaEvaluacion') };
   }
   if (typeof prompt !== 'string' || prompt.trim().length < 3) {
-    return { error: 'Escribe el enunciado de la pregunta.' };
+    return { error: t('escribeElEnunciado') };
   }
 
   const ordering = type === 'ordering';
@@ -151,7 +155,7 @@ export async function addQuestion(
     });
 
     if (matchPairs.length < 2) {
-      return { error: 'Una pregunta de emparejar necesita al menos dos parejas completas.' };
+      return { error: t('emparejarNecesitaDos') };
     }
   }
 
@@ -179,15 +183,15 @@ export async function addQuestion(
     if (options.length < 2) {
       return {
         error: ordering
-          ? 'Una pregunta de ordenar necesita al menos dos pasos.'
-          : 'Una pregunta de marcar necesita al menos dos opciones.',
+          ? t('ordenarNecesitaDos')
+          : t('marcarNecesitaDos'),
       };
     }
     if (correctOptions.length === 0) {
-      return { error: 'Marca cuál es la respuesta correcta.' };
+      return { error: t('marcaLaRespuesta') };
     }
     if (type === 'single_choice' && correctOptions.length > 1) {
-      return { error: 'Esta pregunta admite una sola respuesta correcta.' };
+      return { error: t('soloUnaRespuesta') };
     }
   }
 
@@ -210,7 +214,7 @@ export async function addQuestion(
       levels: [
         { label: 'Logrado', points: criterio.points },
         { label: 'Parcial', points: Math.floor(criterio.points / 2) },
-        { label: 'No logrado', points: 0 },
+        { label: t('noLogrado'), points: 0 },
       ],
     }));
 

@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { api } from './api';
@@ -26,13 +28,14 @@ export async function createClassroom(
   _previous: NewClassroomState,
   formData: FormData,
 ): Promise<NewClassroomState> {
+  const t = await getTranslations('errores');
   const name = String(formData.get('name') ?? '').trim();
   const grade = String(formData.get('grade') ?? '').trim();
   const capacity = String(formData.get('capacity') ?? '').trim();
   const teacherId = String(formData.get('teacherId') ?? '').trim();
 
-  if (!name) return { error: 'Ponle un nombre al salón, por ejemplo «4.º A».', field: 'name' };
-  if (!grade) return { error: 'Elige el grado del salón.', field: 'grade' };
+  if (!name) return { error: t('ponleNombreAlSalon'), field: 'name' };
+  if (!grade) return { error: t('eligeElGrado'), field: 'grade' };
 
   const result = await api<{ classroomId: string }>('/classrooms', {
     method: 'POST',
@@ -50,14 +53,14 @@ export async function createClassroom(
     // lo unico que pasa es que ya lo creo antes.
     if (result.error.code === 'CLASSROOM_ALREADY_EXISTS' || result.status === 409) {
       return {
-        error: 'Ya tienes un salón con ese nombre y ese grado este año.',
+        error: t('salonDuplicado'),
         field: 'name',
       };
     }
     if (result.status === 403) {
-      return { error: 'No tienes permiso para crear salones en este colegio.' };
+      return { error: t('sinPermisoParaSalones') };
     }
-    return { error: 'No pudimos crear el salón. Vuelve a intentarlo en un momento.' };
+    return { error: t('noPudimosCrearSalon') };
   }
 
   revalidatePath('/docentes');

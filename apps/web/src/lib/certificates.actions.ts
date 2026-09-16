@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { revalidatePath } from 'next/cache';
 import { api } from './api';
 
@@ -23,11 +25,12 @@ export async function issueClassroomCertificates(
   _previous: IssueState,
   formData: FormData,
 ): Promise<IssueState> {
+  const t = await getTranslations('errores');
   const classroomId = String(formData.get('classroomId') ?? '').trim();
   const courseId = String(formData.get('courseId') ?? '').trim();
 
   if (!classroomId || !courseId) {
-    return { error: 'Elige el curso del que quieres emitir los certificados.' };
+    return { error: t('eligeElCurso') };
   }
 
   const result = await api<{ issued: unknown[]; notReady: number }>(
@@ -37,9 +40,9 @@ export async function issueClassroomCertificates(
 
   if (!result.ok) {
     if (result.status === 503) {
-      return { error: 'Los certificados todavía no están activos en esta plataforma.' };
+      return { error: t('certificadosNoActivos') };
     }
-    return { error: 'No pudimos emitir los certificados. Vuelve a intentarlo en un momento.' };
+    return { error: t('noPudimosEmitir') };
   }
 
   revalidatePath(`/docentes/salones/${classroomId}`);

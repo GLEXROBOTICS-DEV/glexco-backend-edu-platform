@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { loginSchema } from '@glexco/contracts';
@@ -24,6 +26,7 @@ export interface LoginState {
 }
 
 export async function login(_previous: LoginState, formData: FormData): Promise<LoginState> {
+  const t = await getTranslations('errores');
   const parsed = loginSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
@@ -45,7 +48,7 @@ export async function login(_previous: LoginState, formData: FormData): Promise<
     const body = (await response.json().catch(() => null)) as { message?: string } | null;
     // El mensaje viene del backend, que ya se cuida de no distinguir "no existe"
     // de "contrasena incorrecta": esa diferencia permitiria enumerar cuentas.
-    return { error: body?.message ?? 'No se pudo iniciar sesion.' };
+    return { error: body?.message ?? t('noSePudoIniciarSesion') };
   }
 
   const body = (await response.json()) as AuthResponse;

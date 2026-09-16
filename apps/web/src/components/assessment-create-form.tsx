@@ -2,15 +2,16 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { useTranslations } from 'next-intl';
+import { ASSESSMENT_TYPES } from '@glexco/contracts';
+import { safeLabel } from '../lib/vocabulary';
 import { createAssessment, type CreateState } from '../lib/teacher-assessments.actions';
 import type { KitOption } from '../lib/teacher-assessments';
 
-const KINDS = [
-  { value: 'quiz', label: 'Cuestionario', hint: 'De marcar. Se corrige al instante y admite reintentos.' },
-  { value: 'practical', label: 'Práctica', hint: 'Con el kit delante. La corriges tú.' },
-  { value: 'project', label: 'Proyecto', hint: 'Una entrega: archivo, foto o enlace.' },
-  { value: 'stem_activity', label: 'Actividad STEM', hint: 'Reto abierto de aula.' },
-] as const;
+/** Los cuatro tipos, del contrato. El nombre sale del espacio
+ *  `tiposEvaluacion` -el mismo que ya usaba la lista del docente- y la
+ *  frase que lo explica de `tiposEvaluacionAyuda`. */
+const KINDS = Object.values(ASSESSMENT_TYPES);
 
 /**
  * Crear una evaluación.
@@ -27,6 +28,7 @@ export function AssessmentCreateForm({
   kits: KitOption[];
   classrooms: { classroomId: string; name: string; grade: string }[];
 }) {
+  const vocab = useTranslations();
   const [state, formAction] = useActionState<CreateState, FormData>(createAssessment, {});
 
   return (
@@ -83,19 +85,23 @@ export function AssessmentCreateForm({
         <legend className="mb-1 text-sm font-medium text-ink-700">Tipo</legend>
         {KINDS.map((kind, index) => (
           <label
-            key={kind.value}
+            key={kind}
             className="flex cursor-pointer items-start gap-3 rounded-lg border border-line-200 px-4 py-3 text-sm transition hover:border-brand-400 has-checked:border-brand-600 has-checked:bg-brand-600/5"
           >
             <input
               type="radio"
               name="kind"
-              value={kind.value}
+              value={kind}
               defaultChecked={index === 0}
               className="mt-0.5 size-4 shrink-0 border-line-300 text-brand-600"
             />
             <span>
-              <span className="font-medium text-ink-900">{kind.label}</span>
-              <span className="block text-xs text-ink-500">{kind.hint}</span>
+              <span className="font-medium text-ink-900">
+                {safeLabel(vocab, 'tiposEvaluacion', kind)}
+              </span>
+              <span className="block text-xs text-ink-500">
+                {safeLabel(vocab, 'tiposEvaluacionAyuda', kind)}
+              </span>
             </span>
           </label>
         ))}

@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { revalidatePath } from 'next/cache';
 import { api } from './api';
 
@@ -22,14 +24,15 @@ export async function publishAnnouncement(
   _previous: AnnouncementState,
   formData: FormData,
 ): Promise<AnnouncementState> {
+  const t = await getTranslations('errores');
   const classroomId = String(formData.get('classroomId') ?? '');
   const title = String(formData.get('title') ?? '').trim();
   const body = String(formData.get('body') ?? '').trim();
   const pinned = formData.get('pinned') === 'on';
 
-  if (!classroomId) return { error: 'Elige el salón al que va el anuncio.' };
-  if (title.length < 3) return { error: 'El título es demasiado corto.' };
-  if (body.length < 1) return { error: 'Escribe el mensaje del anuncio.' };
+  if (!classroomId) return { error: t('eligeSalonDelAnuncio') };
+  if (title.length < 3) return { error: t('tituloCorto') };
+  if (body.length < 1) return { error: t('escribeElMensaje') };
 
   const result = await api<{ announcementId: string }>('/announcements', {
     method: 'POST',

@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { api } from './api';
@@ -29,6 +31,7 @@ export async function changePassword(
   _previous: PasswordState,
   formData: FormData,
 ): Promise<PasswordState> {
+  const t = await getTranslations('errores');
   // SIN recortar. `trim()` sobre una contrasena la altera en silencio: se
   // guardaria "abc" cuando el usuario escribio " abc ", y al ingresar -donde no
   // se recorta nada- no coincidiria nunca.
@@ -37,18 +40,18 @@ export async function changePassword(
   const repeat = String(formData.get('repeatPassword') ?? '');
 
   if (!currentPassword || !newPassword) {
-    return { error: 'Escribe tu contraseña actual y la nueva.' };
+    return { error: t('escribeAmbasClaves') };
   }
 
   // Se comprueba aqui ANTES de llamar: el backend no puede detectarlo -solo
   // recibe una contrasena- y sin esto un error de tecleo se guarda como
   // contrasena buena y deja al usuario fuera de su cuenta.
   if (newPassword !== repeat) {
-    return { error: 'Las dos contraseñas nuevas no coinciden.' };
+    return { error: t('clavesNuevasNoCoinciden') };
   }
 
   if (newPassword === currentPassword) {
-    return { error: 'La contraseña nueva tiene que ser distinta de la actual.' };
+    return { error: t('claveNuevaIgual') };
   }
 
   const result = await api('/account/password', {
@@ -65,15 +68,15 @@ export async function changePassword(
 
   if (!result.ok) {
     if (result.error.code === 'INVALID_CREDENTIALS' || result.status === 401) {
-      return { error: 'Tu contraseña actual no es correcta.' };
+      return { error: t('claveActualIncorrecta') };
     }
     if (result.error.code === 'WEAK_PASSWORD' || result.status === 422) {
       return {
         error:
-          'La contraseña nueva es demasiado débil. Usa al menos 10 caracteres, con letras y números.',
+          t('claveNuevaDebil'),
       };
     }
-    return { error: 'No pudimos cambiar tu contraseña. Vuelve a intentarlo en un momento.' };
+    return { error: t('noPudimosCambiarClave') };
   }
 
   revalidatePath('/');
@@ -96,6 +99,7 @@ export async function revokeSessions(
   _previous: SessionsState,
   formData: FormData,
 ): Promise<SessionsState> {
+  const t = await getTranslations('errores');
   const sessionId = String(formData.get('sessionId') ?? '').trim();
 
   const result = await api<{ revoked: number }>('/account/sessions', {
@@ -104,7 +108,7 @@ export async function revokeSessions(
   });
 
   if (!result.ok) {
-    return { error: 'No pudimos cerrar la sesión. Vuelve a intentarlo en un momento.' };
+    return { error: t('noPudimosCerrarSesion') };
   }
 
   revalidatePath('/');
@@ -129,15 +133,16 @@ export async function changeLanguage(
   _previous: LanguageState,
   formData: FormData,
 ): Promise<LanguageState> {
+  const t = await getTranslations('errores');
   const locale = String(formData.get('locale') ?? '');
   if (locale !== 'es' && locale !== 'en') {
-    return { error: 'Ese idioma no está disponible.' };
+    return { error: t('idiomaNoDisponible') };
   }
 
   const result = await api('/account/locale', { method: 'POST', body: { locale } });
 
   if (!result.ok) {
-    return { error: 'No pudimos cambiar tu idioma. Vuelve a intentarlo en un momento.' };
+    return { error: t('noPudimosCambiarIdioma') };
   }
 
   // La cookie se pone TAMBIEN, no en vez del perfil.
