@@ -7,6 +7,165 @@ Entradas en orden cronológico inverso (lo más reciente arriba).
 
 ---
 
+## Sesión 19 — 2026-09-16 — La traducción, medida; y las misiones, publicables
+
+Dos bloques y una equivocación mía en medio, que es lo que de verdad ordena la
+sesión.
+
+### 1. Di la i18n por terminada cuando faltaban más de doscientos textos
+
+Al cerrar la sesión 18 quedaba anotado que la i18n eran «cuatro componentes de
+cliente». Los traduje, escribí en el mensaje del commit que **el portal estaba
+traducido entero**, y era falso.
+
+Lo comprobé porque al abrir el siguiente fichero —el panel de contenidos del
+Admin— había una tabla de estados escrita a mano en español. Tirando de ahí
+aparecieron los **80 mensajes de error de los Server Actions**, tres tablas de
+etiquetas más, y las pantallas de institución, alumno, anuncios y verificación
+de certificados prácticamente enteras.
+
+**La causa no fue el descuido: fue que nadie lo estaba contando.** La única
+comprobación de i18n que existía —dentro de `web-check.mjs`— verifica que los
+espacios que pide un componente de cliente viajen al navegador, que es una cosa
+distinta y necesaria, pero no dice nada de cuánto queda por traducir.
+
+### 2. `pnpm i18n:check`
+
+De ahí sale `infra/scripts/i18n-check.mjs`. Mide tres cosas y solo las dos
+primeras rompen la build:
+
+1. **Paridad** entre `es` y `en`: mismas claves, ninguna vacía, y ninguna frase
+   larga idéntica en los dos idiomas —eso es una traducción olvidada, no una
+   coincidencia—.
+2. **Claves muertas.** Encontró 28 y se borraron: sobras de pantallas reescritas
+   —el saludo viejo de la portada, el formulario viejo del muro, seis subtítulos
+   del Admin—. Una clave que no usa nadie es una frase que alguien traducirá y
+   mantendrá para siempre sin que se vea nunca.
+3. **Texto sin traducir, contra un TECHO.** No falla por la deuda que ya hay
+   —arreglarla de golpe no es realista—, falla si el número **sube**. Lo que
+   protege es que no entre texto nuevo en español.
+
+Lo que costó fue reconocer las claves **calculadas**. `t('niveles.' + level)`,
+`` t(`objetivo.${kind}`) `` y `` t(`${spec.key}.cuerpo`) `` no dejan ningún
+literal que buscar: sin eso la comprobación pedía borrar los cinco niveles, los
+tres tipos de objetivo y los quince pasos de la visita guiada.
+
+Y hubo un segundo falso positivo que importa más de lo que parece: el `>` de una
+flecha `=>` abre un candidato a «texto entre etiquetas» que se cierra en el `<`
+siguiente, así que **entre medias cabía media función**. El recuento decía 240 y
+los reales eran 157. Un techo que sube solo cada vez que alguien escribe una
+flecha deja de proteger nada.
+
+El techo quedó en **157**. La regla está escrita en el propio archivo: se baja al
+traducir, nunca se sube.
+
+### 3. Lo traducido
+
+- Los cinco formularios del Admin, el alta de salón, el anuncio, el editor de
+  preguntas, la rúbrica y el alta de evaluaciones con su bloque de grupo.
+- La **verificación pública de un certificado**, que era la peor de todas: la
+  abre quien recibe el documento —una universidad, una empresa— sin cuenta y sin
+  contexto, y es la única página del portal que se indexa.
+- Los certificados del alumno, el selector de compañeros de grupo, «ya lo vi», la
+  evidencia que abre el docente, el nivel del Explorador y la visita guiada.
+- Las pantallas de institución, de un alumno concreto, de anuncios y el panel de
+  GLEXCO.
+
+**1.107 claves en paridad**, desde las 740 con las que empezó la sesión.
+
+### 4. Dos decisiones de i18n que conviene no deshacer
+
+**Lo que nombra la clave de corrección no viaja en el catálogo.** El catálogo se
+serializa en un `<script>` de todas las páginas de la sección, incluida la de una
+evaluación del banco de GLEXCO, y de esa se exige que la palabra «correcta» no
+aparezca en ningún sitio. Las cuatro etiquetas del editor de preguntas que la
+nombran llegan como **propiedad desde el servidor**: así solo viajan cuando el
+editor se pinta, y en una evaluación ajena no se pinta. La comprobación de
+seguridad sigue mirando el documento entero.
+
+**Los `console.error` se quedan en español.** Un registro del servidor lo lee
+quien mantiene la plataforma, no el alumno; traducirlo al idioma de quien disparó
+el fallo haría que el mismo error apareciera en dos idiomas en el mismo fichero y
+no se pudiera buscar por su texto. Tres de los 83 mensajes extraídos volvieron a
+ser literales por esto.
+
+Y una tercera, más sutil: el mapa `errors.validation.*` → texto guarda ahora
+**claves** y no frases ya traducidas. Es un mapa de módulo y se construye una sola
+vez al cargarlo: con frases dentro se habría quedado con el idioma del primer
+usuario que entrara tras arrancar el proceso y se lo habría servido a todos los
+demás.
+
+### 5. Dos arreglos en `web-check.mjs`
+
+- «Abrir una de GLEXCO ofrece duplicar, no editar» pasa a mirar `visible()`. No
+  es una comprobación de seguridad: afirma que el editor no aparece, no que
+  «Añadir una pregunta» no exista en ningún byte del documento —y esa cadena es
+  ahora una clave del catálogo—.
+- La meta-comprobación que cruza las afirmaciones negativas con el catálogo **no
+  veía los literales escritos con escapes `\uXXXX`**, que es como se escribe un
+  literal con acentos. Comparado en crudo nunca coincidía: daba luz verde y la
+  afirmación se rompía igual, que es la peor combinación posible porque manda a
+  buscar el fallo a cualquier sitio menos al que lo causó.
+
+### 6. Autoría de misiones: la pieza que no tenía camino
+
+El modelo estaba entero desde la Fase 5 y `POST /learning/missions` se construyó
+en la sesión 18. Faltaba la pantalla, y con ella una lectura que no existía.
+
+`/admin/misiones` publica misiones semanales sin tocar la base de datos. El kit
+se elige por la URL —`?kit=`— y no con estado de cliente, así que la pantalla se
+puede enlazar y recargar, y el desplegable lleva su botón de enviar para
+funcionar sin JavaScript.
+
+**Lo que justifica el endpoint nuevo** (`GET /learning/missions/kit/:kitId`): el
+listado que ya existía es el del alumno, y ese **evalúa objetivos y paga XP** al
+abrirse. Para escribir hace falta uno que solo enumere. Ordena por semana y marca
+las que ya tienen misión, que es lo único que evita publicar una segunda sin
+querer —el error que dejó tres retos duplicados en producción, donde la
+comprobación de «si ya existe» preguntó a un listado que devuelve cero para el
+personal de plataforma—.
+
+No se **bloquea** la semana ocupada, solo se avisa: dos misiones en una semana es
+una decisión legítima y prohibirlo sería inventar una regla que el dominio no
+tiene.
+
+Va declarado **antes** de `missions/:kitId` en el controlador: Nest resuelve por
+orden de registro, y con el comodín delante `kit` se leería como un
+identificador.
+
+### Estado al cerrar
+
+| Comprobación | Resultado |
+|---|---|
+| `pnpm build` | 15/15 |
+| `pnpm typecheck` | 21/21 |
+| `pnpm test` | 291 |
+| `pnpm smoke` | 96 |
+| `pnpm concurrency` | 18 |
+| `pnpm smoke:web` | **250** (7 nuevas: autoría de misiones) |
+| `pnpm i18n:check` | verde; techo 157 |
+| `pnpm projections:check` | 15 proyecciones, todas cuadran |
+
+### Qué falta
+
+1. **i18n: 157 textos medidos**, sobre todo en `achievements`, `missions`,
+   `activation-form`, `grading-form`, `asset-viewer`, `quiz-form` y las dos
+   pantallas de responder. `pnpm i18n:check` los cuenta y no los deja crecer;
+   bajar el techo al traducir es obligatorio.
+2. La parte **manual** de accesibilidad, que `pnpm a11y` no puede cubrir.
+3. Pantallas de autoría que siguen sin existir: **certificaciones de plataforma**
+   y la configuración de Admin.
+4. Del portal docente: **recursos pedagógicos** y capacitación docente.
+5. De comunicación: **notificaciones**, mesa de ayuda y base de conocimiento.
+6. Suelto: los endpoints de **alta de contenido** —kits, cursos y lecciones se
+   siguen sembrando por SQL—.
+7. **Fase 8 entera**: k6, revisión de seguridad, CI/CD, réplicas de lectura,
+   copias restauradas, runbooks y manifiestos de AWS/Huawei.
+8. Deuda: los 2144 usuarios de prueba con dígitos en el apellido siguen sin poder
+   entrar.
+
+---
+
 ## Sesión 18 — 2026-09-15 — Actividades en grupo, i18n del portal e infraestructura recuperada
 
 Sesión larga y con tres bloques que no se parecen: recuperar el proyecto en una

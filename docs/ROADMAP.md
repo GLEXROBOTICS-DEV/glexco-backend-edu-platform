@@ -212,8 +212,9 @@ frontend o clientes reales:
 
 ## ✅ Fase 4 — Portales de alumno (Discover y Academy)
 
-> Cerrada salvo traducir el cuerpo de las pantallas, que es continuación
-> mecánica sobre la infraestructura de i18n ya montada.
+> Cerrada. Queda deuda de traducción acotada y medida —157 textos, que
+> `pnpm i18n:check` cuenta y no deja crecer— y la parte manual de
+> accesibilidad, que un guion no puede cubrir.
 
 **Hecho:**
 
@@ -270,11 +271,33 @@ frontend o clientes reales:
       frase traducida y la fecha en español.
 
       Al cliente solo se le mandan los espacios que usa un componente de cliente
-      (`CLIENT_NAMESPACES` en `app/layout.tsx`): el catálogo entero se serializa
-      en el HTML de cada página y crece sin techo según avanza la traducción.
+      (`CLIENT_NAMESPACES` en `app/layout.tsx`, más los que declara cada sección
+      con `SectionMessages`): el catálogo entero se serializa en el HTML de cada
+      página y crece sin techo según avanza la traducción.
+- [x] **i18n: el portal del docente y el de Admin.** Los cinco formularios del
+      Admin, el alta de salón, el anuncio, el editor de preguntas, la rúbrica,
+      el alta de evaluaciones con su bloque de trabajo en grupo, la verificación
+      pública de certificados y el resto de pantallas del Teacher Center.
+      **1.107 claves en paridad es/en.**
 
-      **Queda el portal del docente y el de admin**, que es la misma mecánica
-      sobre las piezas compartidas ya convertidas.
+      Con ellas, los **80 mensajes de error de los Server Actions**, que son los
+      textos que alguien lee justo cuando algo le sale mal. Van al espacio
+      `errores`, que **no se declara en ningún `SectionMessages`** y por tanto no
+      viaja en el catálogo serializado: dos de esos mensajes llevan la palabra
+      «correcta» y no podrían estar en un espacio de cliente.
+
+      Tres tablas de etiquetas que estaban escritas en el código pasan al
+      catálogo con la MISMA clave que guarda el backend: los trece grados, los
+      cinco niveles educativos y las acciones de publicación. La del alta de
+      salón era la peor: un grado nuevo en el contrato no aparecía en el
+      desplegable y el colegio no podía abrir el salón aunque el backend lo
+      aceptara.
+- [x] **`pnpm i18n:check`: la traducción, medida.** Nace de haber dado la i18n
+      por terminada con más de doscientos textos a la vista todavía en español:
+      nadie lo estaba contando. Comprueba paridad es/en, claves muertas —encontró
+      28 y se borraron— y el texto sin traducir **contra un techo que solo puede
+      bajar**. No falla por la deuda que ya hay; falla si entra texto nuevo en
+      español.
 - [x] **Auditoría WCAG 2.1 AA automatizada** (`pnpm a11y`): audita el HTML que
       sirve el servidor, no el código, que es donde de verdad aparecen los
       fallos. 13 pantallas sin hallazgos. Queda por revisar **a mano** el
@@ -461,13 +484,20 @@ frontend o clientes reales:
       primer día porque el cliente ya dijo que institución y docentes podrán
       ajustarlas más adelante.
 
-      **Y ya se pueden publicar**: `POST /learning/missions`. El modelo estaba
-      entero y `assertMissionIsUsable` validaba sin que nadie la llamara, así que
-      las misiones solo entraban por el sembrador escribiendo directo en la base
-      —y en un entorno donde PostgreSQL no está expuesto, que es como debe estar,
-      no había forma de publicar ninguna—. El origen se deduce de quien llama y
-      nunca del cuerpo, igual que en las evaluaciones. Queda la PANTALLA de
-      autoría; el camino ya existe.
+      **Y ya se pueden publicar desde el portal**: `/admin/misiones`, sobre
+      `POST /learning/missions`. El modelo estaba entero y
+      `assertMissionIsUsable` validaba sin que nadie la llamara, así que las
+      misiones solo entraban por el sembrador escribiendo directo en la base —y
+      en un entorno donde PostgreSQL no está expuesto, que es como debe estar, no
+      había forma de publicar ninguna—. El origen se deduce de quien llama y
+      nunca del cuerpo, igual que en las evaluaciones.
+
+      La pantalla trae una lectura que no existía: `GET
+      /learning/missions/kit/:kitId`, un listado de **autoría** distinto del que
+      abre el alumno —aquel evalúa objetivos y paga XP—. Ordena por semana y
+      marca las que ya tienen misión, que es lo único que evita publicar una
+      segunda sin querer: es el error que dejó tres retos duplicados en
+      producción.
 - [x] **Certificados con firma Ed25519, QR y verificación pública** sin iniciar
       sesión. La firma es asimétrica y no un HMAC a propósito: cualquiera puede
       comprobar un certificado con la clave pública, sin pedirnos permiso y sin

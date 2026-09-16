@@ -62,10 +62,13 @@ Verificado:
 | Comprobación | Resultado |
 |---|---|
 | `pnpm build` | 15/15 paquetes, servicios y portal |
-| `pnpm test` | **231 pruebas** en memoria |
+| `pnpm typecheck` | 21/21 |
+| `pnpm test` | **291 pruebas** en memoria |
 | `pnpm smoke` | **96 comprobaciones** de punta a punta |
-| `pnpm concurrency` | **14 comprobaciones** de concurrencia real |
-| `pnpm smoke:web` | **227 comprobaciones** del portal contra el backend |
+| `pnpm concurrency` | **18 comprobaciones** de concurrencia real |
+| `pnpm smoke:web` | **250 comprobaciones** del portal contra el backend |
+| `pnpm i18n:check` | paridad es/en, claves muertas y techo de texto sin traducir |
+| `pnpm projections:check` | 15 proyecciones, todas cuadran con su origen |
 
 Las de concurrencia son las que justifican la arquitectura: un solo canje de
 veinte simultáneos, cinco plazas de veinte solicitudes, la outbox reteniendo el
@@ -93,8 +96,8 @@ Plataforma-Glexco/
 │   ├── learning/        ✅ progreso, XP, insignias, MISIONES y CERTIFICADOS (Ed25519)
 │   └── engagement/      ✅ correo real (verificacion y recuperacion), anuncios de salon
 ├── apps/web/            🔄 Next.js 15: registro y activación, ingreso, portadas,
-│                        progreso, cuestionarios, panel del docente, corrección
-│                        y autoría de evaluaciones
+│                        progreso, cuestionarios, panel del docente, corrección,
+│                        autoría de evaluaciones y de misiones
 ├── design/canvas/       ✅ dirección visual aprobada (10 artboards)
 ├── infra/
 │   ├── docker/          ✅ docker-compose + init SQL (schemas, roles, outbox)
@@ -139,9 +142,10 @@ pnpm --filter @glexco/learning dev         # arrancar aprendizaje (3104)
 pnpm --filter @glexco/analytics dev        # arrancar analitica (3107)
 pnpm seed                                  # kit, lote de codigos, institucion y salon
 pnpm smoke                                 # 96 comprobaciones de punta a punta
-pnpm concurrency                           # las 4 garantias de concurrencia real
+pnpm concurrency                           # las garantias de concurrencia real
 pnpm --filter @glexco/web dev              # portal (3010)
-pnpm smoke:web                             # 227 comprobaciones del portal
+pnpm smoke:web                             # 250 comprobaciones del portal
+pnpm i18n:check                            # estado de la traduccion (ver abajo)
 pnpm projections:check                     # las proyecciones cuadran con su origen?
 pnpm projections                           # reconstruir las que no
 ```
@@ -153,6 +157,19 @@ pnpm projections                           # reconstruir las que no
 > pinta, responde 200 y dice `None`. Antes de anadir un evento a esa lista,
 > comprueba que **todos** sus manejadores son idempotentes; hay tres que no lo
 > son y estan excluidos por nombre en el propio archivo.
+
+> **Al escribir texto que ve un usuario**, usa una clave de `messages/*.json` y
+> lanza `pnpm i18n:check`. Cuenta tres cosas: paridad es/en, claves que ya no usa
+> nadie, y el texto todavia sin traducir **contra un techo**. El techo baja al
+> traducir y NUNCA se sube: si la comprobacion se pone roja porque el numero
+> crecio, lo que hay que hacer es traducir el texto nuevo. La deuda actual son
+> 157 textos, medidos, y el propio guion dice en que ficheros estan.
+>
+> Si al anadir una clave salta la comprobacion de seguridad de `smoke:web` —«la
+> clave del banco de GLEXCO no llega ni al docente»— lo que se mueve es **la
+> clave**, no la comprobacion: al espacio `docenteServidor` si solo la usa el
+> servidor, o como propiedad desde el servidor si la pide un componente de
+> cliente. El catalogo se serializa en el HTML de CADA pagina de la seccion.
 
 ### Requisitos de entorno
 
