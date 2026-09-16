@@ -299,3 +299,77 @@ export class CreateMissionUseCase
     return { missionId: mission.id };
   }
 }
+
+export interface AuthoredMission {
+  missionId: string;
+  weekNumber: number;
+  title: string;
+  description: string;
+  xpReward: number;
+  origin: Mission['origin'];
+  objectives: { kind: string; target: number }[];
+  /** Si quien mira puede cambiarla. Una de GLEXCO se ve desde un colegio -sus
+   *  alumnos la cumplen- pero no se edita, igual que el banco de evaluaciones. */
+  editable: boolean;
+}
+
+/**
+ * Las misiones que ya tiene un kit, para quien las escribe.
+ *
+ * No es la pantalla del alumno: aquella evalua objetivos y paga XP, y esta solo
+ * enumera lo que hay. Existe para que la pantalla de autoria pueda **ensenar
+ * las semanas ocupadas antes de crear otra**. Sin eso, la unica forma de saber
+ * si la semana 3 ya tiene mision es publicar una segunda y verlas duplicadas,
+ * que es exactamente lo que paso al sembrar los retos en produccion: la
+ * comprobacion de "si ya existe, no lo repitas" preguntaba a un listado que
+ * devolvia cero para el personal de plataforma.
+ */
+export class ListMissionsUseCase
+  implements UseCase<{ kitId: string }, { items: AuthoredMission[] }>
+{
+  constructor(private readonly missions: MissionRepository) {}
+
+  async execute(
+    input: { kitId: string },
+    context: ExecutionContext,
+  ): Promise<{ items: AuthoredMission[] }> {
+    const actor = context.actor;
+    if (!actor) {
+      throw new BusinessRuleError('ACTOR_REQUIRED', 'Esta operacion exige estar autenticado.');
+    }
+
+    const esPlataforma = actor.roles.some(
+      (role) =>
+        role === ROLES.PLATFORM_OWNER ||
+        role === ROLES.PLATFORM_ADMIN ||
+        role === ROLES.CONTENT_MANAGER,
+    );
+
+    // El mismo alcance que ve el alumno: las de GLEXCO mas las de su colegio.
+    // Reusarlo no es ahorro, es la garantia de que la pantalla de autoria no
+    // ensene una mision que despues nadie va a cumplir porque cae fuera.
+    const publicadas = await this.missions.publishedForKit(
+      input.kitId,
+      esPlataforma ? null : (actor.institutionId ?? null),
+    );
+
+    return {
+      items: publicadas.map((mission) => ({
+        missionId: mission.id,
+        weekNumber: mission.weekNumber,
+        title: mission.title,
+        description: mission.description,
+        xpReward: mission.xpReward,
+        origin: mission.origin,
+        objectives: mission.objectives.map((objective) => ({
+          kind: objective.kind,
+          target: objective.target,
+        })),
+        // Contenido de GLEXCO es el mismo para todos los colegios: cambiarlo
+        // desde uno cambiaria la mision de todos, que es la invariante 8 del
+        // banco de evaluaciones aplicada aqui.
+        editable: esPlataforma || mission.origin === 'institution',
+      })),
+    };
+  }
+}

@@ -27,7 +27,11 @@ import {
   GetMyProgressUseCase,
   StartLessonUseCase,
 } from '../../application/progress.usecase';
-import { CreateMissionUseCase, MyMissionsUseCase } from '../../application/missions.usecase';
+import {
+  CreateMissionUseCase,
+  ListMissionsUseCase,
+  MyMissionsUseCase,
+} from '../../application/missions.usecase';
 import { BADGE_RULES, EXPLORER_LEVELS } from '../../domain/gamification';
 import {
   IssueCertificateUseCase,
@@ -79,6 +83,7 @@ export class LearningController {
     private readonly classroomProgress: GetClassroomProgressUseCase,
     private readonly myMissions: MyMissionsUseCase,
     private readonly createMission: CreateMissionUseCase,
+    private readonly listMissions: ListMissionsUseCase,
   ) {}
 
   /**
@@ -123,6 +128,23 @@ export class LearningController {
    * que casi ninguna cambie-. La escritura es idempotente por construccion:
    * `xp_awards` lo garantiza por (alumno, motivo, referencia).
    */
+  /**
+   * Las misiones que ya tiene un kit, para quien las escribe.
+   *
+   * Va declarada ANTES de `missions/:kitId`: Nest resuelve por orden de
+   * registro, y con el comodin delante, `kit` se leeria como un identificador
+   * y esta ruta no se alcanzaria nunca.
+   *
+   * Es una lectura de AUTORIA y no la del alumno: no evalua objetivos ni paga
+   * XP, solo enumera lo que hay para que la pantalla pueda ensenar las semanas
+   * ya ocupadas antes de crear otra mision.
+   */
+  @Get('missions/kit/:kitId')
+  @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
+  async authoredMissions(@Param('kitId') kitId: string, @Req() request: Request) {
+    return this.listMissions.execute({ kitId }, contextFrom(request));
+  }
+
   @Get('missions/:kitId')
   @RequirePermissions(PERMISSIONS.PROGRESS_READ_OWN)
   async missions(@Param('kitId') kitId: string, @Req() request: Request) {

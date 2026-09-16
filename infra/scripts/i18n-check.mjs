@@ -35,7 +35,7 @@ const MENSAJES = join(WEB, 'messages');
  * numero crecio, lo que hay que hacer es traducir el texto nuevo, no tocar este
  * numero. Bajarlo al traducir es obligatorio: si no, el techo deja de proteger.
  */
-const TECHO = 203;
+const TECHO = 157;
 
 const colors = {
   ok: '\x1b[32m',
@@ -122,6 +122,11 @@ function esProsa(valor) {
   const v = valor.trim();
   if (!v || INVARIANTE.test(v)) return false;
   if (/^(https?:|\/|#|var\(|--|\$\{)/.test(v)) return false;
+  // Trozos de CODIGO, no de texto. El `>` de una flecha `=>` abre un candidato
+  // que se cierra en el `<` de la siguiente etiqueta, asi que entre medias cabe
+  // media funcion. Sin esto, cada pantalla nueva sumaba al recuento textos que
+  // no existen, y el techo dejaba de significar nada.
+  if (/=>|;|\)\s*\{|\}\s*\(|!\.|\?\?|&&/.test(v)) return false;
   const palabras = v.match(PALABRA) ?? [];
   return palabras.length >= 2 || (palabras.length === 1 && ACENTO.test(v));
 }

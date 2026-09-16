@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import {
   ActivationCodeIcon,
   AnnouncementIcon,
+  ChallengeIcon,
   ClassroomIcon,
   CourseIcon,
   DashboardIcon,
@@ -88,6 +89,10 @@ export default async function DocentesLayout({ children }: { children: React.Rea
   }
   if (session.permissions.includes(PERMISSIONS.CONTENT_PUBLISH)) {
     items.push({ href: '/admin/contenidos', label: t('navContenidos'), icon: <CourseIcon /> });
+    // Las misiones van con el mismo permiso y en su propia pantalla: son
+    // contenido del kit, pero se escriben por SEMANA y no se publican por
+    // estados, asi que no caben en la tabla de contenidos.
+    items.push({ href: '/admin/misiones', label: t('navMisiones'), icon: <ChallengeIcon /> });
   }
 
   return (
@@ -131,6 +136,7 @@ export default async function DocentesLayout({ children }: { children: React.Rea
           'tiposPregunta',
           'nivelesEducativos',
           'estadoAccion',
+          'objetivosMision',
         ]}>
         {children}
       </SectionMessages>

@@ -3011,6 +3011,134 @@ async function main() {
       !/\bpuesto\b|\branking\b|\bposici[óo]n\b|de 30 alumnos/i.test(visible(pantallaProgreso)),
   );
 
+  // ------------------------------------------------------------------
+  section('15. Autoria de misiones: la pieza que no tenia camino');
+  // ------------------------------------------------------------------
+  // El modelo de misiones estaba entero desde la Fase 5 y solo entraban por el
+  // sembrador, escribiendo directo en PostgreSQL. En Railway, donde la base no
+  // esta expuesta -ni debe estarlo-, no habia forma de publicar ninguna, y el
+  // cliente vio "todavia no hay misiones para tu kit" en la Zona de retos.
+  //
+  // Lo que se comprueba aqui es que la pantalla nueva NO escribe en el vacio:
+  // se publica, se vuelve a leer por el listado de autoria, y se comprueba que
+  // el alumno la ve.
+  const kitMisiones = await seedCatalog({ codeCount: 1 });
+  const [autorContenidos] = await seedUsers(1, { roles: [ROLES.CONTENT_MANAGER] });
+  const tokenContenidos = mintAccessToken({
+    userId: autorContenidos.id,
+    roles: autorContenidos.roles,
+  });
+
+  const listadoVacio = await getJson(
+    `${LEARNING}/api/v1/learning/missions/kit/${kitMisiones.kitId}`,
+    tokenContenidos,
+  );
+  report(
+    'El listado de autoria de misiones responde',
+    listadoVacio.status === 200 && Array.isArray(listadoVacio.body?.items),
+    `status=${listadoVacio.status}`,
+  );
+  const misionesAntes = listadoVacio.body?.items?.length ?? 0;
+
+  const semanaLibre = 40 + Math.floor(Math.random() * 10);
+  const misionCreada = await postJson(
+    `${LEARNING}/api/v1/learning/missions`,
+    tokenContenidos,
+    {
+      kitId: kitMisiones.kitId,
+      weekNumber: semanaLibre,
+      title: 'Monta el brazo y hazlo saludar',
+      description: 'Escrita desde la pantalla de autoria.',
+      objectives: [{ kind: 'lessons_completed', target: 2 }],
+      xpReward: 75,
+    },
+  );
+  report(
+    'Publica una mision sin tocar la base de datos',
+    misionCreada.status === 201 && Boolean(misionCreada.body?.missionId),
+    `status=${misionCreada.status} ${JSON.stringify(misionCreada.body).slice(0, 160)}`,
+  );
+
+  const listadoConUna = await getJson(
+    `${LEARNING}/api/v1/learning/missions/kit/${kitMisiones.kitId}`,
+    tokenContenidos,
+  );
+  const misionesDelKit = listadoConUna.body?.items ?? [];
+  const publicada = misionesDelKit.find((item) => item.missionId === misionCreada.body?.missionId);
+
+  report(
+    'Y vuelve a salir en el listado, con su semana y su recompensa',
+    misionesDelKit.length === misionesAntes + 1 &&
+      publicada?.weekNumber === semanaLibre &&
+      publicada?.xpReward === 75,
+    `antes=${misionesAntes} despues=${misionesDelKit.length} ${JSON.stringify(publicada).slice(0, 140)}`,
+  );
+
+  // El origen lo decide el SERVIDOR a partir de quien llama, nunca el cuerpo:
+  // aceptarlo permitiria a un colegio colar una mision en todos los demas.
+  report(
+    'El origen lo pone el servidor: contenido de GLEXCO, no de un colegio',
+    publicada?.origin === 'glexco',
+    `origin=${publicada?.origin}`,
+  );
+
+  // Ordenado por SEMANA y no por fecha de creacion: es lo que permite a la
+  // pantalla ensenar las semanas ocupadas antes de crear otra mision, que es
+  // exactamente la comprobacion que fallo al sembrar los retos en produccion.
+  const semanas = misionesDelKit.map((item) => item.weekNumber);
+  report(
+    'El listado viene ordenado por semana, que es lo que evita duplicar',
+    semanas.every((valor, indice) => indice === 0 || semanas[indice - 1] <= valor),
+    JSON.stringify(semanas),
+  );
+
+  const colegioMisiones = await seedInstitution();
+  const [docenteMisiones] = await seedUsers(1, {
+    roles: [ROLES.TEACHER],
+    institutionId: colegioMisiones.institutionId,
+  });
+  const tokenDocenteMisiones = mintAccessToken({
+    userId: docenteMisiones.id,
+    roles: docenteMisiones.roles,
+    institutionId: colegioMisiones.institutionId,
+  });
+  const misionRechazada = await postJson(
+    `${LEARNING}/api/v1/learning/missions`,
+    tokenDocenteMisiones,
+    {
+      kitId: kitMisiones.kitId,
+      weekNumber: 1,
+      title: 'Intento colar una mision',
+      objectives: [{ kind: 'xp_earned', target: 10 }],
+      xpReward: 10,
+    },
+  );
+  report(
+    'Un docente no publica misiones: es contenido del kit',
+    misionRechazada.status === 403,
+    `status=${misionRechazada.status}`,
+  );
+
+  // La validacion del dominio, que hasta que existio esta pantalla no llamaba
+  // nadie: una mision sin objetivos no se puede completar NUNCA, y eso no se
+  // descubre hasta que el salon se queda sin su XP.
+  const misionImposible = await postJson(
+    `${LEARNING}/api/v1/learning/missions`,
+    tokenContenidos,
+    {
+      kitId: kitMisiones.kitId,
+      weekNumber: 1,
+      title: 'Mision sin objetivos',
+      objectives: [],
+      xpReward: 10,
+    },
+  );
+  report(
+    'Rechaza una mision sin objetivos: no se podria completar nunca',
+    misionImposible.status === 400 || misionImposible.status === 422,
+    `status=${misionImposible.status}`,
+  );
+
   console.log(
     `\n${colors.bold}Resultado:${colors.reset} ${colors.ok}${passed} pasan${colors.reset}` +
       (failed > 0 ? `, ${colors.fail}${failed} fallan${colors.reset}` : '') +

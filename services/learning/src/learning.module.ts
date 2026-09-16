@@ -42,7 +42,11 @@ import {
   GetMyProgressUseCase,
   StartLessonUseCase,
 } from './application/progress.usecase';
-import { CreateMissionUseCase, MyMissionsUseCase } from './application/missions.usecase';
+import {
+  CreateMissionUseCase,
+  ListMissionsUseCase,
+  MyMissionsUseCase,
+} from './application/missions.usecase';
 import {
   PgCertificateRepository,
   PgGamificationRepository,
@@ -317,6 +321,11 @@ export { CONFIG, LOGGER, LOGGER_PORT } from './tokens';
         random: SecureRandom,
       ) => new CreateMissionUseCase(missions, unitOfWork, logger, () => random.uuid()),
       inject: [MISSION_REPOSITORY, UNIT_OF_WORK, LOGGER_PORT, SECURE_RANDOM],
+    },
+    {
+      provide: ListMissionsUseCase,
+      useFactory: (missions: MissionRepository) => new ListMissionsUseCase(missions),
+      inject: [MISSION_REPOSITORY],
     },
     {
       provide: GetClassroomProgressUseCase,

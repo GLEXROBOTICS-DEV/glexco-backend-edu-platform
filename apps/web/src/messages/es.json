@@ -947,7 +947,8 @@
     "creando": "Creando…",
     "crearYAnadirPreguntas": "Crear y añadir preguntas",
     "naceEnBorrador": "Nace en borrador: nadie la ve hasta que la publiques.",
-    "tipo": "Tipo"
+    "tipo": "Tipo",
+    "navMisiones": "Misiones"
   },
   "tiposEvaluacion": {
     "quiz": "Cuestionario",
@@ -1055,7 +1056,36 @@
     "panelDeGlexco": "Panel de GLEXCO",
     "panelDeGlexcoAyuda": "Todas las instituciones, y el contenido que peor funciona en todas ellas.",
     "institucionesOrdenadas": "Instituciones con actividad, ordenadas por su última actividad",
-    "muestraMinimaKit": "Con menos de 15 alumnos la media de un kit dice más del salón que le tocó que del kit."
+    "muestraMinimaKit": "Con menos de 15 alumnos la media de un kit dice más del salón que le tocó que del kit.",
+    "misionesTitulo": "Misiones",
+    "misionesSubtitulo": "Los retos semanales de cada kit. El alumno los ve en su Zona de retos.",
+    "eligeUnKit": "Elige un kit",
+    "kitParaMisiones": "Kit",
+    "sinKitsParaMisiones": "No hay kits publicados todavía. Publica uno antes de escribirle misiones.",
+    "misionesDelKit": "{cuantas} misiones en este kit",
+    "sinMisionesEnKit": "Este kit todavía no tiene misiones",
+    "sinMisionesEnKitAyuda": "Sus alumnos ven la Zona de retos vacía. Crea la primera aquí abajo.",
+    "semana": "Semana",
+    "semanaNumero": "Semana {numero}",
+    "semanaOcupada": "Semana {numero} — ya tiene misión",
+    "deGlexco": "De GLEXCO",
+    "deMiColegio": "De mi colegio",
+    "recompensa": "Recompensa",
+    "puntosXp": "{cuantos} XP",
+    "nuevaMision": "Nueva misión",
+    "tituloDeLaMision": "Título",
+    "ejemploTituloMision": "Monta el brazo y hazlo saludar",
+    "descripcionDeLaMision": "Descripción",
+    "descripcionAyuda": "Lo que el alumno lee en su Zona de retos. Una o dos frases.",
+    "objetivos": "Objetivos",
+    "objetivosAyuda": "Qué tiene que conseguir para completarla. Deja en blanco las filas que no uses; hace falta al menos una.",
+    "queConseguir": "Qué conseguir",
+    "cuantos": "Cuántos",
+    "publicandoMision": "Publicando…",
+    "publicarMision": "Publicar la misión",
+    "misionPublicada": "Misión publicada. Tus alumnos ya la ven en su Zona de retos.",
+    "naceePublicada": "Nace publicada: una misión no tiene preguntas que preparar aparte.",
+    "vuelveAIntentarloAdmin": "Vuelve a intentarlo en un momento."
   },
   "roles": {
     "platform_owner": "Dueño de plataforma",
@@ -1178,7 +1208,12 @@
     "noEncontramosTuSalon": "No encontramos tu salón. Vuelve a cargar la página.",
     "noPudimosPublicarPregunta": "No pudimos publicar tu pregunta. Vuelve a intentarlo en un momento.",
     "escribeTuRespuesta": "Escribe tu respuesta.",
-    "noPudimosPublicarRespuesta": "No pudimos publicar tu respuesta. Vuelve a intentarlo en un momento."
+    "noPudimosPublicarRespuesta": "No pudimos publicar tu respuesta. Vuelve a intentarlo en un momento.",
+    "semanaInvalida": "Elige la semana del kit a la que pertenece.",
+    "recompensaInvalida": "Ponle una recompensa en puntos de experiencia.",
+    "misionSinObjetivos": "Una misión necesita al menos un objetivo con su cantidad.",
+    "sinPermisoParaMisiones": "No tienes permiso para publicar misiones.",
+    "noPudimosPublicarMision": "No pudimos publicar la misión. Vuelve a intentarlo en un momento."
   },
   "tiposEvaluacionAyuda": {
     "quiz": "De marcar. Se corrige al instante y admite reintentos.",
@@ -1232,5 +1267,10 @@
     "verLaVerificacion": "Ver la verificación",
     "seAbreEnOtraPestana": " (se abre en otra pestaña)",
     "escaneaParaComprobar": "Escanea para comprobar que es auténtico"
+  },
+  "objetivosMision": {
+    "lessons_completed": "Lecciones completadas",
+    "assessment_passed": "Evaluaciones aprobadas",
+    "xp_earned": "Puntos de experiencia"
   }
 }

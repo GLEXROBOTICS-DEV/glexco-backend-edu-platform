@@ -947,7 +947,8 @@
     "creando": "Creating…",
     "crearYAnadirPreguntas": "Create and add questions",
     "naceEnBorrador": "It starts as a draft: nobody sees it until you publish it.",
-    "tipo": "Type"
+    "tipo": "Type",
+    "navMisiones": "Missions"
   },
   "tiposEvaluacion": {
     "quiz": "Quiz",
@@ -1055,7 +1056,36 @@
     "panelDeGlexco": "GLEXCO panel",
     "panelDeGlexcoAyuda": "Every institution, and the content that works worst across all of them.",
     "institucionesOrdenadas": "Institutions with activity, ordered by their most recent activity",
-    "muestraMinimaKit": "With fewer than 15 students, a kit's average says more about the classroom it landed in than about the kit."
+    "muestraMinimaKit": "With fewer than 15 students, a kit's average says more about the classroom it landed in than about the kit.",
+    "misionesTitulo": "Missions",
+    "misionesSubtitulo": "The weekly challenges of each kit. Students see them in their Challenge Zone.",
+    "eligeUnKit": "Choose a kit",
+    "kitParaMisiones": "Kit",
+    "sinKitsParaMisiones": "There are no published kits yet. Publish one before writing missions for it.",
+    "misionesDelKit": "{cuantas} missions in this kit",
+    "sinMisionesEnKit": "This kit has no missions yet",
+    "sinMisionesEnKitAyuda": "Its students see an empty Challenge Zone. Create the first one below.",
+    "semana": "Week",
+    "semanaNumero": "Week {numero}",
+    "semanaOcupada": "Week {numero} — already has a mission",
+    "deGlexco": "From GLEXCO",
+    "deMiColegio": "From my school",
+    "recompensa": "Reward",
+    "puntosXp": "{cuantos} XP",
+    "nuevaMision": "New mission",
+    "tituloDeLaMision": "Title",
+    "ejemploTituloMision": "Build the arm and make it wave",
+    "descripcionDeLaMision": "Description",
+    "descripcionAyuda": "What the student reads in their Challenge Zone. One or two sentences.",
+    "objetivos": "Objectives",
+    "objetivosAyuda": "What they have to achieve to complete it. Leave the rows you do not use blank; you need at least one.",
+    "queConseguir": "What to achieve",
+    "cuantos": "How many",
+    "publicandoMision": "Publishing…",
+    "publicarMision": "Publish the mission",
+    "misionPublicada": "Mission published. Your students can already see it in their Challenge Zone.",
+    "naceePublicada": "It is published straight away: a mission has no questions to prepare separately.",
+    "vuelveAIntentarloAdmin": "Try again in a moment."
   },
   "roles": {
     "platform_owner": "Platform owner",
@@ -1178,7 +1208,12 @@
     "noEncontramosTuSalon": "We could not find your classroom. Reload the page.",
     "noPudimosPublicarPregunta": "We could not post your question. Try again in a moment.",
     "escribeTuRespuesta": "Write your answer.",
-    "noPudimosPublicarRespuesta": "We could not post your answer. Try again in a moment."
+    "noPudimosPublicarRespuesta": "We could not post your answer. Try again in a moment.",
+    "semanaInvalida": "Choose the week of the kit it belongs to.",
+    "recompensaInvalida": "Give it a reward in experience points.",
+    "misionSinObjetivos": "A mission needs at least one objective with its amount.",
+    "sinPermisoParaMisiones": "You do not have permission to publish missions.",
+    "noPudimosPublicarMision": "We could not publish the mission. Try again in a moment."
   },
   "tiposEvaluacionAyuda": {
     "quiz": "Multiple choice. Graded instantly and it allows retries.",
@@ -1232,5 +1267,10 @@
     "verLaVerificacion": "See the verification",
     "seAbreEnOtraPestana": " (opens in another tab)",
     "escaneaParaComprobar": "Scan to check that it is genuine"
+  },
+  "objetivosMision": {
+    "lessons_completed": "Lessons completed",
+    "assessment_passed": "Assessments passed",
+    "xp_earned": "Experience points"
   }
 }
