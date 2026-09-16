@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { useTranslations } from 'next-intl';
 import { completeLesson, type LessonState } from '../lib/learning.actions';
 
 /**
@@ -23,6 +24,7 @@ export function LessonComplete({
   portal: 'discover' | 'academy';
   alreadyCompleted: boolean;
 }) {
+  const t = useTranslations('contenido');
   const [state, formAction] = useActionState<LessonState, FormData>(completeLesson, {});
 
   if (alreadyCompleted && !state.completed) {
@@ -31,7 +33,7 @@ export function LessonComplete({
         data-lesson="done"
         className="rounded-lg border border-success/25 bg-success/5 px-4 py-3 text-sm text-ink-700"
       >
-        Ya completaste esta lección. Puedes volver a verla cuando quieras.
+        {t('yaCompletada')}
       </p>
     );
   }
@@ -44,7 +46,7 @@ export function LessonComplete({
         className="rounded-lg border border-success/25 bg-success/5 px-4 py-4"
       >
         <p className="font-display text-base font-semibold">
-          {state.alreadyDone ? 'Ya la tenías completada' : '¡Lección completada!'}
+          {state.alreadyDone ? t('yaLaTenias') : t('leccionCompletada')}
         </p>
 
         {/* Solo se anuncian los puntos si de verdad se ganaron. Decir "+25 XP"
@@ -52,20 +54,17 @@ export function LessonComplete({
             despues no sube. */}
         {!state.alreadyDone && state.xpAwarded ? (
           <p className="mt-1 text-sm text-ink-700">
-            Ganaste <strong className="font-semibold">{state.xpAwarded}</strong> puntos de
-            experiencia.
+            {t('ganastePuntos', { cuantos: state.xpAwarded })}
           </p>
         ) : null}
 
         {state.courseCompleted ? (
-          <p className="mt-1 text-sm font-medium text-brand-700">
-            Y terminaste el curso entero.
-          </p>
+          <p className="mt-1 text-sm font-medium text-brand-700">{t('terminasteElCurso')}</p>
         ) : null}
 
         {state.levelUp ? (
           <p className="mt-2 rounded-lg bg-brand-600/10 px-3 py-2 text-sm font-semibold text-brand-700">
-            ¡Subiste de nivel! Ahora eres {state.levelUp}.
+            {t('subisteDeNivel', { nivel: state.levelUp })}
           </p>
         ) : null}
 
@@ -73,7 +72,9 @@ export function LessonComplete({
           <ul className="mt-2 space-y-1" data-new-badges={state.newBadges.length}>
             {state.newBadges.map((badge) => (
               <li key={badge.code} className="text-sm text-ink-700">
-                <strong className="font-semibold">Insignia nueva: {badge.name}</strong> ·{' '}
+                <strong className="font-semibold">
+                  {t('insigniaNueva', { nombre: badge.name })}
+                </strong>{' '}·{' '}
                 {badge.description}
               </li>
             ))}
@@ -84,7 +85,7 @@ export function LessonComplete({
           href={`/${portal}/progreso`}
           className="mt-3 inline-block text-sm font-medium text-brand-600 hover:underline"
         >
-          Ver mi progreso
+          {t('verMiProgreso')}
         </a>
       </div>
     );
@@ -107,6 +108,7 @@ export function LessonComplete({
 }
 
 function SubmitButton() {
+  const t = useTranslations('contenido');
   const { pending } = useFormStatus();
 
   return (
@@ -116,7 +118,7 @@ function SubmitButton() {
       data-submit="completar"
       className="btn btn-secondary"
     >
-      {pending ? 'Guardando…' : 'Ya lo vi'}
+      {pending ? t('guardando') : t('yaLoVi')}
     </button>
   );
 }

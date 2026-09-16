@@ -1,4 +1,5 @@
 import QRCode from 'qrcode';
+import { getTranslations } from 'next-intl/server';
 import { CertificateIcon } from '@glexco/icons';
 import { fetchMyCertificates, type MyCertificate } from '../lib/certificates';
 import { EmptyState } from './ui';
@@ -26,13 +27,14 @@ const VERIFY_BASE =
   process.env['NEXT_PUBLIC_VERIFY_URL'] ?? 'https://glexcoweb-production.up.railway.app/verificar';
 
 export async function MyCertificates({ portal }: { portal: 'discover' | 'academy' }) {
+  const t = await getTranslations('certificado');
   const { items, failed, disabled } = await fetchMyCertificates();
 
   if (disabled) {
     return (
       <EmptyState
-        title="Los certificados aún no están activos"
-        description="Esta plataforma todavía no tiene configurada la firma de certificados. Habla con tu colegio."
+        title={t('noActivos')}
+        description={t('noActivosAyuda')}
       />
     );
   }
@@ -40,8 +42,8 @@ export async function MyCertificates({ portal }: { portal: 'discover' | 'academy
   if (failed) {
     return (
       <EmptyState
-        title="No pudimos cargar tus certificados"
-        description="Vuelve a intentarlo en un momento. Si sigue pasando, avisa a tu docente."
+        title={t('noPudimosCargar')}
+        description={t('noPudimosCargarAyuda')}
       />
     );
   }
@@ -50,14 +52,14 @@ export async function MyCertificates({ portal }: { portal: 'discover' | 'academy
     return (
       <EmptyState
         icon={<CertificateIcon size={32} />}
-        title="Todavía no tienes ningún certificado"
-        description="Se emite al terminar todas las lecciones de un curso. Te queda poco."
+        title={t('todaviaNinguno')}
+        description={t('todaviaNingunoAyuda')}
         // `/discover/cursos` NO existe -en Discover se llama "mis kits"-, y este
         // enlace llevaba a un 404 desde la pantalla de certificados. Es el que
         // destapo que ademas un alumno podia acabar navegando por el otro portal.
         action={{
           href: portal === 'academy' ? '/academy/cursos' : '/discover/kits',
-          label: portal === 'academy' ? 'Ver mis cursos' : 'Ver mis kits',
+          label: portal === 'academy' ? t('verMisCursos') : t('verMisKits'),
         }}
       />
     );
@@ -81,6 +83,7 @@ export async function MyCertificates({ portal }: { portal: 'discover' | 'academy
  * certificado, es una pantalla.
  */
 async function Certificate({ certificate }: { certificate: MyCertificate }) {
+  const t = await getTranslations('certificado');
   const url = `${VERIFY_BASE}/${certificate.serial}`;
   const svg = await qrSvg(url);
   const revoked = Boolean(certificate.revokedAt);
@@ -94,7 +97,7 @@ async function Certificate({ certificate }: { certificate: MyCertificate }) {
     >
       <div className="flex flex-wrap items-start gap-6 p-[var(--portal-card-padding)]">
         <div className="min-w-0 flex-1">
-          <p className="eyebrow mb-2">Certificado de finalización</p>
+          <p className="eyebrow mb-2">{t('deFinalizacion')}</p>
           <h2 className="font-display text-xl font-semibold">{certificate.courseTitle}</h2>
           <p className="mt-1 text-sm text-ink-500">{certificate.studentName}</p>
           {certificate.institutionName ? (
@@ -103,31 +106,33 @@ async function Certificate({ certificate }: { certificate: MyCertificate }) {
 
           <dl className="mt-4 grid gap-1 text-xs text-ink-500">
             <div className="flex gap-2">
-              <dt>Emitido el</dt>
+              <dt>{t('emitidoEl')}</dt>
               <dd className="font-medium text-ink-700">{formatDate(certificate.issuedAt)}</dd>
             </div>
             <div className="flex gap-2">
-              <dt>Serie</dt>
+              <dt>{t('serie')}</dt>
               {/* Tabular y separada: es lo que alguien dicta por telefono o
                   teclea cuando el QR no se deja escanear. */}
               <dd className="font-mono tabular-nums text-ink-700">{certificate.serial}</dd>
             </div>
             <div className="flex gap-2">
-              <dt>Huella de la clave</dt>
+              <dt>{t('huellaDeLaClave')}</dt>
               <dd className="font-mono text-ink-700">{certificate.keyFingerprint}</dd>
             </div>
           </dl>
 
           {revoked ? (
             <p className="mt-4 rounded-[calc(var(--portal-radius)*0.75)] bg-state-late-bg px-3 py-2 text-sm font-medium text-state-late-fg">
-              Anulado{certificate.revokedReason ? `: ${certificate.revokedReason}` : ''}
+              {certificate.revokedReason
+                ? t('anuladoPorque', { motivo: certificate.revokedReason })
+                : t('anulado')}
             </p>
           ) : null}
 
           <div className="mt-5 flex flex-wrap gap-3">
             <a href={url} target="_blank" rel="noreferrer noopener" className="btn btn-secondary">
-              Ver la verificación
-              <span className="sr-only"> (se abre en otra pestaña)</span>
+              {t('verLaVerificacion')}
+              <span className="sr-only">{t('seAbreEnOtraPestana')}</span>
               <span aria-hidden="true">↗</span>
             </a>
           </div>
@@ -142,7 +147,7 @@ async function Certificate({ certificate }: { certificate: MyCertificate }) {
             dangerouslySetInnerHTML={{ __html: svg }}
           />
           <p className="mt-2 max-w-[7.5rem] text-[11px] leading-tight text-ink-500">
-            Escanea para comprobar que es auténtico
+            {t('escaneaParaComprobar')}
           </p>
         </div>
       </div>

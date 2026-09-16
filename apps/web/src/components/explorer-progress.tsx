@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { BadgeIcon, LevelIcon } from '@glexco/icons';
 import { fetchLearningProgress } from '../lib/learning';
 import { Card, SectionTitle } from './ui';
@@ -15,6 +16,7 @@ import { Card, SectionTitle } from './ui';
  * objetivo propio y alcanzable.
  */
 export async function ExplorerProgress({ portal }: { portal: 'discover' | 'academy' }) {
+  const t = await getTranslations('progreso');
   const { data, failed } = await fetchLearningProgress();
 
   if (failed) return null;
@@ -38,10 +40,10 @@ export async function ExplorerProgress({ portal }: { portal: 'discover' | 'acade
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-display text-lg font-semibold">
-              Nivel {data.explorerLevel} · {data.levelName}
+              {t('nivelYNombre', { numero: data.explorerLevel, nombre: data.levelName })}
             </p>
             <p className="mt-0.5 text-sm text-ink-500" data-xp={data.totalXp}>
-              {data.totalXp} puntos de experiencia
+              {t('puntosDeExperiencia', { cuantos: data.totalXp })}
             </p>
 
             {data.xpToNext !== null ? (
@@ -55,7 +57,7 @@ export async function ExplorerProgress({ portal }: { portal: 'discover' | 'acade
                   aria-valuenow={progressToNext}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-label={`Progreso hacia ${data.nextLevelName}`}
+                  aria-label={t('progresoHacia', { nivel: data.nextLevelName })}
                 >
                   <div
                     className="h-2.5 rounded-full bg-brand-600"
@@ -63,33 +65,30 @@ export async function ExplorerProgress({ portal }: { portal: 'discover' | 'acade
                   />
                 </div>
                 <p className="mt-1.5 text-sm text-ink-700">
-                  Te faltan <strong className="font-semibold">{data.xpToNext}</strong> para llegar a{' '}
-                  {data.nextLevelName}.
+                  {t('teFaltanPara', { cuantos: data.xpToNext, nivel: data.nextLevelName })}
                 </p>
               </div>
             ) : (
-              <p className="mt-3 text-sm font-medium text-brand-700">
-                Llegaste al nivel más alto. Enhorabuena.
-              </p>
+              <p className="mt-3 text-sm font-medium text-brand-700">{t('nivelMasAlto')}</p>
             )}
           </div>
         </div>
 
         <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-line-200 pt-4 sm:grid-cols-3">
           <div>
-            <dt className="text-sm text-ink-500">Lecciones completadas</dt>
+            <dt className="text-sm text-ink-500">{t('leccionesCompletadas')}</dt>
             <dd className="font-display text-xl font-semibold tabular-nums">
               {data.lessonsCompleted}
             </dd>
           </div>
           <div>
-            <dt className="text-sm text-ink-500">Cursos terminados</dt>
+            <dt className="text-sm text-ink-500">{t('cursosTerminados')}</dt>
             <dd className="font-display text-xl font-semibold tabular-nums">
               {data.coursesCompleted}
             </dd>
           </div>
           <div>
-            <dt className="text-sm text-ink-500">Insignias</dt>
+            <dt className="text-sm text-ink-500">{t('insignias')}</dt>
             <dd className="font-display text-xl font-semibold tabular-nums">
               {data.badges.length}
             </dd>

@@ -16,6 +16,7 @@ export const metadata: Metadata = { title: 'Mi institución' };
 
 export default async function InstitucionPage() {
   const session = await requireSession();
+  const t = await getTranslations('docente');
 
   // Un docente no tiene esta pantalla. Se le devuelve a la suya en vez de
   // mostrarle un error: no ha hecho nada mal, simplemente no es para él.
@@ -26,8 +27,8 @@ export default async function InstitucionPage() {
   if (!session.institutionId) {
     return (
       <EmptyState
-        title="Tu cuenta no está asociada a una institución"
-        description="Escribe a soporte para que la vinculen."
+        title={t('sinInstitucion')}
+        description={t('sinInstitucionAyuda')}
       />
     );
   }
@@ -35,7 +36,7 @@ export default async function InstitucionPage() {
   return (
     <>
       <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="font-semibold">
-        Mi institución
+        {t('miInstitucion')}
       </h1>
 
       <Suspense fallback={<CardSkeleton />}>
@@ -51,14 +52,15 @@ export default async function InstitucionPage() {
 
 /** "¿Cómo va mi colegio?" */
 async function Overview({ institutionId }: { institutionId: string }) {
+  const t = await getTranslations('docente');
   const vocab = await getTranslations();
   const { data, failed } = await fetchInstitutionDashboard(institutionId);
 
   if (failed || !data) {
     return (
       <EmptyState
-        title="No pudimos cargar el resumen"
-        description="Vuelve a intentarlo en un momento."
+        title={t('noPudimosCargarResumen')}
+        description={t('vuelveAIntentarlo')}
       />
     );
   }
@@ -74,26 +76,30 @@ async function Overview({ institutionId }: { institutionId: string }) {
 
   return (
     <section aria-labelledby="resumen-institucion" className="grid gap-[var(--portal-gap)]">
-      <SectionTitle id="resumen-institucion">Resumen del colegio</SectionTitle>
+      <SectionTitle id="resumen-institucion">{t('resumenDelColegio')}</SectionTitle>
 
       <div className="grid gap-[var(--portal-gap)] sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
-          label="Nota media"
+          label={t('notaMedia')}
           value={data.averagePercentage}
           unit="%"
           tone={level.tone}
           toneLabel={level.label}
-          hint="Solo evaluaciones GLEXCO"
+          hint={t('soloEvaluacionesGlexco')}
         />
         <StatTile
-          label="Cuánto ha mejorado"
+          label={t('cuantoHaMejorado')}
           value={data.averageGain === null ? null : data.averageGain > 0 ? `+${data.averageGain}` : data.averageGain}
-          unit=" pts"
-          hint="Progreso medio desde el primer intento"
+          unit={` ${t('unidadPuntos')}`}
+          hint={t('progresoMedioDesdeElPrimero')}
         />
-        <StatTile label="Salones con resultados" value={data.classrooms} hint={`${data.studentsMeasured} alumnos`} />
         <StatTile
-          label="Códigos activados"
+          label={t('salonesConResultados')}
+          value={data.classrooms}
+          hint={t('alumnosContados', { cuantos: data.studentsMeasured })}
+        />
+        <StatTile
+          label={t('codigosActivados')}
           value={activationRate}
           unit="%"
           tone={activationRate === null ? 'neutral' : activationRate < 70 ? 'warning' : 'good'}
@@ -101,10 +107,13 @@ async function Overview({ institutionId }: { institutionId: string }) {
             activationRate === null
               ? undefined
               : activationRate < 70
-                ? `${unredeemed} libros sin activar`
-                : 'Buena activación'
+                ? t('librosSinActivar', { cuantos: unredeemed })
+                : t('buenaActivacion')
           }
-          hint={`${data.codesRedeemed} de ${data.codesIssued}`}
+          hint={t('deTantosCodigos', {
+            canjeados: data.codesRedeemed,
+            emitidos: data.codesIssued,
+          })}
         />
       </div>
 
@@ -114,15 +123,18 @@ async function Overview({ institutionId }: { institutionId: string }) {
         distintos y edades distintas.
       */}
       <BarList
-        title="Nota media por grado"
+        title={t('notaMediaPorGrado')}
         unit="%"
-        emptyMessage="Todavía no hay resultados por grado."
+        emptyMessage={t('sinResultadosPorGrado')}
         data={data.byGrade.map((entry) => {
           const { tone, label } = scoreTone(vocab, entry.averagePercentage);
           return {
             label: gradeLabel(vocab, entry.grade),
             value: Math.round(entry.averagePercentage ?? 0),
-            meta: `${entry.classrooms} ${entry.classrooms === 1 ? 'salón' : 'salones'}`,
+            meta:
+              entry.classrooms === 1
+                ? t('unSalon', { cuantos: entry.classrooms })
+                : t('variosSalones', { cuantos: entry.classrooms }),
             tone,
             toneLabel: label,
           };
@@ -155,31 +167,31 @@ async function Teaching({ institutionId }: { institutionId: string }) {
   if (data.rows.length === 0) {
     return (
       <EmptyState
-        title="Aún no hay datos por salón"
-        description="Cuando los alumnos entreguen evaluaciones podrás ver en qué salones hace falta más acompañamiento."
+        title={t('sinDatosPorSalon')}
+        description={t('sinDatosPorSalonAyuda')}
       />
     );
   }
 
   return (
     <section aria-labelledby="apoyo" className="grid gap-[var(--portal-gap)]">
-      <SectionTitle id="apoyo">Dónde hace falta apoyo</SectionTitle>
+      <SectionTitle id="apoyo">{t('dondeHaceFaltaApoyo')}</SectionTitle>
 
       <Card>
         <p className="text-sm text-ink-700">
-          <strong className="font-semibold">Qué mide:</strong> {data.metric}
+          <strong className="font-semibold">{t('queMide')}</strong> {data.metric}
         </p>
         <p className="mt-2 text-sm text-ink-500">{data.caveat}</p>
       </Card>
 
       <BarList
-        title="Progreso medio por salón"
-        unit=" pts"
+        title={t('progresoMedioPorSalon')}
+        unit={` ${t('unidadPuntos')}`}
         max={40}
         data={data.rows.map((row) => ({
           label: `${row.grade ? gradeLabel(vocab, row.grade) : t('salonSinNombre')} · ${row.classroomId.slice(0, 8)}`,
           value: Math.round(row.averageGain ?? 0),
-          meta: `${row.sampleSize} alumnos`,
+          meta: t('alumnosContados', { cuantos: row.sampleSize }),
           // El aviso de muestra insuficiente va POR FILA, no una vez arriba:
           // quien lee una tabla mira la fila, no la cabecera.
           tone: row.statisticallyMeaningful ? 'neutral' : 'warning',

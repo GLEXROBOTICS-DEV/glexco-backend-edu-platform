@@ -5,6 +5,7 @@ import { logout } from '../../lib/auth.actions';
 import { tourFor } from '../../lib/tour-steps';
 import { AppShell } from '../../components/app-shell';
 import { portalNavItems } from '../../components/portal-nav';
+import { SectionMessages } from '../../components/section-messages';
 
 /**
  * Marco comun de los portales de alumno.
@@ -24,6 +25,7 @@ export default async function PortalesLayout({ children }: { children: React.Rea
   if (!session) redirect('/ingresar');
 
   const portal = session.portal === 'academy' ? 'academy' : 'discover';
+  const comun = await getTranslations('comun');
 
   return (
     <AppShell
@@ -33,11 +35,16 @@ export default async function PortalesLayout({ children }: { children: React.Rea
       accountHref={`/${portal}/cuenta`}
       items={await portalNavItems(portal)}
       session={session}
-      subtitle="Estudiante"
+      subtitle={comun('estudiante')}
       onLogout={logout}
       tour={tourFor(portal, await getTranslations('tour'))}
     >
-      {children}
+      {/*
+        `contenido` viaja solo aqui: lo pide el boton de "ya lo vi", que es de
+        cliente y vive en las pantallas del alumno. En el portal del docente no
+        hace falta, y el catalogo se serializa en el HTML de CADA pagina.
+      */}
+      <SectionMessages spaces={['contenido']}>{children}</SectionMessages>
     </AppShell>
   );
 }

@@ -49,6 +49,7 @@ export default async function StudentDetail({
 }
 
 async function Detail({ classroomId, studentId }: { classroomId: string; studentId: string }) {
+  const t = await getTranslations('docente');
   const vocab = await getTranslations();
   const format = await getFormatter();
   // El nombre viene de la matrícula y no del dashboard: la analítica es una
@@ -58,14 +59,14 @@ async function Detail({ classroomId, studentId }: { classroomId: string; student
     fetchRoster(classroomId),
   ]);
 
-  const name = roster.byId.get(studentId) ?? 'Este alumno';
+  const name = roster.byId.get(studentId) ?? t('esteAlumnoSinNombre');
 
   if (failed || !data) {
     return (
       <EmptyState
-        title="No pudimos cargar a este alumno"
-        description="Puede que ya no esté en este salón. Vuelve al salón y ábrelo desde la lista."
-        action={{ href: `/docentes/salones/${classroomId}`, label: 'Volver al salón' }}
+        title={t('noPudimosCargarAlumno')}
+        description={t('noPudimosCargarAlumnoAyuda')}
+        action={{ href: `/docentes/salones/${classroomId}`, label: t('volverAlSalon') }}
       />
     );
   }
@@ -81,15 +82,17 @@ async function Detail({ classroomId, studentId }: { classroomId: string; student
         </h1>
         <p className="mt-1 text-sm text-ink-500">
           {data.assessmentsTaken === 0
-            ? 'Todavía no ha entregado ninguna evaluación.'
-            : `${data.assessmentsTaken} ${data.assessmentsTaken === 1 ? 'evaluación entregada' : 'evaluaciones entregadas'}`}
+            ? t('sinEntregasAun')
+            : data.assessmentsTaken === 1
+              ? t('unaEntregada', { cuantas: data.assessmentsTaken })
+              : t('variasEntregadas', { cuantas: data.assessmentsTaken })}
         </p>
       </section>
 
       {data.assessmentsTaken === 0 ? (
         <EmptyState
-          title="Sin resultados todavía"
-          description="Cuando entregue su primera evaluación verás aquí sus notas y su evolución. Mientras tanto, en la lista del salón puedes ver si ha activado su kit y si está avanzando en las lecciones."
+          title={t('sinResultadosAlumno')}
+          description={t('sinResultadosAlumnoAyuda')}
         />
       ) : (
         <>
@@ -98,7 +101,7 @@ async function Detail({ classroomId, studentId }: { classroomId: string; student
             className="grid gap-[var(--portal-gap)] sm:grid-cols-2 lg:grid-cols-4"
           >
             <h2 id="notas" className="sr-only">
-              Sus notas
+              {t('susNotas')}
             </h2>
 
             {/*
@@ -109,15 +112,15 @@ async function Detail({ classroomId, studentId }: { classroomId: string; student
             */}
             <DonutChart
               value={data.averageGlexco}
-              label="Media GLEXCO"
-              caption="Las evaluaciones del kit"
+              label={t('mediaGlexco')}
+              caption={t('lasDelKit')}
               tone={glexco.tone}
               toneLabel={glexco.label}
             />
             <DonutChart
               value={data.averageInstitution}
-              label="Media de tus evaluaciones"
-              caption="Las que preparaste tú"
+              label={t('mediaDeTusEvaluaciones')}
+              caption={t('lasQuePreparasteTu')}
               tone={institution.tone}
               toneLabel={institution.label}
             />
@@ -127,7 +130,7 @@ async function Detail({ classroomId, studentId }: { classroomId: string; student
               empieza en 40 y llega a 60 aprendió más que uno que se quedó en 80.
             */}
             <StatTile
-              label="Cuánto ha mejorado"
+              label={t('cuantoHaMejorado')}
               value={
                 data.averageGain === null
                   ? null
@@ -135,28 +138,28 @@ async function Detail({ classroomId, studentId }: { classroomId: string; student
                     ? `+${data.averageGain}`
                     : data.averageGain
               }
-              unit="pts"
+              unit={t('unidadPuntos')}
               tone={data.averageGain !== null && data.averageGain > 0 ? 'good' : 'neutral'}
               toneLabel={
-                data.averageGain !== null && data.averageGain > 0 ? 'Va mejorando' : undefined
+                data.averageGain !== null && data.averageGain > 0 ? t('vaMejorando') : undefined
               }
-              hint="Desde su primer intento"
+              hint={t('desdeSuPrimerIntento')}
             />
             <StatTile
-              label="Aprobadas"
+              label={t('aprobadas')}
               value={data.passRate}
               unit="%"
-              hint={`${data.assessmentsTaken} en total`}
+              hint={t('enTotal', { cuantas: data.assessmentsTaken })}
             />
           </section>
 
           <section aria-labelledby="evolucion">
-            <SectionTitle id="evolucion">Su evolución</SectionTitle>
+            <SectionTitle id="evolucion">{t('suEvolucion')}</SectionTitle>
             <TimelineChart
-              title="Resultados en orden"
+              title={t('resultadosEnOrden')}
               passingScore={60}
               points={data.timeline.map((entry) => ({
-                label: `${entry.origin === 'glexco' ? 'GLEXCO' : 'Tuya'} · ${shortDate(format, entry.gradedAt)}`,
+                label: `${entry.origin === 'glexco' ? 'GLEXCO' : t('tuya')} · ${shortDate(format, entry.gradedAt)}`,
                 value: Math.round(entry.percentage),
                 passed: entry.passed,
               }))}

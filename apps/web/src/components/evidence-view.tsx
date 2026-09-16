@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { openEvidence } from '../lib/evidence';
 
 /**
@@ -14,14 +15,12 @@ import { openEvidence } from '../lib/evidence';
  * error, y lo que hay al otro lado es la foto de un menor.
  */
 export async function EvidenceView({ mediaAssetId }: { mediaAssetId: string }) {
+  const t = await getTranslations('docente');
   const evidence = await openEvidence(mediaAssetId);
 
   if (!evidence) {
     return (
-      <p className="text-sm text-ink-500">
-        Entregó un archivo, pero no pudimos abrirlo ahora mismo. Vuelve a cargar la página en un
-        momento.
-      </p>
+      <p className="text-sm text-ink-500">{t('noPudimosAbrirEvidencia')}</p>
     );
   }
 
@@ -34,7 +33,7 @@ export async function EvidenceView({ mediaAssetId }: { mediaAssetId: string }) {
             pantallas y esconda el campo de puntuación. */}
         <img
           src={evidence.url}
-          alt={`Entrega del alumno: ${evidence.title}`}
+          alt={t('entregaDelAlumno', { titulo: evidence.title })}
           className="max-h-96 w-auto rounded-lg border border-line-200 object-contain"
         />
         <figcaption>
@@ -44,8 +43,8 @@ export async function EvidenceView({ mediaAssetId }: { mediaAssetId: string }) {
             rel="noreferrer noopener"
             className="text-sm font-medium text-brand-600 hover:underline"
           >
-            Ver a tamaño completo
-            <span className="sr-only"> (se abre en otra pestaña)</span>
+            {t('verATamanoCompleto')}
+            <span className="sr-only">{t('seAbreEnOtraPestana')}</span>
           </a>
         </figcaption>
       </figure>
@@ -63,7 +62,7 @@ export async function EvidenceView({ mediaAssetId }: { mediaAssetId: string }) {
       >
         {/* Sin soporte de vídeo queda el enlace, que es lo único que se puede
             ofrecer y es mejor que un hueco negro. */}
-        <a href={evidence.url}>Descargar el vídeo que entregó</a>
+        <a href={evidence.url}>{t('descargarElVideo')}</a>
       </video>
     );
   }
@@ -76,8 +75,8 @@ export async function EvidenceView({ mediaAssetId }: { mediaAssetId: string }) {
       data-evidence={evidence.kind}
       className="btn btn-secondary"
     >
-      {evidence.kind === 'link' ? 'Abrir el enlace que entregó' : 'Abrir el archivo que entregó'}
-      <span className="sr-only"> (se abre en otra pestaña)</span>
+      {evidence.kind === 'link' ? t('abrirElEnlace') : t('abrirElArchivo')}
+      <span className="sr-only">{t('seAbreEnOtraPestana')}</span>
       <span aria-hidden="true">&#8599;</span>
     </a>
   );

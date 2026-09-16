@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { verifyCertificate } from '../../../lib/certificates';
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default async function VerificarCertificado({
   params: Promise<{ serial: string }>;
 }) {
   const { serial } = await params;
+  const t = await getTranslations('certificado');
   const result = await verifyCertificate(serial);
 
   return (
@@ -43,68 +45,50 @@ export default async function VerificarCertificado({
       />
 
       {result === null ? (
-        <Card tone="neutral" title="No pudimos comprobarlo ahora mismo">
-          <p className="text-sm text-ink-500">
-            Vuelve a intentarlo en unos minutos. Que no podamos comprobarlo ahora no significa que
-            el certificado no sea válido.
-          </p>
+        <Card tone="neutral" title={t('noPudimosComprobarlo')}>
+          <p className="text-sm text-ink-500">{t('noPudimosComprobarloAyuda')}</p>
         </Card>
       ) : result.valid && result.certificate ? (
-        <Card tone="good" title="Certificado auténtico">
+        <Card tone="good" title={t('certificadoAutentico')}>
           <dl className="grid gap-3 text-sm">
-            <Field label="Otorgado a" value={result.certificate.studentName} />
-            <Field label="Por completar" value={result.certificate.courseTitle} />
+            <Field label={t('otorgadoA')} value={result.certificate.studentName} />
+            <Field label={t('porCompletar')} value={result.certificate.courseTitle} />
             {result.certificate.institutionName ? (
-              <Field label="En" value={result.certificate.institutionName} />
+              <Field label={t('en')} value={result.certificate.institutionName} />
             ) : null}
-            <Field label="Fecha de emisión" value={formatDate(result.certificate.issuedAt)} />
-            <Field label="Serie" value={result.certificate.serial} mono />
+            <Field label={t('fechaDeEmision')} value={formatDate(result.certificate.issuedAt)} />
+            <Field label={t('serie')} value={result.certificate.serial} mono />
           </dl>
 
           {/* Se explica QUÉ se ha comprobado. "Válido" a secas no dice si alguien
               miró una base de datos o verificó una firma, y son cosas muy
               distintas para quien tiene que fiarse. */}
           <p className="mt-5 border-t border-line-200 pt-4 text-xs leading-relaxed text-ink-500">
-            Hemos comprobado la firma digital del documento, no solo que exista en nuestros
-            registros: si alguien hubiera cambiado un nombre o una fecha, esta página lo diría.
-            Firmado con la clave <span className="font-mono">{result.certificate.keyFingerprint}</span>,
-            que puedes descargar para comprobarlo por tu cuenta.
+            {t('queSeHaComprobado', { huella: result.certificate.keyFingerprint })}
           </p>
         </Card>
       ) : result.reason === 'revoked' && result.certificate ? (
-        <Card tone="warn" title="Este certificado fue anulado">
-          <p className="text-sm text-ink-500">
-            Existió y lo emitimos nosotros, pero el colegio lo anuló después. Si necesitas saber por
-            qué, pregúntale a quien te lo entregó.
-          </p>
+        <Card tone="warn" title={t('fueAnulado')}>
+          <p className="text-sm text-ink-500">{t('fueAnuladoAyuda')}</p>
           <dl className="mt-4 grid gap-3 text-sm">
-            <Field label="Otorgado a" value={result.certificate.studentName} />
-            <Field label="Por completar" value={result.certificate.courseTitle} />
-            <Field label="Serie" value={result.certificate.serial} mono />
+            <Field label={t('otorgadoA')} value={result.certificate.studentName} />
+            <Field label={t('porCompletar')} value={result.certificate.courseTitle} />
+            <Field label={t('serie')} value={result.certificate.serial} mono />
           </dl>
         </Card>
       ) : result.reason === 'tampered' ? (
         // Se distingue de "no existe" y NO se dice qué cambió: decirlo sería
         // enseñarle al falsificador exactamente qué le falta por ajustar.
-        <Card tone="bad" title="Este documento ha sido alterado">
-          <p className="text-sm text-ink-500">
-            La serie existe en nuestros registros, pero los datos no coinciden con lo que firmamos.
-            No lo aceptes.
-          </p>
+        <Card tone="bad" title={t('haSidoAlterado')}>
+          <p className="text-sm text-ink-500">{t('haSidoAlteradoAyuda')}</p>
         </Card>
       ) : (
-        <Card tone="bad" title="No encontramos este certificado">
-          <p className="text-sm text-ink-500">
-            No hemos emitido ningún certificado con la serie{' '}
-            <span className="font-mono">{serial}</span>. Comprueba que la hayas copiado bien: se
-            escribe en cuatro bloques separados por guiones.
-          </p>
+        <Card tone="bad" title={t('noLoEncontramos')}>
+          <p className="text-sm text-ink-500">{t('noLoEncontramosAyuda', { serie: serial })}</p>
         </Card>
       )}
 
-      <p className="mt-6 text-center text-xs text-ink-400">
-        GLEXCO · Robótica educativa
-      </p>
+      <p className="mt-6 text-center text-xs text-ink-400">{t('pieDeMarca')}</p>
     </main>
   );
 }
