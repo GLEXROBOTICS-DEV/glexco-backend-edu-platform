@@ -100,14 +100,14 @@ export function Tour({ steps, label }: { steps: TourStep[]; label?: string }) {
   const place = placement(box);
 
   const overlay = (
-    <div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true" aria-label="Visita guiada">
+    <div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true" aria-label={t('visitaGuiada')}>
       {/* Un SOLO velo, con el hueco recortado por el `box-shadow` del recuadro.
           Antes habia tambien un `<div>` oscuro a pantalla completa debajo, asi
           que todo salia al doble de oscuro y el elemento resaltado tampoco se
           libraba: se veia tan apagado como el resto. */}
       <button
         type="button"
-        aria-label="Cerrar la visita guiada"
+        aria-label={t('cerrarLaVisita')}
         onClick={() => setOpen(false)}
         className={`absolute inset-0 h-full w-full cursor-default ${box ? '' : 'bg-ink-900/70'}`}
       />
@@ -144,17 +144,15 @@ export function Tour({ steps, label }: { steps: TourStep[]; label?: string }) {
         {step ? (
           <>
             <p className="eyebrow mb-2">
-              Paso {index + 1} de {visible.length}
+              {t('pasoDeTantos', { actual: index + 1, total: visible.length })}
             </p>
             <h2 className="font-display text-lg font-semibold">{step.title}</h2>
             <p className="mt-2 text-sm text-ink-500">{step.body}</p>
           </>
         ) : (
           <>
-            <h2 className="font-display text-lg font-semibold">Nada que enseñar aquí</h2>
-            <p className="mt-2 text-sm text-ink-500">
-              Vuelve a abrirlo desde tu portada y te enseño las partes principales.
-            </p>
+            <h2 className="font-display text-lg font-semibold">{t('nadaQueEnsenar')}</h2>
+            <p className="mt-2 text-sm text-ink-500">{t('nadaQueEnsenarAyuda')}</p>
           </>
         )}
 

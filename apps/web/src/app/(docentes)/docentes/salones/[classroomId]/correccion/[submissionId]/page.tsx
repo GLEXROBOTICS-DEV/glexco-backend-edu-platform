@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getFormatter } from 'next-intl/server';
+import { getFormatter, getTranslations } from 'next-intl/server';
 import { requireSession } from '../../../../../../../lib/session';
 import {
   fetchRoster,
@@ -20,6 +20,7 @@ export default async function GradeSubmissionPage({
 }) {
   await requireSession();
   const { classroomId, submissionId } = await params;
+  const t = await getTranslations('docente');
 
   const [submission, roster] = await Promise.all([
     fetchSubmissionForGrading(submissionId),
@@ -29,9 +30,12 @@ export default async function GradeSubmissionPage({
   if (submission.failed || !submission.data) {
     return (
       <EmptyState
-        title="No pudimos abrir esta entrega"
-        description="Puede que no pertenezca a uno de tus salones."
-        action={{ href: `/docentes/salones/${classroomId}/correccion`, label: 'Volver a la bandeja' }}
+        title={t('noPudimosAbrirEntrega')}
+        description={t('noPudimosAbrirEntregaAyuda')}
+        action={{
+          href: `/docentes/salones/${classroomId}/correccion`,
+          label: t('volverALaBandeja'),
+        }}
       />
     );
   }

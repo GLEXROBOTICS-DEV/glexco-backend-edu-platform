@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { CardSkeleton } from '../../../../components/ui';
 import { ClassroomWall } from '../../../../components/wall';
@@ -15,17 +16,16 @@ export const metadata: Metadata = { title: 'El muro' };
  * primero obliga a bajar por los anuncios de todo el trimestre cada vez que hay
  * que avisar de algo.
  */
-export default function AnunciosPage() {
+export default async function AnunciosPage() {
+  const t = await getTranslations('docente');
+
   return (
     <>
       <div>
         <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="font-semibold">
-          El muro de tus salones
+          {t('elMuroDeTusSalones')}
         </h1>
-        <p className="mt-1 text-sm text-ink-500">
-          Tus avisos y las preguntas de tus alumnos, en el mismo sitio. Responder aquí lo ve
-          toda la clase, que es de lo que se trata: la duda de uno le sirve al resto.
-        </p>
+        <p className="mt-1 text-sm text-ink-500">{t('elMuroDeTusSalonesAyuda')}</p>
       </div>
 
       <Suspense fallback={<CardSkeleton />}>

@@ -28,6 +28,7 @@ export function AssessmentCreateForm({
   kits: KitOption[];
   classrooms: { classroomId: string; name: string; grade: string }[];
 }) {
+  const t = useTranslations('docente');
   const vocab = useTranslations();
   const [state, formAction] = useActionState<CreateState, FormData>(createAssessment, {});
 
@@ -47,20 +48,20 @@ export function AssessmentCreateForm({
       ) : null}
 
       <label className="grid gap-1.5">
-        <span className="text-sm font-medium text-ink-700">Título</span>
+        <span className="text-sm font-medium text-ink-700">{t('titulo')}</span>
         <input
           type="text"
           name="title"
           required
           minLength={3}
           maxLength={200}
-          placeholder="Repaso de sensores"
+          placeholder={t('ejemploTituloEvaluacion')}
           className="field"
         />
       </label>
 
       <label className="grid gap-1.5">
-        <span className="text-sm font-medium text-ink-700">Kit</span>
+        <span className="text-sm font-medium text-ink-700">{t('kit')}</span>
         {kits.length > 0 ? (
           <select
             name="kitId"
@@ -75,14 +76,13 @@ export function AssessmentCreateForm({
           </select>
         ) : (
           <p className="rounded-lg border border-line-200 bg-surface-100 px-4 py-3 text-sm text-ink-700">
-            No hay kits publicados para tus grados. Habla con GLEXCO: una
-            evaluación cuelga siempre de un kit.
+            {t('sinKitsPublicadosAqui')}
           </p>
         )}
       </label>
 
       <fieldset className="grid gap-2">
-        <legend className="mb-1 text-sm font-medium text-ink-700">Tipo</legend>
+        <legend className="mb-1 text-sm font-medium text-ink-700">{t('tipo')}</legend>
         {KINDS.map((kind, index) => (
           <label
             key={kind}
@@ -109,7 +109,7 @@ export function AssessmentCreateForm({
 
       <label className="grid gap-1.5">
         <span className="text-sm font-medium text-ink-700">
-          Salón <span className="text-ink-400">(opcional)</span>
+          {t('salon')} <span className="text-ink-400">({t('opcional').toLowerCase()})</span>
         </span>
         <select
           name="classroomId"
@@ -118,7 +118,7 @@ export function AssessmentCreateForm({
           {/* Vacío por defecto: quien da el mismo grado en dos aulas quiere una
               sola evaluación para las dos, y limitarla a un salón es la
               excepción, no la norma. */}
-          <option value="">Todos mis salones</option>
+          <option value="">{t('todosMisSalones')}</option>
           {classrooms.map((classroom) => (
             <option key={classroom.classroomId} value={classroom.classroomId}>
               {classroom.name}
@@ -129,7 +129,7 @@ export function AssessmentCreateForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Se aprueba con</span>
+          <span className="text-sm font-medium text-ink-700">{t('seApruebaCon')}</span>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -145,19 +145,18 @@ export function AssessmentCreateForm({
 
         <label className="grid gap-1.5">
           <span className="text-sm font-medium text-ink-700">
-            Minutos por intento <span className="text-ink-400">(opcional)</span>
+            {t('minutosPorIntento')}{' '}
+            <span className="text-ink-400">({t('opcional').toLowerCase()})</span>
           </span>
           <input
             type="number"
             name="timeLimitMinutes"
             min={1}
             max={480}
-            placeholder="Sin límite"
+            placeholder={t('sinLimite')}
             className="field"
           />
-          <span className="text-xs text-ink-500">
-            El alumno ve un cronómetro y se entrega solo al acabarse.
-          </span>
+          <span className="text-xs text-ink-500">{t('cronometroAyuda')}</span>
         </label>
 
         {/*
@@ -167,12 +166,11 @@ export function AssessmentCreateForm({
         */}
         <label className="grid gap-1.5">
           <span className="text-sm font-medium text-ink-700">
-            Cierra el <span className="text-ink-400">(opcional)</span>
+            {t('cierraEl')}{' '}
+            <span className="text-ink-400">({t('opcional').toLowerCase()})</span>
           </span>
           <input type="datetime-local" name="dueAt" className="field" />
-          <span className="text-xs text-ink-500">
-            Después de esa fecha nadie puede empezar. Quien ya la tenía abierta la termina.
-          </span>
+          <span className="text-xs text-ink-500">{t('cierraElAyuda')}</span>
         </label>
       </div>
 
@@ -197,10 +195,13 @@ export function AssessmentCreateForm({
  * maximo menor que el minimo.
  */
 function GroupWorkFields() {
+  const t = useTranslations('docente');
+
   return (
     <details className="rounded-lg border border-line-200 bg-surface-50 px-4 py-3">
       <summary className="cursor-pointer text-sm font-medium text-ink-700">
-        Trabajo en grupo <span className="font-normal text-ink-500">(opcional)</span>
+        {t('trabajoEnGrupo')}{' '}
+        <span className="font-normal text-ink-500">({t('opcional').toLowerCase()})</span>
       </summary>
 
       <label className="mt-3 flex items-start gap-2.5 text-sm text-ink-700">
@@ -211,18 +212,14 @@ function GroupWorkFields() {
           className="mt-0.5 size-4 shrink-0 rounded border-line-300 text-brand-600"
         />
         <span>
-          <span className="font-medium text-ink-900">Se hace en grupo</span>
-          <span className="block text-xs text-ink-500">
-            El alumno elige a sus compañeros al empezar, y la nota es la misma para
-            todos. Quien ya empezó con un grupo deja de aparecer en la lista de los
-            demás.
-          </span>
+          <span className="font-medium text-ink-900">{t('seHaceEnGrupo')}</span>
+          <span className="block text-xs text-ink-500">{t('seHaceEnGrupoAyuda')}</span>
         </span>
       </label>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Mínimo de integrantes</span>
+          <span className="text-sm font-medium text-ink-700">{t('minimoIntegrantes')}</span>
           <input
             type="number"
             name="groupMinSize"
@@ -234,7 +231,7 @@ function GroupWorkFields() {
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Máximo de integrantes</span>
+          <span className="text-sm font-medium text-ink-700">{t('maximoIntegrantes')}</span>
           <input
             type="number"
             name="groupMaxSize"
@@ -246,16 +243,13 @@ function GroupWorkFields() {
         </label>
       </div>
 
-      <p className="mt-2 text-xs text-ink-500">
-        Se cuenta al alumno que forma el grupo. Un rango —y no un número fijo—
-        porque una clase rara vez se divide exacta: con 23 alumnos y grupos de 4,
-        tres se quedarían sin poder entregar.
-      </p>
+      <p className="mt-2 text-xs text-ink-500">{t('porQueUnRango')}</p>
     </details>
   );
 }
 
 function SubmitButton({ disabled }: { disabled: boolean }) {
+  const t = useTranslations('docente');
   const { pending } = useFormStatus();
 
   return (
@@ -265,9 +259,9 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
         disabled={pending || disabled}
         className="btn btn-primary"
       >
-        {pending ? 'Creando…' : 'Crear y añadir preguntas'}
+        {pending ? t('creando') : t('crearYAnadirPreguntas')}
       </button>
-      <p className="text-sm text-ink-500">Nace en borrador: nadie la ve hasta que la publiques.</p>
+      <p className="text-sm text-ink-500">{t('naceEnBorrador')}</p>
     </div>
   );
 }

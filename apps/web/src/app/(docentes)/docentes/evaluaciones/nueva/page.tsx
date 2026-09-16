@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { requireSession } from '../../../../../lib/session';
 import { fetchMyClassrooms } from '../../../../../lib/classrooms';
 import { fetchKitOptions } from '../../../../../lib/teacher-assessments';
@@ -7,6 +8,7 @@ import { AssessmentCreateForm } from '../../../../../components/assessment-creat
 export const metadata: Metadata = { title: 'Nueva evaluación' };
 
 export default async function NewAssessmentPage() {
+  const t = await getTranslations('docente');
   await requireSession();
 
   const { items: classrooms } = await fetchMyClassrooms();
@@ -32,10 +34,10 @@ export default async function NewAssessmentPage() {
           href="/docentes/evaluaciones"
           className="text-sm font-medium text-brand-600 hover:underline"
         >
-          ← Evaluaciones
+          ← {t('navEvaluaciones')}
         </a>
         <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="mt-1 font-semibold">
-          Crear una evaluación
+          {t('crearUnaEvaluacion')}
         </h1>
       </section>
 

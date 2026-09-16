@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { requireSession } from '../../../../../lib/session';
 import { fetchInstitutionTeachers } from '../../../../../lib/classrooms';
 import { PageHeader } from '../../../../../components/page-header';
@@ -18,13 +19,14 @@ export default async function NuevoSalon() {
 
   // Devuelve vacío para un docente -403, que aquí es lo normal- y la lista real
   // para la dirección. El formulario se adapta solo.
+  const t = await getTranslations('docente');
   const teachers = await fetchInstitutionTeachers();
 
   return (
     <>
       <PageHeader
-        title="Nuevo salón"
-        subtitle="Tus alumnos lo verán al registrarse con el código del colegio."
+        title={t('nuevoSalon')}
+        subtitle={t('nuevoSalonAyuda')}
       />
 
       <ClassroomForm teachers={teachers} />

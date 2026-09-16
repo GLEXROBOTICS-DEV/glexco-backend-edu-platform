@@ -31,6 +31,7 @@ export const metadata: Metadata = { title: 'Panel de GLEXCO' };
  */
 export default async function AdminPage() {
   const session = await requireSession();
+  const t = await getTranslations('admin');
 
   const isPlatform = session.permissions.includes(PERMISSIONS.ANALYTICS_READ_PLATFORM);
   if (!isPlatform) redirect('/docentes/institucion');
@@ -39,11 +40,9 @@ export default async function AdminPage() {
     <>
       <div>
         <h1 style={{ fontSize: 'var(--portal-title-size)' }} className="font-semibold">
-          Panel de GLEXCO
+          {t('panelDeGlexco')}
         </h1>
-        <p className="mt-1 text-sm text-ink-500">
-          Todas las instituciones, y el contenido que peor funciona en todas ellas.
-        </p>
+        <p className="mt-1 text-sm text-ink-500">{t('panelDeGlexcoAyuda')}</p>
       </div>
 
       <Suspense fallback={<CardSkeleton />}>
@@ -126,9 +125,7 @@ async function Plataforma() {
             entera se desplaza de lado. */}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[46rem] text-sm">
-            <caption className="sr-only">
-              Instituciones con actividad, ordenadas por su última actividad
-            </caption>
+            <caption className="sr-only">{t('institucionesOrdenadas')}</caption>
             <thead>
               <tr className="border-b border-line-200 text-left text-ink-500">
                 <th scope="col" className="py-2 pr-4 font-medium">{t('columnaInstitucion')}</th>
@@ -290,10 +287,7 @@ async function KitsDebiles() {
           {/* Se dice POR QUE no se usan, no solo que no se usan. Sin esto, quien
               lo mire concluye que el panel esta a medias en vez de que la
               muestra es corta. */}
-          <p className="mt-3 text-xs text-ink-500">
-            Con menos de 15 alumnos la media de un kit dice más del salón que le tocó que del
-            contenido, así que no se usa para decidir nada.
-          </p>
+          <p className="mt-3 text-xs text-ink-500">{t('muestraMinimaKit')}</p>
         </div>
       ) : null}
     </section>
